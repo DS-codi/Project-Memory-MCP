@@ -236,4 +236,27 @@ mod tests {
         drop(_rx1);
         assert_eq!(handle.subscriber_count(), 1);
     }
+
+    #[test]
+    fn focused_workspace_generated_roundtrip() {
+        let e = DataChangeEvent::FocusedWorkspaceGenerated {
+            workspace_id: "ws1".into(),
+            plan_id:      "p1".into(),
+            file_path:    "/tmp/a.code-workspace".into(),
+        };
+        let json = serde_json::to_string(&e).unwrap();
+        assert!(
+            json.contains("focused_workspace_generated"),
+            "serialised json missing event_type tag: {json}"
+        );
+        let decoded: DataChangeEvent = serde_json::from_str(&json).unwrap();
+        match decoded {
+            DataChangeEvent::FocusedWorkspaceGenerated { workspace_id, plan_id, file_path } => {
+                assert_eq!(workspace_id, "ws1");
+                assert_eq!(plan_id, "p1");
+                assert_eq!(file_path, "/tmp/a.code-workspace");
+            }
+            other => panic!("unexpected variant after round-trip: {other:?}"),
+        }
+    }
 }

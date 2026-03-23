@@ -17,60 +17,18 @@
 
 import * as vscode from 'vscode';
 import { checkHealth } from './ServerHealthUtils';
+import type {
+    WorkspaceContextSyncEntry as WorkspaceConfigSyncEntry,
+    WorkspaceContextSyncEntryPolicy as WorkspaceConfigSyncEntryPolicy,
+    WorkspaceContextSyncReport as WorkspaceConfigSyncReport,
+} from '../deployer/workspace-context-manifest';
 
 export interface ConnectionConfig {
     dashboardPort: number;
     mcpPort: number;
 }
 
-export interface WorkspaceConfigSyncEntryPolicy {
-    sync_managed: boolean;
-    controlled: boolean;
-    import_mode: 'never' | 'manual';
-    canonical_source: 'none' | 'database_seed_resources';
-    canonical_path: string | null;
-    required_workspace_copy: boolean;
-    legacy_mandatory: boolean;
-    cull_reason?: string;
-    validation_errors: string[];
-}
-
-export interface WorkspaceConfigSyncEntry {
-    kind: 'agent' | 'instruction';
-    filename: string;
-    relative_path: string;
-    canonical_name: string;
-    canonical_filename: string;
-    status: 'in_sync' | 'local_only' | 'db_only' | 'content_mismatch' | 'protected_drift' | 'ignored_local' | 'import_candidate';
-    remediation: string;
-    comparison_basis: 'ignored_local' | 'local_only' | 'db_only' | 'local_vs_db' | 'local_db_seed';
-    db_updated_at?: string;
-    local_size_bytes?: number;
-    canonical_seed_path?: string;
-    content_mismatch_hint?: string;
-    policy: WorkspaceConfigSyncEntryPolicy;
-}
-
-export interface WorkspaceConfigSyncReport {
-    workspace_id?: string;
-    workspace_path: string;
-    report_mode: 'read_only';
-    writes_performed: false;
-    github_agents_dir: string;
-    github_instructions_dir: string;
-    agents: WorkspaceConfigSyncEntry[];
-    instructions: WorkspaceConfigSyncEntry[];
-    summary: {
-        total: number;
-        in_sync: number;
-        local_only: number;
-        db_only: number;
-        content_mismatch: number;
-        protected_drift: number;
-        ignored_local: number;
-        import_candidate: number;
-    };
-}
+export type { WorkspaceConfigSyncEntry, WorkspaceConfigSyncEntryPolicy, WorkspaceConfigSyncReport };
 
 export class ConnectionManager implements vscode.Disposable {
     private outputChannel: vscode.OutputChannel;

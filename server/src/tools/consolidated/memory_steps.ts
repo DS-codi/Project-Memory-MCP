@@ -14,7 +14,7 @@ import type {
 import * as planTools from '../plan/index.js';
 import { recordStepChange } from '../stats-hooks.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
-import { preflightValidate } from '../preflight/index.js';
+import { preflightValidate, buildPreflightFailure } from '../preflight/index.js';
 import { updateSessionRegistry } from '../../db/workspace-session-registry-db.js';
 import { serverSessionIdForPrepId } from '../session-live-store.js';
 import { maybeAttachCoordinatorHandoffInstruction } from '../orchestration/approval-gate-routing.js';
@@ -142,7 +142,7 @@ export async function memorySteps(params: MemoryStepsParams): Promise<ToolRespon
   // Preflight validation — catch missing required fields early
   const preflight = preflightValidate('memory_steps', action, params as unknown as Record<string, unknown>);
   if (!preflight.valid) {
-    return { success: false, error: preflight.message, preflight_failure: preflight } as ToolResponse<StepsResult>;
+    return buildPreflightFailure('memory_steps', action, preflight) as ToolResponse<StepsResult>;
   }
 
   switch (action) {

@@ -23,6 +23,7 @@ Rectangle {
 
     property bool   expanded:   false
     property int    currentTab: 0   // 0 = Active, 1 = All Plans
+    property int    mainTab:    0   // 0 = Plans, 1 = Sprints
     property int    expandedPanelWidth: 460
 
     color:        "#161b22"
@@ -315,7 +316,7 @@ Rectangle {
             spacing: 6
 
             Label {
-                text: "PLANS"
+                text: panel.mainTab === 0 ? "PLANS" : "SPRINTS"
                 font.pixelSize: 11; font.bold: true; font.letterSpacing: 1.2
                 color: "#c9d1d9"
             }
@@ -334,7 +335,10 @@ Rectangle {
                 implicitWidth: 26; implicitHeight: 26
                 font.pixelSize: 14
                 ToolTip.visible: hovered; ToolTip.text: "Refresh"
-                onClicked: panel.fetchPlans()
+                onClicked: {
+                    if (panel.mainTab === 0) panel.fetchPlans()
+                    else if (sprintsLoader.item) sprintsLoader.item.fetchSprints()
+                }
             }
             ToolButton {
                 text: "\u25C4"   // ◄ close
@@ -344,6 +348,40 @@ Rectangle {
                 onClicked: panel.expanded = false
             }
         }
+
+        // ── Main Tab bar (Plans / Sprints) ──────────────────────────────────
+        TabBar {
+            id: mainTabBar
+            Layout.fillWidth: true
+            Layout.leftMargin: 10
+            Layout.rightMargin: 10
+            Layout.topMargin: 4
+            currentIndex: panel.mainTab
+            onCurrentIndexChanged: panel.mainTab = currentIndex
+
+            TabButton {
+                text: "Plans"
+                font.pixelSize: 11
+                implicitHeight: 28
+            }
+            TabButton {
+                text: "Sprints"
+                font.pixelSize: 11
+                implicitHeight: 28
+            }
+        }
+
+        // ── Plans / Sprints content switcher ────────────────────────────────
+        StackLayout {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            currentIndex: panel.mainTab
+
+            // ── Plans content (index 0) ─────────────────────────────────────
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                spacing: 0
 
         // ── Toolbar ─────────────────────────────────────────────────────────
         RowLayout {
@@ -802,6 +840,23 @@ Rectangle {
                 Item { Layout.preferredHeight: 4 }
             }
         }
+            } // end Plans content ColumnLayout
+
+            // ── Sprints content (index 1) ───────────────────────────────────
+            Loader {
+                id: sprintsLoader
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                active: panel.mainTab === 1
+                sourceComponent: SprintsPanel {
+                    dashBaseUrl: panel.dashBaseUrl
+                    workspaceId: workspacesModel.count > 0 && workspaceCombo.currentIndex >= 0
+                                 ? workspacesModel.get(workspaceCombo.currentIndex).wsId : ""
+                    expanded: true
+                    expandedPanelWidth: panel.expandedPanelWidth
+                }
+            }
+        } // end StackLayout
 
         Item { Layout.preferredHeight: 8 }
     }

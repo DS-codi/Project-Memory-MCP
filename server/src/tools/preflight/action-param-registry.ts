@@ -9,6 +9,8 @@
  *   action-params-plan.ts   → memory_plan, memory_steps
  *   action-params-agent.ts  → memory_agent, memory_context
  *   action-params-other.ts  → memory_workspace, memory_terminal, memory_filesystem
+ *   action-params-cartography.ts → memory_cartographer
+ *   action-params-session.ts → memory_session, memory_brainstorm, memory_instructions
  */
 
 import type { ParamSpec } from '../../types/preflight.types.js';
@@ -19,6 +21,8 @@ export { PLAN_PARAMS, STEPS_PARAMS } from './action-params-plan.js';
 export { AGENT_PARAMS, CONTEXT_PARAMS } from './action-params-agent.js';
 export { WORKSPACE_PARAMS, TERMINAL_PARAMS, FILESYSTEM_PARAMS } from './action-params-other.js';
 export { CARTOGRAPHER_PARAMS } from './action-params-cartography.js';
+export { SESSION_PARAMS, BRAINSTORM_PARAMS, INSTRUCTIONS_PARAMS } from './action-params-session.js';
+export { SPRINT_PARAMS } from './action-params-sprint.js';
 export type { ActionParamDef } from './action-params-plan.js';
 
 // Import for assembly
@@ -26,6 +30,8 @@ import { PLAN_PARAMS, STEPS_PARAMS } from './action-params-plan.js';
 import { AGENT_PARAMS, CONTEXT_PARAMS } from './action-params-agent.js';
 import { WORKSPACE_PARAMS, TERMINAL_PARAMS, FILESYSTEM_PARAMS } from './action-params-other.js';
 import { CARTOGRAPHER_PARAMS } from './action-params-cartography.js';
+import { SESSION_PARAMS, BRAINSTORM_PARAMS, INSTRUCTIONS_PARAMS } from './action-params-session.js';
+import { SPRINT_PARAMS } from './action-params-sprint.js';
 
 // =============================================================================
 // Unified Registry
@@ -44,6 +50,10 @@ export const ACTION_PARAM_SPECS: Record<string, Record<string, ActionParamDef>> 
   memory_terminal: TERMINAL_PARAMS,
   memory_filesystem: FILESYSTEM_PARAMS,
   memory_cartographer: CARTOGRAPHER_PARAMS,
+  memory_session: SESSION_PARAMS,
+  memory_brainstorm: BRAINSTORM_PARAMS,
+  memory_instructions: INSTRUCTIONS_PARAMS,
+  memory_sprint: SPRINT_PARAMS,
 };
 
 // =============================================================================

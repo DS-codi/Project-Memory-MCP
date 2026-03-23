@@ -1,9 +1,11 @@
 import * as assert from 'assert';
 import {
+    CANONICAL_WORKSPACE_SECTION_KEYS,
     CHAT_SECTION_KEY,
     IMPORTANT_SECTION_KEY,
     buildSessionDigest,
     buildUpdatedSections,
+    getEmptyCanonicalSectionKeys,
     resolveToolNameFromList,
     type TranscriptEntry,
 } from '../../chat/store-chat-details-participant';
@@ -86,5 +88,19 @@ suite('StoreChatDetailsParticipant helpers', () => {
 
         assert.strictEqual(workspaceTool, 'mcp_project-memor_memory_workspace');
         assert.strictEqual(contextTool, 'mcp_project-memor_memory_context');
+    });
+
+    test('getEmptyCanonicalSectionKeys reports missing and blank canonical sections', () => {
+        const emptyKeys = getEmptyCanonicalSectionKeys({
+            project_details: { summary: 'Existing project details' },
+            purpose: { summary: '   ' },
+            resources: { items: [{ title: 'Workspace root' }] },
+        });
+
+        assert.ok(emptyKeys.includes('purpose'));
+        assert.ok(emptyKeys.includes('dependencies'));
+        assert.ok(!emptyKeys.includes('project_details'));
+        assert.ok(!emptyKeys.includes('resources'));
+        assert.ok(CANONICAL_WORKSPACE_SECTION_KEYS.includes('modules'));
     });
 });

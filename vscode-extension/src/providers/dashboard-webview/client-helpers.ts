@@ -664,7 +664,7 @@ export function getClientHelpers(): string {
         }
 
         function getAvailabilityState(key, context) {
-            // 'Program-level session-control is not available yet.'
+            // 'Program handoff is not available yet.'
             if (!context.connected) {
                 return {
                     enabled: false,
@@ -752,13 +752,13 @@ export function getClientHelpers(): string {
                 if (context.targetType === 'program') {
                     return {
                         enabled: false,
-                        tooltip: 'Program-level session-control is not available yet.',
+                        tooltip: 'Program handoff is not available yet.',
                     };
                 }
                 if (context.targetType === 'archived') {
                     return {
                         enabled: false,
-                        tooltip: 'Archived plans do not support session controls.',
+                        tooltip: 'Archived plans cannot be handed off.',
                     };
                 }
                 return { enabled: true };
@@ -980,41 +980,10 @@ export function getClientHelpers(): string {
             }).join('');
         }
 
-        function updateOperationsSurface(data) {
-            const terminalElement = document.getElementById('operationsTerminalSurface');
-            const integrityElement = document.getElementById('operationsIntegrity');
-            const integrityMetaElement = document.getElementById('operationsIntegrityMeta');
-
-            const snapshot = data || latestHealthSnapshot || {};
-            const healthStatus = typeof snapshot.status === 'string'
-                ? snapshot.status
-                : (snapshot.ok === true ? 'ok' : (snapshot.ok === false ? 'degraded' : 'unknown'));
-            const staleCount = typeof snapshot.stale_count === 'number'
-                ? snapshot.stale_count
-                : (Array.isArray(snapshot.stale_processes) ? snapshot.stale_processes.length : 0);
-
-            if (terminalElement) {
-                if (snapshot.adapter_mode) {
-                    terminalElement.textContent = String(snapshot.adapter_mode);
-                } else if (snapshot.ok === false) {
-                    terminalElement.textContent = 'Degraded';
-                } else {
-                    terminalElement.textContent = 'Headless/Interactive';
-                }
-            }
-
-            if (integrityElement) {
-                integrityElement.textContent = healthStatus;
-                integrityElement.classList.toggle('ops-status-ok', healthStatus === 'ok' && staleCount === 0);
-                integrityElement.classList.toggle('ops-status-warn', staleCount > 0 && healthStatus !== 'degraded');
-                integrityElement.classList.toggle('ops-status-bad', healthStatus === 'degraded' || healthStatus === 'error');
-            }
-
-            if (integrityMetaElement) {
-                integrityMetaElement.textContent = staleCount > 0
-                    ? staleCount + ' stale process(es) detected.'
-                    : 'No stale processes reported.';
-            }
+        function updateOperationsSurface(_data) {
+            // Supported dashboard surfaces are described statically in the shell.
+            // The archived session/integrity cards were removed, so no DOM mutation
+            // is required here beyond keeping the call site intact.
         }
 
         function updatePlanIntelligencePanel() {

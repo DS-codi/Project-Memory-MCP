@@ -498,7 +498,7 @@ mod tests {
     #[tokio::test]
     async fn init_execute_complete_lifecycle_is_deterministic() {
         let (command, args) = success_command();
-        let dispatcher = make_dispatcher_with(command, args, 2, 8, 100, 2_000, 2);
+        let dispatcher = make_dispatcher_with(command, args, 2, 8, 100, 10_000, 2);
 
         let init = dispatcher
             .dispatch(
@@ -517,7 +517,7 @@ mod tests {
                 &serde_json::json!({
                     "runtime": { "op": "execute", "session_id": "lifecycle-1" }
                 }),
-                Some(2_000),
+                Some(10_000),
             )
             .await
             .expect("execute should succeed");

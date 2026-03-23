@@ -862,7 +862,19 @@ export function registerDeployCommands(
             }
 
             const workspacePath = workspaceFolders[0].uri.fsPath;
-            const report = defaultDeployer.healthCheck(workspacePath);
+            let syncReport: WorkspaceConfigSyncReport | undefined;
+            if (connectionManager.isMcpConnected) {
+                const workspaceId = await resolveActiveWorkspaceId(connectionManager);
+                if (workspaceId) {
+                    try {
+                        syncReport = await connectionManager.checkWorkspaceConfigSync(workspaceId);
+                    } catch (error) {
+                        vscode.window.showWarningMessage(`Manifest cleanup will preserve local files because the sync report could not be fetched: ${error}`);
+                    }
+                }
+            }
+
+            const report = defaultDeployer.healthCheck(workspacePath, syncReport);
 
             if (report.healthy) {
                 notify('Workspace is fully compliant with the context manifest');
@@ -874,11 +886,17 @@ export function registerDeployCommands(
             if (report.missingMandatory.length > 0) {
                 parts.push(`${report.missingMandatory.length} mandatory file(s) missing`);
             }
+            if (report.redeployTargets.length > 0) {
+                parts.push(`${report.redeployTargets.length} mandatory file(s) to redeploy`);
+            }
             if (report.cullTargets.length > 0) {
-                parts.push(`${report.cullTargets.length} DB-only file(s) to cull`);
+                parts.push(`${report.cullTargets.length} server-backed file(s) to cull`);
             }
             if (report.workspaceSpecific.length > 0) {
                 parts.push(`${report.workspaceSpecific.length} workspace-specific file(s) preserved`);
+            }
+            if (!report.syncBacked) {
+                parts.push('no sync report available; local files will be preserved');
             }
 
             const confirm = await vscode.window.showQuickPick(['Yes', 'No'], {
@@ -887,7 +905,7 @@ export function registerDeployCommands(
             });
             if (confirm !== 'Yes') return;
 
-            const result = await defaultDeployer.enforceManifest(workspacePath);
+            const result = await defaultDeployer.enforceManifest(workspacePath, syncReport);
 
             const summary: string[] = [];
             if (result.deployed.length > 0) {
@@ -910,7 +928,19 @@ export function registerDeployCommands(
             }
 
             const workspacePath = workspaceFolders[0].uri.fsPath;
-            const report = defaultDeployer.healthCheck(workspacePath);
+            let syncReport: WorkspaceConfigSyncReport | undefined;
+            if (connectionManager.isMcpConnected) {
+                const workspaceId = await resolveActiveWorkspaceId(connectionManager);
+                if (workspaceId) {
+                    try {
+                        syncReport = await connectionManager.checkWorkspaceConfigSync(workspaceId);
+                    } catch {
+                        // Preserve local-only health-check behavior when the sync report is unavailable.
+                    }
+                }
+            }
+
+            const report = defaultDeployer.healthCheck(workspacePath, syncReport);
 
             if (!syncReportChannel) {
                 syncReportChannel = vscode.window.createOutputChannel('Project Memory Workspace Sync');
@@ -919,6 +949,7 @@ export function registerDeployCommands(
             syncReportChannel.appendLine('=== Context Manifest Health Check ===');
             syncReportChannel.appendLine(`Workspace: ${workspacePath}`);
             syncReportChannel.appendLine(`Status: ${report.healthy ? 'HEALTHY' : 'ACTION REQUIRED'}`);
+            syncReportChannel.appendLine(`Sync evidence: ${report.syncBacked ? 'server-backed' : 'local-only preservation mode'}`);
             syncReportChannel.appendLine('');
 
             if (report.missingMandatory.length > 0) {
@@ -933,6 +964,14 @@ export function registerDeployCommands(
                 syncReportChannel.appendLine(`--- CULL TARGETS (${report.cullTargets.length}) ---`);
                 for (const c of report.cullTargets) {
                     syncReportChannel.appendLine(`  [${c.kind}] ${c.name}  →  ${c.path}`);
+                }
+                syncReportChannel.appendLine('');
+            }
+
+            if (report.redeployTargets.length > 0) {
+                syncReportChannel.appendLine(`--- REDEPLOY TARGETS (${report.redeployTargets.length}) ---`);
+                for (const target of report.redeployTargets) {
+                    syncReportChannel.appendLine(`  [${target.kind}] ${target.name}  →  ${target.relativePath}`);
                 }
                 syncReportChannel.appendLine('');
             }

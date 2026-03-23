@@ -87,8 +87,12 @@ describe('workspace context auto-seeding', () => {
     expect(ctx.sections.project_details).toBeDefined();
     expect(ctx.sections.project_details.summary).toContain('TypeScript');
     expect(ctx.sections.project_details.summary).toContain('React');
+    expect(ctx.sections.purpose).toBeDefined();
     expect(ctx.sections.dependencies).toBeDefined();
-    expect(ctx.sections.dependencies.items).toHaveLength(2); // React, Express
+    expect(ctx.sections.modules).toBeDefined();
+    expect(ctx.sections.test_confirmations).toBeDefined();
+    expect(ctx.sections.dev_patterns).toBeDefined();
+    expect(ctx.sections.resources).toBeDefined();
   });
 
   it('includes build system and test framework in project_details items', async () => {
@@ -104,6 +108,9 @@ describe('workspace context auto-seeding', () => {
     expect(titles).toContain('Build: npm');
     expect(titles).toContain('Tests: vitest');
     expect(titles).toContain('Package Manager: npm');
+
+    expect(ctx.sections.dependencies.items?.some(i => i.title === 'npm')).toBe(true);
+    expect(ctx.sections.test_confirmations.summary).toContain('vitest');
   });
 
   it('does not overwrite existing context', async () => {
@@ -165,7 +172,8 @@ describe('workspace context auto-seeding', () => {
 
     const [, context] = vi.mocked(store.saveWorkspaceContextToDb).mock.calls[0];
     const ctx = context as WorkspaceContext;
-    expect(ctx.sections.dependencies).toBeUndefined();
+    expect(ctx.sections.dependencies).toBeDefined();
+    expect(ctx.sections.dependencies.summary).toContain('detected');
   });
 
   it('seeds with minimal profile (no build_system, test_framework, or package_manager)', async () => {
@@ -188,7 +196,7 @@ describe('workspace context auto-seeding', () => {
     const items = ctx.sections.project_details.items!;
     expect(items).toHaveLength(1);
     expect(items[0].title).toBe('Python');
-    expect(ctx.sections.dependencies).toBeUndefined();
+    expect(ctx.sections.dependencies.summary).toContain('No frameworks');
   });
 
   it('seeds with empty languages array (no languages detected)', async () => {
@@ -212,7 +220,7 @@ describe('workspace context auto-seeding', () => {
     expect(ctx.sections.project_details.items).toHaveLength(0);
     // Dependencies section should exist with Docker
     expect(ctx.sections.dependencies).toBeDefined();
-    expect(ctx.sections.dependencies.items).toHaveLength(1);
+    expect(ctx.sections.dependencies.items?.some(item => item.title === 'Docker')).toBe(true);
   });
 
   it('seeds with completely empty profile (no languages, no frameworks)', async () => {
@@ -232,6 +240,7 @@ describe('workspace context auto-seeding', () => {
     const ctx = context as WorkspaceContext;
     expect(ctx.sections.project_details.summary).toContain('no specific stack detected');
     expect(ctx.sections.project_details.items).toHaveLength(0);
-    expect(ctx.sections.dependencies).toBeUndefined();
+    expect(ctx.sections.dependencies).toBeDefined();
+    expect(ctx.sections.modules).toBeDefined();
   });
 });

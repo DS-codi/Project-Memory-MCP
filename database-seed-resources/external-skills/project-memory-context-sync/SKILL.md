@@ -1,6 +1,6 @@
 ---
 name: project-memory-context-sync
-description: Use this skill when adding, editing, or updating any Project Memory configuration files in this workspace — instruction files (.instructions.md), agent definitions (.agent.md), or skill files (SKILL.md). Ensures all three storage locations stay in sync. USE FOR: creating new instruction files, adding new agent definitions, adding new skills, updating existing files that were previously seeded into the DB.
+description: Use this skill when adding, editing, or updating any Project Memory configuration files in this workspace — instruction files (.instructions.md), agent definitions (.agent.md), or skill files (SKILL.md). Ensures all three storage locations stay in sync. USE FOR; creating new instruction files, adding new agent definitions, adding new skills, updating existing files that were previously seeded into the DB.
 ---
 
 # Project Memory Context Sync

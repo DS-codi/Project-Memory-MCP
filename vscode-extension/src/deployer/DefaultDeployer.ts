@@ -4,13 +4,15 @@ import * as path from 'path';
 import {
     MANDATORY_AGENTS,
     MANDATORY_INSTRUCTIONS,
-    SKILLS_ARE_DB_ONLY,
     ManifestHealthReport,
+    type ManifestCullTarget,
+    type ManifestRedeployTarget,
+    type WorkspaceContextSyncReport,
     isMandatoryAgent,
     isMandatoryInstruction,
-    isDbOnlyAgent,
-    isDbOnlyInstruction,
-    isImportedFile,
+    isMandatoryRedeployCandidate,
+    isServerBackedCullCandidate,
+    toInstructionBaseName,
 } from './workspace-context-manifest';
 
 export interface DeploymentConfig {
@@ -22,8 +24,7 @@ export interface DeploymentConfig {
     defaultSkills: string[];
     /**
      * Whether deployToWorkspace() auto-deploys skills.
-     * Defaults to false — skills are DB-only and should never be deployed
-     * to the workspace automatically. Set to true only in legacy test setups.
+     * Defaults to false. Set to true only in legacy test setups.
      */
     deploySkills?: boolean;
 }
@@ -106,7 +107,7 @@ export class DefaultDeployer {
             }
         }
 
-        // Deploy skills (opt-in only — skills are DB-only by default)
+        // Deploy skills (opt-in only)
         if (this.config.deploySkills === true) {
         const skillsTargetDir = path.join(workspacePath, '.github', 'skills');
         try {
@@ -116,7 +117,7 @@ export class DefaultDeployer {
             this.log(`Failed to deploy skills: ${error}`);
         }
         } else {
-            this.log('Skills deployment skipped (deploySkills !== true — skills are DB-only)');
+            this.log('Skills deployment skipped (deploySkills !== true)');
         }
 
         this.log(`Deployed ${deployedAgents.length} agents, ${deployedInstructions.length} instructions, ${deployedSkills.length} skills`);
@@ -129,13 +130,13 @@ export class DefaultDeployer {
      * if one is provided (e.g. hub.50e041.agent.md).
      * Falls back to hub.agent.md when shortCode is null.
      */
-    private async deployAgentWithCode(agentName: string, targetDir: string, shortCode: string | null): Promise<boolean> {
+    private async deployAgentWithCode(agentName: string, targetDir: string, shortCode: string | null, overwrite = false): Promise<boolean> {
         let sourcePath = path.join(this.config.agentsRoot, 'core', `${agentName}.agent.md`);
         if (!fs.existsSync(sourcePath)) { sourcePath = path.join(this.config.agentsRoot, 'spoke', `${agentName}.agent.md`); }
         if (!fs.existsSync(sourcePath)) { sourcePath = path.join(this.config.agentsRoot, `${agentName}.agent.md`); }
         const targetFilename = shortCode ? `${agentName}.${shortCode}.agent.md` : `${agentName}.agent.md`;
         const targetPath = path.join(targetDir, targetFilename);
-        return this.copyFile(sourcePath, targetPath);
+        return this.copyFile(sourcePath, targetPath, overwrite);
     }
 
     /**
@@ -389,14 +390,16 @@ export class DefaultDeployer {
 
     /**
      * Inspect a workspace's `.github/` directory against the manifest.
-     * Reports missing mandatory files, files that should be culled, and
-     * workspace-specific files (left alone).
+     * Reports missing mandatory files, mandatory drift that should be redeployed,
+     * server-backed cull targets, and workspace-specific files preserved by default.
      */
-    healthCheck(workspacePath: string): ManifestHealthReport {
+    healthCheck(workspacePath: string, syncReport?: WorkspaceContextSyncReport): ManifestHealthReport {
         const report: ManifestHealthReport = {
             missingMandatory: [],
+            redeployTargets: [],
             cullTargets: [],
             workspaceSpecific: [],
+            syncBacked: Boolean(syncReport),
             healthy: true,
         };
 
@@ -404,6 +407,8 @@ export class DefaultDeployer {
         const agentsDir = path.join(workspacePath, '.github', 'agents');
         const instructionsDir = path.join(workspacePath, '.github', 'instructions');
         const skillsDir = path.join(workspacePath, '.github', 'skills');
+        const cullTargets = this.buildCullTargetMap(workspacePath, syncReport);
+        const redeployTargets = this.buildRedeployTargetMap(syncReport);
 
         // ── Check mandatory agents ──────────────────────────────────────
         for (const name of MANDATORY_AGENTS) {
@@ -425,12 +430,9 @@ export class DefaultDeployer {
                 if (!file.endsWith('.agent.md')) continue;
                 const baseName = this.extractBaseName(file, 'agent');
                 if (isMandatoryAgent(baseName)) continue;
-                if (isDbOnlyAgent(baseName) || isImportedFile(file)) {
-                    report.cullTargets.push({
-                        kind: isImportedFile(file) ? 'imported' : 'agent',
-                        path: path.join(agentsDir, file),
-                        name: baseName,
-                    });
+                const cullTarget = cullTargets.get(this.toRelativeGithubPath('agents', file));
+                if (cullTarget) {
+                    report.cullTargets.push(cullTarget);
                 } else {
                     report.workspaceSpecific.push({
                         kind: 'agent',
@@ -447,12 +449,9 @@ export class DefaultDeployer {
                 if (!file.endsWith('.instructions.md')) continue;
                 const baseName = this.extractBaseName(file, 'instructions');
                 if (isMandatoryInstruction(baseName)) continue;
-                if (isDbOnlyInstruction(baseName) || isImportedFile(file)) {
-                    report.cullTargets.push({
-                        kind: isImportedFile(file) ? 'imported' : 'instruction',
-                        path: path.join(instructionsDir, file),
-                        name: baseName,
-                    });
+                const cullTarget = cullTargets.get(this.toRelativeGithubPath('instructions', file));
+                if (cullTarget) {
+                    report.cullTargets.push(cullTarget);
                 } else {
                     report.workspaceSpecific.push({
                         kind: 'instruction',
@@ -463,35 +462,38 @@ export class DefaultDeployer {
             }
         }
 
-        // ── Scan skills directory (all skills are DB-only) ──────────────
-        if (SKILLS_ARE_DB_ONLY && fs.existsSync(skillsDir)) {
+        // ── Scan skills directory (preserved local runtime source) ──────
+        if (fs.existsSync(skillsDir)) {
             for (const entry of fs.readdirSync(skillsDir)) {
                 const entryPath = path.join(skillsDir, entry);
-                if (fs.statSync(entryPath).isDirectory()) {
-                    report.cullTargets.push({ kind: 'skill', path: entryPath, name: entry });
-                }
+                report.workspaceSpecific.push({ kind: 'skill', path: entryPath, name: entry });
             }
         }
 
-        report.healthy = report.missingMandatory.length === 0 && report.cullTargets.length === 0;
+        report.redeployTargets.push(...redeployTargets.values());
+        report.healthy = report.missingMandatory.length === 0
+            && report.redeployTargets.length === 0
+            && report.cullTargets.length === 0;
         return report;
     }
 
     /**
      * Enforce the manifest on a workspace:
      *   1. Deploy any missing mandatory files
-     *   2. Remove all cull targets (DB-only, imported, skills)
+     *   2. Redeploy mandatory drift from canonical sources when confirmed by the sync report
+     *   3. Remove only server-backed cull targets
      *
      * Returns a summary of actions taken.
      */
-    async enforceManifest(workspacePath: string): Promise<{
+    async enforceManifest(workspacePath: string, syncReport?: WorkspaceContextSyncReport): Promise<{
         deployed: string[];
         culled: string[];
         workspaceSpecific: string[];
     }> {
-        const report = this.healthCheck(workspacePath);
+        const report = this.healthCheck(workspacePath, syncReport);
         const deployed: string[] = [];
         const culled: string[] = [];
+        const deployedKeys = new Set<string>();
 
         const shortCode = this.readWorkspaceShortCode(workspacePath);
 
@@ -502,23 +504,53 @@ export class DefaultDeployer {
         for (const missing of report.missingMandatory) {
             if (missing.kind === 'agent') {
                 const ok = await this.deployAgentWithCode(missing.name, agentsDir, shortCode);
-                if (ok) deployed.push(`agent:${missing.name}`);
+                if (ok) {
+                    const key = `agent:${missing.name}`;
+                    deployed.push(key);
+                    deployedKeys.add(key);
+                }
             } else {
                 const ok = await this.deployInstructionWithCode(
                     missing.name, instructionsDir, shortCode, [...MANDATORY_AGENTS], true
                 );
-                if (ok) deployed.push(`instruction:${missing.name}`);
+                if (ok) {
+                    const key = `instruction:${missing.name}`;
+                    deployed.push(key);
+                    deployedKeys.add(key);
+                }
             }
         }
 
-        // ── Cull DB-only / imported / skill files ───────────────────────
+        // ── Redeploy mandatory drift confirmed by the sync report ───────
+        for (const target of report.redeployTargets) {
+            const key = `${target.kind}:${target.name}`;
+            if (deployedKeys.has(key)) {
+                continue;
+            }
+
+            let ok = false;
+            if (target.kind === 'agent') {
+                ok = await this.deployAgentWithCode(target.name, agentsDir, shortCode, true);
+            } else {
+                ok = await this.deployInstructionWithCode(
+                    target.name,
+                    instructionsDir,
+                    shortCode,
+                    [...MANDATORY_AGENTS],
+                    true,
+                );
+            }
+
+            if (ok) {
+                deployed.push(key);
+                deployedKeys.add(key);
+            }
+        }
+
+        // ── Cull only server-backed local files ─────────────────────────
         for (const target of report.cullTargets) {
             try {
-                if (target.kind === 'skill') {
-                    fs.rmSync(target.path, { recursive: true, force: true });
-                } else {
-                    fs.unlinkSync(target.path);
-                }
+                fs.unlinkSync(target.path);
                 culled.push(`${target.kind}:${target.name}`);
                 this.log(`Culled ${target.kind}: ${target.path}`);
             } catch (error) {
@@ -526,23 +558,71 @@ export class DefaultDeployer {
             }
         }
 
-        // ── Clean up empty skills directory after culling ────────────────
-        const skillsDir = path.join(workspacePath, '.github', 'skills');
-        if (fs.existsSync(skillsDir)) {
-            try {
-                const remaining = fs.readdirSync(skillsDir);
-                if (remaining.length === 0) {
-                    fs.rmdirSync(skillsDir);
-                    this.log('Removed empty .github/skills/ directory');
-                }
-            } catch { /* ignore */ }
-        }
-
         return {
             deployed,
             culled,
             workspaceSpecific: report.workspaceSpecific.map(ws => `${ws.kind}:${ws.name}`),
         };
+    }
+
+    private buildCullTargetMap(
+        workspacePath: string,
+        syncReport?: WorkspaceContextSyncReport,
+    ): Map<string, ManifestCullTarget> {
+        const targets = new Map<string, ManifestCullTarget>();
+        if (!syncReport) {
+            return targets;
+        }
+
+        for (const entry of [...syncReport.agents, ...syncReport.instructions]) {
+            if (!isServerBackedCullCandidate(entry)) {
+                continue;
+            }
+
+            const relativePath = this.normalizeRelativePath(entry.relative_path);
+            targets.set(relativePath, {
+                kind: entry.kind,
+                path: path.join(workspacePath, '.github', ...relativePath.split('/')),
+                name: entry.kind === 'agent' ? entry.canonical_name : toInstructionBaseName(entry.canonical_filename),
+                relativePath: entry.relative_path,
+                status: entry.status,
+                cullReason: entry.policy.cull_reason!,
+            });
+        }
+
+        return targets;
+    }
+
+    private buildRedeployTargetMap(syncReport?: WorkspaceContextSyncReport): Map<string, ManifestRedeployTarget> {
+        const targets = new Map<string, ManifestRedeployTarget>();
+        if (!syncReport) {
+            return targets;
+        }
+
+        for (const entry of [...syncReport.agents, ...syncReport.instructions]) {
+            if (!isMandatoryRedeployCandidate(entry)) {
+                continue;
+            }
+
+            const name = entry.kind === 'agent'
+                ? entry.canonical_name
+                : toInstructionBaseName(entry.canonical_filename);
+            targets.set(`${entry.kind}:${name}`, {
+                kind: entry.kind,
+                name,
+                relativePath: entry.relative_path,
+            });
+        }
+
+        return targets;
+    }
+
+    private toRelativeGithubPath(folder: 'agents' | 'instructions', filename: string): string {
+        return this.normalizeRelativePath(`${folder}/${filename}`);
+    }
+
+    private normalizeRelativePath(relativePath: string): string {
+        return relativePath.replace(/\\/g, '/').replace(/^\.github\//i, '').toLowerCase();
     }
 
     /**

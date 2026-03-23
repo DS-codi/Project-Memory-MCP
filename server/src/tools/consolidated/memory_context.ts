@@ -21,7 +21,8 @@ import { searchContext, promptAnalystDiscoverLinkedMemory } from '../context-sea
 import { pullContext } from '../context-pull.tools.js';
 import { recordFileOp } from '../stats-hooks.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
-import { preflightValidate } from '../preflight/index.js';
+import { preflightValidate, buildPreflightFailure } from '../preflight/index.js';
+import type { DbRef } from '../../types/db-ref.types.js';
 
 export type ContextAction = 
   | 'store' 
@@ -35,6 +36,7 @@ export type ContextAction =
   | 'workspace_get'
   | 'workspace_set'
   | 'workspace_update'
+  | 'workspace_populate'
   | 'workspace_delete'
   | 'knowledge_store'
   | 'knowledge_get'
@@ -113,9 +115,9 @@ export interface MemoryContextParams {
 }
 
 type ContextResult = 
-  | { action: 'store'; data: { path: string; security_warnings?: string[] } }
+  | { action: 'store'; data: { path: string; security_warnings?: string[]; _ref?: DbRef } }
   | { action: 'get'; data: Record<string, unknown> }
-  | { action: 'store_initial'; data: { path: string; context_summary: string } }
+  | { action: 'store_initial'; data: { path: string; context_summary: string; _ref?: DbRef } }
   | { action: 'list'; data: string[] }
   | { action: 'list_research'; data: string[] }
   | { action: 'append_research'; data: { path: string; sanitized: boolean; injection_attempts: string[]; warnings: string[] } }
@@ -124,6 +126,7 @@ type ContextResult =
   | { action: 'workspace_get'; data: { context: WorkspaceContext; path: string } }
   | { action: 'workspace_set'; data: { context: WorkspaceContext; path: string } }
   | { action: 'workspace_update'; data: { context: WorkspaceContext; path: string } }
+  | { action: 'workspace_populate'; data: { context: WorkspaceContext; path: string; populated_section_keys: string[]; skipped_section_keys: string[] } }
   | { action: 'workspace_delete'; data: { deleted: boolean; path: string } }
   | { action: 'knowledge_store'; data: { knowledge_file: knowledgeTools.KnowledgeFile; created: boolean } }
   | { action: 'knowledge_get'; data: { knowledge_file: knowledgeTools.KnowledgeFile } }
@@ -160,7 +163,7 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
   // Preflight validation — catch missing required fields early
   const preflight = preflightValidate('memory_context', action, params as unknown as Record<string, unknown>);
   if (!preflight.valid) {
-    return { success: false, error: preflight.message, preflight_failure: preflight } as ToolResponse<ContextResult>;
+    return buildPreflightFailure('memory_context', action, preflight) as ToolResponse<ContextResult>;
   }
 
   switch (action) {
@@ -172,9 +175,12 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
         };
       }
       if (!params.type || !params.data) {
+        const missing: string[] = [];
+        if (!params.type) missing.push("'type' (string identifying the context category)");
+        if (!params.data) missing.push("'data' (JSON object payload to store)");
         return {
           success: false,
-          error: 'type and data are required for action: store'
+          error: `memory_context(action: store) requires ${missing.join(' and ')}: provide a context type string and a JSON object as the data payload`
         };
       }
       const result = await contextTools.storeContext({
@@ -444,6 +450,20 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
       return {
         success: true,
         data: { action: 'workspace_update', data: result.data! }
+      };
+    }
+
+    case 'workspace_populate': {
+      const result = await workspaceContextTools.populateWorkspaceContext({
+        workspace_id,
+      });
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      recordFileOp(params._session_id, 'write');
+      return {
+        success: true,
+        data: { action: 'workspace_populate', data: result.data! }
       };
     }
 

@@ -5,6 +5,7 @@ import * as path from 'path';
 import { listWorkspaces, getWorkspace, getWorkspaceMetrics, getBuildScripts, getWorkspaceContext, saveWorkspaceContext } from '../db/queries.js';
 import { emitEvent } from '../events/emitter.js';
 import { getDataRoot, getWorkspaceDisplayName, resolveCanonicalWorkspaceId, writeWorkspaceIdentityFile, safeResolvePath } from '../storage/workspace-utils.js';
+import { makeDbRef } from '../types/db-ref.types.js';
 
 export const workspacesRouter = Router();
 
@@ -256,6 +257,7 @@ workspacesRouter.get('/', (req, res) => {
         languages,
         ...(parentWorkspaceId ? { parent_workspace_id: parentWorkspaceId } : {}),
         ...(childWorkspaceIds.length > 0 ? { child_workspace_ids: childWorkspaceIds } : {}),
+        _ref: makeDbRef('workspaces', row.id, 'workspace', row.name || row.id),
       };
     });
 
@@ -334,6 +336,7 @@ workspacesRouter.get('/:id', (req, res) => {
       total_sessions: metrics.totalSessions,
       total_knowledge: metrics.totalKnowledge,
       last_activity: (metaExtra.last_accessed as string) || row.registered_at,
+      _ref: makeDbRef('workspaces', row.id, 'workspace', row.name || row.id),
     });
   } catch (error) {
     console.error('Error getting workspace:', error);

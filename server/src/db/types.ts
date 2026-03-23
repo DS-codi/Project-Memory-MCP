@@ -160,6 +160,32 @@ export interface PlanNoteRow {
 }
 
 // ============================================================
+// SPRINTS & GOALS
+// ============================================================
+
+export interface SprintRow {
+  sprint_id:        string;
+  workspace_id:     string;
+  attached_plan_id: string | null;
+  title:            string;
+  status:           'active' | 'completed' | 'archived';
+  /** JSON: Goal[] (legacy embedded goals - prefer goals table) */
+  goals:            string;
+  created_at:       string;
+  updated_at:       string;
+}
+
+export interface GoalRow {
+  goal_id:      string;
+  sprint_id:    string;
+  description:  string;
+  /** SQLite boolean: 0 | 1 */
+  completed:    number;
+  completed_at: string | null;
+  created_at:   string;
+}
+
+// ============================================================
 // AGENT LIFECYCLE
 // ============================================================
 

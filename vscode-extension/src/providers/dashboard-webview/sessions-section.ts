@@ -1,31 +1,20 @@
 /**
- * Sessions management section for the dashboard webview.
+ * Sessions UI helpers for the dashboard webview.
  *
- * NOTE: Active Sessions panel has been migrated to the Supervisor GUI (QML).
- * These functions are stubbed and return empty strings.
- * The Supervisor GUI polls GET /sessions/live and renders sessions directly.
+ * The side-panel sessions surface was removed. Live session management remains
+ * available through the Supervisor GUI, so the dashboard only renders a status
+ * note that points users to the supported surface.
  */
 
-import { IconSvgs } from './icons';
-
-/**
- * HTML for the active sessions collapsible section.
- * @deprecated Migrated to Supervisor GUI. Returns empty string.
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function getSessionsSectionHtml(_iconSvgs: IconSvgs): string {
-    // Active Sessions panel has been moved to the Supervisor GUI.
-    return '';
+export function getArchivedSessionsNoticeHtml(): string {
+    return `
+        <div class="info-card" style="margin-top: 12px;">
+            <h3>Sessions Moved</h3>
+            <p>Live sessions are managed in the Supervisor GUI. The VS Code dashboard now focuses on plan navigation, notes sync, build scripts, skills, and instructions.</p>
+        </div>
+    `;
 }
 
-/**
- * Client-side JavaScript helpers for the sessions section.
- * @deprecated Migrated to Supervisor GUI.
- *
- * The dashboard script still references legacy session helper functions.
- * Return no-op implementations to avoid runtime ReferenceError exceptions
- * that can incorrectly force the dashboard into "Disconnected" state.
- */
 export function getSessionsClientHelpers(): string {
     return `
         function updateSessionsList(_sessions) { }
@@ -35,15 +24,3 @@ export function getSessionsClientHelpers(): string {
         function handleInjectSession() { }
     `;
 }
-
-// ---------------------------------------------------------------------------
-// Legacy exports kept for reference (not active)
-// ---------------------------------------------------------------------------
-
-function _legacyGetSessionsSectionHtml(iconSvgs: IconSvgs): string {
-    return `
-                            <section>${iconSvgs.syncHistory}</section>`;
-}
-
-// Suppress "unused" warnings on the legacy function
-void _legacyGetSessionsSectionHtml;

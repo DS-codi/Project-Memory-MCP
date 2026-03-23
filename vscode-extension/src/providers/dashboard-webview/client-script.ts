@@ -10,7 +10,6 @@ import { getConnectedDashboardHtml, getDisconnectedFallbackHtml } from './sectio
 import { getClientHelpers } from './client-helpers';
 import { getSkillsClientHelpers } from './skills-section';
 import { getInstructionsClientHelpers } from './instructions-section';
-import { getSessionsClientHelpers } from './sessions-section';
 
 /** Parameters needed to generate the client-side script */
 export interface ClientScriptParams {
@@ -40,7 +39,6 @@ export function getClientScript(params: ClientScriptParams): string {
     const helpers = getClientHelpers();
     const skillsHelpers = getSkillsClientHelpers();
     const instructionsHelpers = getInstructionsClientHelpers();
-    const sessionsHelpers = getSessionsClientHelpers();
 
     return `
         const vscode = acquireVsCodeApi();
@@ -93,35 +91,6 @@ export function getClientScript(params: ClientScriptParams): string {
                 updateSkillsList(message.data.skills || []);
             } else if (message.type === 'instructionsList') {
                 updateInstructionsList(message.data.instructions || []);
-            } else if (message.type === 'sessionsList') {
-                updateSessionsList(message.data.sessions || []);
-            } else if (message.type === 'sessionStopResult') {
-                if (message.data.success) {
-                    showToast('Stop directive queued', 'success');
-                    requestSessionsList();
-                } else {
-                    showToast('Failed to queue stop directive', 'error');
-                }
-            } else if (message.type === 'sessionInjectResult') {
-                if (message.data.success) {
-                    showToast('Guidance injected', 'success');
-                } else {
-                    showToast('Failed to inject guidance', 'error');
-                }
-            } else if (message.type === 'clearAllSessionsResult') {
-                if (message.data.success) {
-                    showToast('Closed ' + (message.data.closed || 0) + ' session(s)', 'success');
-                    requestSessionsList();
-                } else {
-                    showToast('Failed to clear sessions', 'error');
-                }
-            } else if (message.type === 'forceCloseSessionResult') {
-                if (message.data.success) {
-                    showToast('Session force-closed', 'success');
-                    requestSessionsList();
-                } else {
-                    showToast('Failed to force-close session', 'error');
-                }
             } else if (message.type === 'supervisorCommandCopied') {
                 showToast('\u2714 Copied: ' + (message.data.path || 'supervisor command'), 'success');
             } else if (message.type === 'isolateServerStatus') {
@@ -327,34 +296,6 @@ export function getClientScript(params: ClientScriptParams): string {
                 if (instrName) {
                     vscode.postMessage({ type: 'deployInstruction', data: { instructionName: instrName } });
                 }
-            } else if (action === 'undeploy-instruction') {
-                var instrName2 = button.getAttribute('data-instruction-name');
-                if (instrName2) {
-                    vscode.postMessage({ type: 'undeployInstruction', data: { instructionName: instrName2 } });
-                }
-            } else if (action === 'refresh-sessions') {
-                requestSessionsList();
-            } else if (action === 'clear-all-sessions') {
-                vscode.postMessage({ type: 'clearAllSessions' });
-            } else if (action === 'select-session') {
-                var selectSessionKey = button.getAttribute('data-session-key');
-                if (selectSessionKey) {
-                    handleSessionSelect(selectSessionKey);
-                }
-            } else if (action === 'quick-stop-session') {
-                var quickStopSessionKey = button.getAttribute('data-session-key');
-                if (quickStopSessionKey) {
-                    handleStopSession(quickStopSessionKey);
-                }
-            } else if (action === 'force-close-session') {
-                var forceCloseKey = button.getAttribute('data-session-key');
-                if (forceCloseKey) {
-                    vscode.postMessage({ type: 'forceCloseSession', data: { sessionKey: forceCloseKey } });
-                }
-            } else if (action === 'stop-session') {
-                handleStopSession();
-            } else if (action === 'inject-session') {
-                handleInjectSession();
             } else if (action === 'isolate-server') {
                 vscode.postMessage({ type: 'isolateServer' });
             } else if (action === 'open-workspace-folder') {
@@ -389,10 +330,6 @@ export function getClientScript(params: ClientScriptParams): string {
             if (target && target.classList && target.classList.contains('search-input') && e.key === 'Enter') {
                 openSearch(target.value.trim());
             }
-            if (target && target.id === 'injectText' && e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                e.preventDefault();
-                handleInjectSession();
-            }
             if ((e.key === 'Enter' || e.key === ' ') && target && target.classList && target.classList.contains('plan-item')) {
                 e.preventDefault();
                 var keyPlanId = target.getAttribute('data-plan-id');
@@ -421,16 +358,6 @@ export function getClientScript(params: ClientScriptParams): string {
         // Skills and instructions management helpers (hoisted)
         ${skillsHelpers}
         ${instructionsHelpers}
-        ${sessionsHelpers}
-
-        // Defensive shims for migrated sessions UI.
-        // Prevent runtime ReferenceError if legacy session helpers are absent
-        // in stale/partial extension builds.
-        var updateSessionsList = typeof updateSessionsList === 'function' ? updateSessionsList : function(_sessions) { };
-        var requestSessionsList = typeof requestSessionsList === 'function' ? requestSessionsList : function() { };
-        var handleSessionSelect = typeof handleSessionSelect === 'function' ? handleSessionSelect : function(_sessionKey) { };
-        var handleStopSession = typeof handleStopSession === 'function' ? handleStopSession : function(_sessionKey) { };
-        var handleInjectSession = typeof handleInjectSession === 'function' ? handleInjectSession : function() { };
 
         function updateLayoutFromViewport() {
             setLayoutSize(window.innerWidth || document.documentElement.clientWidth || 0);
@@ -458,7 +385,6 @@ export function getClientScript(params: ClientScriptParams): string {
                     fetchEvents();
                     requestSkillsList();
                     requestInstructionsList();
-                    requestSessionsList();
                     vscode.postMessage({ type: 'getAlwaysProvidedNotes' });
                     updateActionAvailability();
                 } else {

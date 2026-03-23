@@ -15,6 +15,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { DefaultDeployer, DeploymentConfig } from '../../deployer/DefaultDeployer';
+import type { WorkspaceContextSyncEntry, WorkspaceContextSyncReport } from '../../deployer/workspace-context-manifest';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -53,6 +54,74 @@ function listSubdirs(dir: string): string[] {
         .filter(e => e.isDirectory())
         .map(e => e.name)
         .sort();
+}
+
+function writeFile(filePath: string, content: string): void {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, content, 'utf-8');
+}
+
+function seedMandatorySources(config: DeploymentConfig): void {
+    writeFile(path.join(config.agentsRoot, 'core', 'hub.agent.md'), 'Canonical hub');
+    writeFile(path.join(config.agentsRoot, 'core', 'prompt-analyst.agent.md'), 'Canonical prompt analyst');
+    writeFile(path.join(config.agentsRoot, 'core', 'shell.agent.md'), 'Canonical shell');
+
+    writeFile(path.join(config.instructionsRoot, 'hub.instructions.md'), '---\napplyTo: "**/*"\n---\nHub instruction');
+    writeFile(path.join(config.instructionsRoot, 'mcp-usage.instructions.md'), '---\napplyTo: "**/*"\n---\nUsage instruction');
+    writeFile(path.join(config.instructionsRoot, 'prompt-analyst.instructions.md'), '---\napplyTo: "**/*"\n---\nPrompt analyst instruction');
+    writeFile(path.join(config.instructionsRoot, 'subagent-recovery.instructions.md'), '---\napplyTo: "**/*"\n---\nRecovery instruction');
+}
+
+function seedMandatoryWorkspace(workspaceRoot: string): void {
+    writeFile(path.join(workspaceRoot, '.github', 'agents', 'hub.agent.md'), 'Workspace hub');
+    writeFile(path.join(workspaceRoot, '.github', 'agents', 'prompt-analyst.agent.md'), 'Workspace prompt analyst');
+    writeFile(path.join(workspaceRoot, '.github', 'agents', 'shell.agent.md'), 'Workspace shell');
+
+    writeFile(path.join(workspaceRoot, '.github', 'instructions', 'hub.instructions.md'), '---\napplyTo: "**/*"\n---\nWorkspace hub instruction');
+    writeFile(path.join(workspaceRoot, '.github', 'instructions', 'mcp-usage.instructions.md'), '---\napplyTo: "**/*"\n---\nWorkspace usage instruction');
+    writeFile(path.join(workspaceRoot, '.github', 'instructions', 'prompt-analyst.instructions.md'), '---\napplyTo: "**/*"\n---\nWorkspace prompt analyst instruction');
+    writeFile(path.join(workspaceRoot, '.github', 'instructions', 'subagent-recovery.instructions.md'), '---\napplyTo: "**/*"\n---\nWorkspace recovery instruction');
+}
+
+function makeSyncEntry(overrides: Partial<WorkspaceContextSyncEntry> & Pick<WorkspaceContextSyncEntry, 'kind' | 'filename' | 'relative_path' | 'canonical_name' | 'canonical_filename' | 'status'>): WorkspaceContextSyncEntry {
+    return {
+        remediation: 'test remediation',
+        comparison_basis: overrides.status === 'protected_drift' ? 'local_db_seed' : 'ignored_local',
+        policy: {
+            sync_managed: true,
+            controlled: false,
+            import_mode: 'never',
+            canonical_source: 'none',
+            canonical_path: null,
+            required_workspace_copy: false,
+            legacy_mandatory: false,
+            validation_errors: [],
+        },
+        ...overrides,
+    };
+}
+
+function makeSyncReport(workspacePath: string, entries: WorkspaceContextSyncEntry[]): WorkspaceContextSyncReport {
+    const count = (status: WorkspaceContextSyncEntry['status']): number => entries.filter(entry => entry.status === status).length;
+    return {
+        workspace_path: workspacePath,
+        report_mode: 'read_only',
+        writes_performed: false,
+        github_agents_dir: path.join(workspacePath, '.github', 'agents'),
+        github_instructions_dir: path.join(workspacePath, '.github', 'instructions'),
+        agents: entries.filter((entry): entry is WorkspaceContextSyncEntry => entry.kind === 'agent'),
+        instructions: entries.filter((entry): entry is WorkspaceContextSyncEntry => entry.kind === 'instruction'),
+        summary: {
+            total: entries.length,
+            in_sync: count('in_sync'),
+            local_only: count('local_only'),
+            db_only: count('db_only'),
+            content_mismatch: count('content_mismatch'),
+            protected_drift: count('protected_drift'),
+            ignored_local: count('ignored_local'),
+            import_candidate: count('import_candidate'),
+        },
+    };
 }
 
 // ---------------------------------------------------------------------------
@@ -372,6 +441,142 @@ suite('DefaultDeployer — workspace short code', () => {
         const updatedInstructionContent = fs.readFileSync(instructionPath, 'utf-8');
         assert.ok(updatedInstructionContent.includes('Updated Test instruction'));
         assert.ok(updatedInstructionContent.includes('applyTo: "agents/hub.50e041.agent.md"'), 'applyTo should be rewritten in update');
+
+        deployer.dispose();
+    });
+});
+
+suite('DefaultDeployer — safe manifest enforcement', () => {
+    let workspaceRoot: string;
+    let config: DeploymentConfig;
+
+    setup(() => {
+        tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'pm-deployer-manifest-test-'));
+        workspaceRoot = path.join(tempRoot, 'workspace');
+        fs.mkdirSync(workspaceRoot, { recursive: true });
+
+        config = makeConfig({
+            defaultAgents: ['hub', 'prompt-analyst', 'shell'],
+            defaultInstructions: ['hub', 'mcp-usage', 'prompt-analyst', 'subagent-recovery'],
+        });
+
+        seedMandatorySources(config);
+        seedMandatoryWorkspace(workspaceRoot);
+    });
+
+    teardown(() => {
+        fs.rmSync(tempRoot, { recursive: true, force: true });
+    });
+
+    test('healthCheck preserves workspace-local skills and unmanaged files without sync evidence', () => {
+        createSkillDir(path.join(workspaceRoot, '.github', 'skills'), 'local-skill');
+        writeFile(path.join(workspaceRoot, '.github', 'agents', 'custom-helper.agent.md'), 'Local helper');
+
+        const deployer = new DefaultDeployer(config);
+        const report = deployer.healthCheck(workspaceRoot);
+
+        assert.strictEqual(report.syncBacked, false);
+        assert.strictEqual(report.cullTargets.length, 0);
+        assert.ok(report.workspaceSpecific.some(entry => entry.kind === 'skill' && entry.name === 'local-skill'));
+        assert.ok(report.workspaceSpecific.some(entry => entry.kind === 'agent' && entry.name === 'custom-helper'));
+        assert.ok(fs.existsSync(path.join(workspaceRoot, '.github', 'skills', 'local-skill', 'SKILL.md')));
+
+        deployer.dispose();
+    });
+
+    test('enforceManifest culls only server-backed ignored_local entries and preserves import candidates and skills', async () => {
+        const cullAgentPath = path.join(workspaceRoot, '.github', 'agents', 'folder-cleanup-shell.agent.md');
+        const importInstructionPath = path.join(workspaceRoot, '.github', 'instructions', 'community.instructions.md');
+        const skillPath = path.join(workspaceRoot, '.github', 'skills', 'local-skill', 'SKILL.md');
+
+        writeFile(cullAgentPath, 'Cull me');
+        writeFile(importInstructionPath, '---\napplyTo: "**/*"\npm_sync_managed: true\npm_import_mode: manual\n---\nImport me');
+        createSkillDir(path.join(workspaceRoot, '.github', 'skills'), 'local-skill');
+
+        const syncReport = makeSyncReport(workspaceRoot, [
+            makeSyncEntry({
+                kind: 'agent',
+                filename: 'folder-cleanup-shell.agent.md',
+                relative_path: 'agents/folder-cleanup-shell.agent.md',
+                canonical_name: 'folder-cleanup-shell',
+                canonical_filename: 'folder-cleanup-shell.agent.md',
+                status: 'ignored_local',
+                policy: {
+                    sync_managed: false,
+                    controlled: false,
+                    import_mode: 'never',
+                    canonical_source: 'none',
+                    canonical_path: null,
+                    required_workspace_copy: false,
+                    legacy_mandatory: false,
+                    cull_reason: 'db_only_agent',
+                    validation_errors: [],
+                },
+            }),
+            makeSyncEntry({
+                kind: 'instruction',
+                filename: 'community.instructions.md',
+                relative_path: 'instructions/community.instructions.md',
+                canonical_name: 'community.instructions.md',
+                canonical_filename: 'community.instructions.md',
+                status: 'import_candidate',
+                comparison_basis: 'local_only',
+                policy: {
+                    sync_managed: true,
+                    controlled: false,
+                    import_mode: 'manual',
+                    canonical_source: 'none',
+                    canonical_path: null,
+                    required_workspace_copy: false,
+                    legacy_mandatory: false,
+                    validation_errors: [],
+                },
+            }),
+        ]);
+
+        const deployer = new DefaultDeployer(config);
+        const result = await deployer.enforceManifest(workspaceRoot, syncReport);
+
+        assert.ok(result.culled.includes('agent:folder-cleanup-shell'));
+        assert.ok(!fs.existsSync(cullAgentPath));
+        assert.ok(fs.existsSync(importInstructionPath));
+        assert.ok(fs.existsSync(skillPath));
+
+        deployer.dispose();
+    });
+
+    test('enforceManifest redeploys protected mandatory drift from canonical source', async () => {
+        const hubPath = path.join(workspaceRoot, '.github', 'agents', 'hub.agent.md');
+        writeFile(path.join(config.agentsRoot, 'core', 'hub.agent.md'), 'Canonical hub after drift');
+        writeFile(hubPath, 'Workspace drifted hub');
+
+        const syncReport = makeSyncReport(workspaceRoot, [
+            makeSyncEntry({
+                kind: 'agent',
+                filename: 'hub.agent.md',
+                relative_path: 'agents/hub.agent.md',
+                canonical_name: 'hub',
+                canonical_filename: 'hub.agent.md',
+                status: 'protected_drift',
+                comparison_basis: 'local_db_seed',
+                policy: {
+                    sync_managed: true,
+                    controlled: true,
+                    import_mode: 'never',
+                    canonical_source: 'database_seed_resources',
+                    canonical_path: 'agents/core/hub.agent.md',
+                    required_workspace_copy: true,
+                    legacy_mandatory: true,
+                    validation_errors: [],
+                },
+            }),
+        ]);
+
+        const deployer = new DefaultDeployer(config);
+        const result = await deployer.enforceManifest(workspaceRoot, syncReport);
+
+        assert.ok(result.deployed.includes('agent:hub'));
+        assert.strictEqual(fs.readFileSync(hubPath, 'utf-8'), 'Canonical hub after drift');
 
         deployer.dispose();
     });

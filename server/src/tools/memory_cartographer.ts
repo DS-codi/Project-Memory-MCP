@@ -22,7 +22,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
 import type { ToolResponse } from '../types/index.js';
-import { preflightValidate } from './preflight/index.js';
+import { preflightValidate, buildPreflightFailure } from './preflight/index.js';
 import { validateAndResolveWorkspaceId } from './consolidated/workspace-validation.js';
 import {
   getDependencies,
@@ -1337,11 +1337,7 @@ export async function handleMemoryCartographer(
 
   const preflight = preflightValidate('memory_cartographer', action, params as unknown as Record<string, unknown>);
   if (!preflight.valid) {
-    return {
-      success:           false,
-      error:             preflight.message,
-      preflight_failure: preflight,
-    } as ToolResponse<unknown>;
+    return buildPreflightFailure('memory_cartographer', action, preflight) as ToolResponse<unknown>;
   }
 
   // ── Telemetry: action dispatch ────────────────────────────────────────────

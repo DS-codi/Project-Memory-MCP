@@ -21,10 +21,11 @@
  */
 
 import type { PlanStep, PlanState } from '../../types/plan.types.js';
+import type { ToolResponse } from '../../types/index.js';
 import * as planTools from '../plan/index.js';
 import { appendResearch, getContext } from '../context.tools.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
-import { preflightValidate } from '../preflight/index.js';
+import { preflightValidate, buildPreflightFailure } from '../preflight/index.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -78,8 +79,7 @@ type TaskResult =
   | { action: 'mark_blocked'; data: MarkBlockedResult }
   | { action: 'get_context'; data: GetContextResult }
   | { action: 'summarize_plan'; data: SummarizePlanResult }
-  | { action: 'log_work'; data: LogWorkResult }
-  | { success: false; error: string };
+  | { action: 'log_work'; data: LogWorkResult };
 
 interface GetCurrentResult {
   success: true;
@@ -390,7 +390,7 @@ async function handleLogWork(
 // Main dispatcher
 // ---------------------------------------------------------------------------
 
-export async function memoryTask(params: MemoryTaskParams): Promise<TaskResult> {
+export async function memoryTask(params: MemoryTaskParams): Promise<ToolResponse<TaskResult>> {
   if (!params.action) {
     return {
       success: false,
@@ -401,7 +401,7 @@ export async function memoryTask(params: MemoryTaskParams): Promise<TaskResult> 
   // Preflight validation — checks any registered required-field specs for memory_task
   const preflight = preflightValidate('memory_task', params.action, params as unknown as Record<string, unknown>);
   if (!preflight.valid) {
-    return { success: false, error: preflight.message ?? 'Preflight validation failed.' };
+    return buildPreflightFailure('memory_task', params.action, preflight) as ToolResponse<TaskResult>;
   }
 
   const validated = await validateAndResolveWorkspaceId(params.workspace_id);
@@ -411,27 +411,33 @@ export async function memoryTask(params: MemoryTaskParams): Promise<TaskResult> 
   switch (params.action) {
     case 'get_current': {
       const data = await handleGetCurrent(workspace_id, params.plan_id);
-      return 'error' in data ? data : { action: 'get_current', data };
+      if ('error' in data && !data.success) return { success: false, error: data.error };
+      return { success: true, data: { action: 'get_current', data: data as GetCurrentResult } };
     }
     case 'mark_done': {
       const data = await handleMarkDone(workspace_id, params.plan_id, params.step_index, params.notes);
-      return 'error' in data ? data : { action: 'mark_done', data };
+      if ('error' in data && !data.success) return { success: false, error: data.error };
+      return { success: true, data: { action: 'mark_done', data: data as MarkDoneResult } };
     }
     case 'mark_blocked': {
       const data = await handleMarkBlocked(workspace_id, params.plan_id, params.step_index, params.reason);
-      return 'error' in data ? data : { action: 'mark_blocked', data };
+      if ('error' in data && !data.success) return { success: false, error: data.error };
+      return { success: true, data: { action: 'mark_blocked', data: data as MarkBlockedResult } };
     }
     case 'get_context': {
       const data = await handleGetContext(workspace_id, params.plan_id, params.context_type);
-      return 'error' in data ? data : { action: 'get_context', data };
+      if ('error' in data && !data.success) return { success: false, error: data.error };
+      return { success: true, data: { action: 'get_context', data: data as GetContextResult } };
     }
     case 'summarize_plan': {
       const data = await handleSummarizePlan(workspace_id, params.plan_id);
-      return 'error' in data ? data : { action: 'summarize_plan', data };
+      if ('error' in data && !data.success) return { success: false, error: data.error };
+      return { success: true, data: { action: 'summarize_plan', data: data as SummarizePlanResult } };
     }
     case 'log_work': {
       const data = await handleLogWork(workspace_id, params.plan_id, params.findings);
-      return 'error' in data ? data : { action: 'log_work', data };
+      if ('error' in data && !data.success) return { success: false, error: data.error };
+      return { success: true, data: { action: 'log_work', data: data as LogWorkResult } };
     }
     default:
       return {

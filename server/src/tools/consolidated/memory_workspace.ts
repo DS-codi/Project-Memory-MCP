@@ -9,7 +9,7 @@ import type { ToolResponse, WorkspaceMeta, WorkspaceProfile, PlanState, Workspac
 import * as workspaceTools from '../workspace.tools.js';
 import * as store from '../../storage/db-store.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
-import { preflightValidate } from '../preflight/index.js';
+import { preflightValidate, buildPreflightFailure } from '../preflight/index.js';
 import { scanGhostFolders, mergeWorkspace, validateWorkspaceId, migrateWorkspace, ensureIdentityFile } from '../../storage/db-store.js';
 import type { GhostFolderInfo, MergeResult, MigrateWorkspaceResult } from '../../storage/db-store.js';
 import { linkWorkspaces, unlinkWorkspaces, getWorkspaceHierarchy, checkRegistryForOverlaps } from '../../storage/db-store.js';
@@ -22,7 +22,13 @@ import * as path from 'node:path';
 import { storeAgent } from '../../db/agent-definition-db.js';
 import { storeInstruction } from '../../db/instruction-db.js';
 import { checkWorkspaceContextHealth, type WorkspaceContextHealth } from '../workspace-context-manifest.js';
-import { checkWorkspaceDbSync, inspectWorkspaceSyncFile, normalizeWorkspaceSyncRelativePath, type SyncEntry, type WorkspaceDbSyncReport } from '../workspace-db-sync.js';
+import {
+  checkWorkspaceDbSync,
+  inspectWorkspaceSyncFile,
+  normalizeWorkspaceSyncRelativePath,
+  type WorkspaceContextSyncEntry,
+  type WorkspaceContextSyncReport,
+} from '../workspace-db-sync.js';
 import { getFocusedWorkspacesDir, getFocusedWorkspacePath } from '../../storage/db-store.js';
 import { events } from '../../events/event-emitter.js';
 
@@ -56,9 +62,9 @@ interface ImportContextFileResult {
   relative_path: string;
   kind: 'agent' | 'instruction';
   imported: boolean;
-  previous_status: SyncEntry['status'];
-  current_status: SyncEntry['status'];
-  preview: SyncEntry;
+  previous_status: WorkspaceContextSyncEntry['status'];
+  current_status: WorkspaceContextSyncEntry['status'];
+  preview: WorkspaceContextSyncEntry;
   message: string;
 }
 
@@ -96,7 +102,7 @@ type WorkspaceResult =
   | { action: 'export_pending'; data: { workspace_id: string; file_path: string; plans_included: number; total_pending_steps: number } }
   | { action: 'generate_focused_workspace'; data: { file_path: string; files_in_scope: string[] } }
   | { action: 'list_focused_workspaces'; data: { workspaces: Array<{ plan_id: string; file_path: string; filename: string }> } }
-  | { action: 'check_context_sync'; data: WorkspaceDbSyncReport }
+  | { action: 'check_context_sync'; data: WorkspaceContextSyncReport }
   | { action: 'import_context_file'; data: ImportContextFileResult };
 
 function extractYamlFrontmatter(content: string): string | null {
@@ -114,7 +120,7 @@ function extractInstructionApplyTo(content: string): string {
   return match?.[1]?.trim() || '**/*';
 }
 
-function getImportPolicyRejection(entry: SyncEntry): string | null {
+function getImportPolicyRejection(entry: WorkspaceContextSyncEntry): string | null {
   if (entry.policy.cull_reason) {
     return 'This file is DB-only by manifest policy and cannot be manually imported from the workspace.';
   }
@@ -127,7 +133,7 @@ function getImportPolicyRejection(entry: SyncEntry): string | null {
   return null;
 }
 
-function buildImportContextFileError(entry: SyncEntry): string {
+function buildImportContextFileError(entry: WorkspaceContextSyncEntry): string {
   switch (entry.status) {
     case 'protected_drift':
       return 'PM-controlled files cannot be imported from the workspace. Use an explicit redeploy or reseed-from-canonical flow instead.';
@@ -402,7 +408,7 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
   if (action !== 'import_context_file') {
     const preflight = preflightValidate('memory_workspace', action, params as unknown as Record<string, unknown>);
     if (!preflight.valid) {
-      return { success: false, error: preflight.message, preflight_failure: preflight } as ToolResponse<WorkspaceResult>;
+      return buildPreflightFailure('memory_workspace', action, preflight) as ToolResponse<WorkspaceResult>;
     }
   }
 

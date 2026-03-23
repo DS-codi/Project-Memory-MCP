@@ -1,3 +1,18 @@
+// ---------------------------------------------------------------------------
+// Plans REST API routes
+//
+// ## DbRef migration status (Phase 11)
+//
+// GET endpoints that read from SQLite DB queries now include `_ref: DbRef`
+// on plan and context responses for DB-backed artifacts.
+//
+// POST/PUT endpoints still construct filesystem paths via MBS_DATA_ROOT to
+// read/write plan state files.  These are **future migration targets** —
+// once the dashboard routes adopt the MCP server's storage layer, the path
+// construction should be replaced with DB-backed operations using DbRef
+// locators instead.
+// ---------------------------------------------------------------------------
+
 import { Router } from 'express';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -9,6 +24,7 @@ import {
   getProgramChildPlans, listPrograms, getWorkflowMode, setWorkflowMode,
 } from '../db/queries.js';
 import { emitEvent } from '../events/emitter.js';
+import { makeDbRef } from '../types/db-ref.types.js';
 
 export const plansRouter = Router();
 
@@ -209,6 +225,7 @@ plansRouter.get('/workspace/:workspaceId', (req, res) => {
         created_at: plan.created_at,
         updated_at: plan.updated_at,
         archived_at: plan.archived_at,
+        _ref: makeDbRef('plans', plan.id, 'plan', plan.title || plan.id),
       };
     });
 
@@ -276,6 +293,7 @@ plansRouter.get('/:workspaceId/:planId', (req, res) => {
       updated_at: plan.updated_at,
       archived_at: plan.archived_at,
       workflow_mode: workflowMode ?? undefined,
+      _ref: makeDbRef('plans', plan.id, 'plan', plan.title || plan.id),
       steps: steps.map(s => ({
         index: s.order_index,
         phase: phaseMap.get(s.phase_id) || '',
@@ -509,6 +527,7 @@ plansRouter.get('/:workspaceId/:planId/context/:type', async (req, res) => {
       workspace_id: workspaceId,
       stored_at: item.updated_at || item.created_at,
       data: parseContextRowData(item.data),
+      _ref: makeDbRef('context_items', String(item.id ?? ''), 'context', `${item.type}:${planId}`),
     });
   } catch (error) {
     console.error('Error getting context:', error);

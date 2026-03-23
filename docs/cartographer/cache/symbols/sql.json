@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-03-22T03:40:26.123Z",
+  "generated_at": "2026-03-23T19:39:46.044Z",
   "workspace_id": "project-memory-mcp-40f6678f5a9b",
   "language": "sql",
   "partial": false,
-  "total": 10,
+  "total": 12,
   "symbols": [
     {
       "id": "server/src/db/migrations/001-initial-schema.sql::__module__",
@@ -98,6 +98,26 @@
     {
       "id": "server/src/db/migrations/010-architecture-slices.sql::__module__",
       "file": "server/src/db/migrations/010-architecture-slices.sql",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "server/src/db/migrations/011-fix-deployable-agent-role-shell.sql::__module__",
+      "file": "server/src/db/migrations/011-fix-deployable-agent-role-shell.sql",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "server/src/db/migrations/012-sprints.sql::__module__",
+      "file": "server/src/db/migrations/012-sprints.sql",
       "name": "__module__",
       "kind": "module",
       "start_line": 1,

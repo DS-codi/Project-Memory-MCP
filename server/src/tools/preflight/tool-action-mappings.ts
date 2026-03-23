@@ -99,7 +99,7 @@ export const AGENT_TOOL_MAPPINGS: AgentToolMappingRegistry = {
       actions: [
         'store', 'get', 'store_initial', 'list', 'list_research',
         'append_research', 'generate_instructions', 'batch_store',
-        'workspace_get', 'workspace_set', 'workspace_update',
+        'workspace_get', 'workspace_set', 'workspace_update', 'workspace_populate',
         'workspace_delete', 'knowledge_store', 'knowledge_get',
         'knowledge_list', 'knowledge_delete', 'search', 'promptanalyst_discover', 'pull', 'write_prompt', 'dump_context',
       ],

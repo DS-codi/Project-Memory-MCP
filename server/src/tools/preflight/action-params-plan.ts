@@ -335,6 +335,126 @@ export const PLAN_PARAMS: Record<string, ActionParamDef> = {
       { name: 'archive_sources', type: 'boolean', description: 'Archive source plans after merge' },
     ],
   },
+
+  pause_plan: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+      { name: 'plan_id', type: 'string', description: 'Plan ID' },
+      { name: 'pause_reason', type: 'string', description: 'Reason: rejected | timeout | deferred' },
+    ],
+    optional: [
+      { name: 'pause_step_index', type: 'number', description: '0-based step index that triggered the pause' },
+      { name: 'pause_user_notes', type: 'string', description: 'User notes explaining the rejection' },
+      { name: 'pause_session_id', type: 'string', description: 'Active session ID at time of pause' },
+    ],
+  },
+
+  resume_plan: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+      { name: 'plan_id', type: 'string', description: 'Plan ID' },
+    ],
+    optional: [],
+  },
+
+  search: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+      { name: 'query', type: 'string', description: 'Full-text search query' },
+    ],
+    optional: [
+      { name: 'plan_id', type: 'string', description: 'Restrict to specific plan' },
+      { name: 'search_entity_type', type: 'string', description: 'Narrow to: program | plan | phase | step' },
+      { name: 'search_status', type: 'string', description: 'Filter steps by status' },
+      { name: 'search_phase', type: 'string', description: 'Filter by phase name substring' },
+      { name: 'search_limit', type: 'number', description: 'Max results (default 50, max 200)' },
+      { name: 'search_include_archived', type: 'boolean', description: 'Include archived plans' },
+    ],
+  },
+
+  set_workflow_mode: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+      { name: 'plan_id', type: 'string', description: 'Plan ID' },
+    ],
+    optional: [
+      { name: 'workflow_mode', type: 'string', description: 'Workflow mode to set' },
+    ],
+  },
+
+  get_workflow_mode: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+      { name: 'plan_id', type: 'string', description: 'Plan ID' },
+    ],
+    optional: [],
+  },
+
+  add_risk: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+      { name: 'program_id', type: 'string', description: 'Program plan ID' },
+      { name: 'risk_title', type: 'string', description: 'Risk title' },
+    ],
+    optional: [
+      { name: 'risk_type', type: 'string', description: 'Risk type (default: dependency_risk)' },
+      { name: 'risk_severity', type: 'string', description: 'Severity (default: medium)' },
+      { name: 'risk_status', type: 'string', description: 'Status (default: identified)' },
+      { name: 'risk_description', type: 'string', description: 'Risk description' },
+      { name: 'risk_mitigation', type: 'string', description: 'Mitigation strategy' },
+      { name: 'risk_detected_by', type: 'string', description: 'Detection source (default: manual)' },
+      { name: 'risk_source_plan_id', type: 'string', description: 'Source plan ID' },
+    ],
+  },
+
+  list_risks: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+      { name: 'program_id', type: 'string', description: 'Program plan ID' },
+    ],
+    optional: [
+      { name: 'risk_severity', type: 'string', description: 'Filter by severity' },
+      { name: 'risk_status', type: 'string', description: 'Filter by status' },
+      { name: 'risk_type', type: 'string', description: 'Filter by type' },
+    ],
+  },
+
+  auto_detect_risks: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+      { name: 'program_id', type: 'string', description: 'Program plan ID' },
+    ],
+    optional: [],
+  },
+
+  set_dependency: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+      { name: 'program_id', type: 'string', description: 'Program plan ID' },
+      { name: 'source_plan_id', type: 'string', description: 'Source plan ID' },
+      { name: 'target_plan_id_dep', type: 'string', description: 'Target plan ID' },
+    ],
+    optional: [
+      { name: 'source_phase', type: 'string', description: 'Source phase' },
+      { name: 'target_phase', type: 'string', description: 'Target phase' },
+      { name: 'dependency_type', type: 'string', description: 'Dependency type (default: blocks)' },
+    ],
+  },
+
+  get_dependencies: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+      { name: 'program_id', type: 'string', description: 'Program plan ID' },
+    ],
+    optional: [],
+  },
+
+  migrate_programs: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+    ],
+    optional: [],
+  },
 };
 
 // =============================================================================

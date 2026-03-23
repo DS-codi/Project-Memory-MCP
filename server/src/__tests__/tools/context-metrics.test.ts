@@ -152,6 +152,41 @@ describe('context_size_bytes measurement', () => {
     expect(result.data!.context_size_bytes).toBeGreaterThan(0);
   });
 
+  it('should initialise a hub agent in workspace-scoped mode when no plan_id is provided', async () => {
+    vi.mocked(store.getWorkspacePlans).mockResolvedValue([makeBasePlanState()]);
+
+    const result = await initialiseAgent({
+      workspace_id: mockWorkspaceId,
+      agent_type: 'Coordinator',
+      include_workspace_context: true,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.error).toBeUndefined();
+    expect(result.data!.session.session_id).toBe('sess_test_001');
+    expect(result.data!.plan_state).toBeNull();
+    expect(result.data!.workspace_status.message).toContain('workspace-scoped mode');
+    expect(result.data!.workspace_status.active_plans).toEqual([
+      `${mockPlanId}: Context Metrics Test Plan (active, phase: Phase 1)`
+    ]);
+    expect(result.data!.tool_contracts).toBeDefined();
+    expect(store.savePlanState).not.toHaveBeenCalled();
+    expect(store.generatePlanMd).not.toHaveBeenCalled();
+  });
+
+  it('should still require plan_id for non-hub agents', async () => {
+    vi.mocked(store.getWorkspacePlans).mockResolvedValue([makeBasePlanState()]);
+
+    const result = await initialiseAgent({
+      workspace_id: mockWorkspaceId,
+      agent_type: 'Executor',
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('plan_id is required');
+    expect(result.data!.session).toBeNull();
+  });
+
   it('should measure size that includes plan_state payload', async () => {
     const result = await initialiseAgent({
       workspace_id: mockWorkspaceId,

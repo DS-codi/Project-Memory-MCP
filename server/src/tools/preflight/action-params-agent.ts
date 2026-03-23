@@ -127,6 +127,132 @@ export const AGENT_PARAMS: Record<string, ActionParamDef> = {
       { name: 'step_indices', type: 'number[]', description: 'Step indices to work on' },
     ],
   },
+
+  // ── Skill discovery ─────────────────────────────────────────────────────
+
+  list_skills: {
+    required: [],
+    optional: [
+      { name: 'skill_category', type: 'string', description: 'Category filter' },
+    ],
+  },
+
+  get_skill: {
+    required: [
+      { name: 'skill_name', type: 'string', description: 'Skill name' },
+    ],
+    optional: [],
+  },
+
+  assign_skill: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+      { name: 'skill_name', type: 'string', description: 'Skill name' },
+    ],
+    optional: [
+      { name: 'notes', type: 'string', description: 'Assignment notes' },
+    ],
+  },
+
+  unassign_skill: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+      { name: 'skill_name', type: 'string', description: 'Skill name' },
+    ],
+    optional: [],
+  },
+
+  list_workspace_skills: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+    ],
+    optional: [],
+  },
+
+  // ── Skill management ────────────────────────────────────────────────────
+
+  create_skill: {
+    required: [
+      { name: 'skill_name', type: 'string', description: 'Skill name (upsert key)' },
+      { name: 'skill_content', type: 'string', description: 'Full skill markdown content' },
+    ],
+    optional: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID (auto-assigns if provided)' },
+      { name: 'skill_category', type: 'string', description: 'Skill category' },
+      { name: 'skill_description', type: 'string', description: 'Short description' },
+      { name: 'skill_tags', type: 'string[]', description: 'Tags for matching' },
+      { name: 'skill_language_targets', type: 'string[]', description: 'Language targets' },
+      { name: 'skill_framework_targets', type: 'string[]', description: 'Framework targets' },
+      { name: 'notes', type: 'string', description: 'Assignment notes' },
+    ],
+  },
+
+  delete_skill: {
+    required: [
+      { name: 'skill_name', type: 'string', description: 'Skill name to delete' },
+    ],
+    optional: [],
+  },
+
+  // ── Instruction discovery ───────────────────────────────────────────────
+
+  list_instructions: {
+    required: [],
+    optional: [],
+  },
+
+  get_instruction: {
+    required: [
+      { name: 'instruction_filename', type: 'string', description: 'Instruction filename' },
+    ],
+    optional: [],
+  },
+
+  assign_instruction: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+      { name: 'instruction_filename', type: 'string', description: 'Instruction filename' },
+    ],
+    optional: [
+      { name: 'notes', type: 'string', description: 'Assignment notes' },
+    ],
+  },
+
+  unassign_instruction: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+      { name: 'instruction_filename', type: 'string', description: 'Instruction filename' },
+    ],
+    optional: [],
+  },
+
+  list_workspace_instructions: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+    ],
+    optional: [],
+  },
+
+  // ── Instruction management ──────────────────────────────────────────────
+
+  create_instruction: {
+    required: [
+      { name: 'instruction_filename', type: 'string', description: 'Instruction filename (upsert key)' },
+      { name: 'instruction_applies_to', type: 'string', description: 'Glob pattern for applicability' },
+      { name: 'instruction_content', type: 'string', description: 'Full instruction markdown content' },
+    ],
+    optional: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID (auto-assigns if provided)' },
+      { name: 'notes', type: 'string', description: 'Assignment notes' },
+    ],
+  },
+
+  delete_instruction: {
+    required: [
+      { name: 'instruction_filename', type: 'string', description: 'Instruction filename to delete' },
+    ],
+    optional: [],
+  },
 };
 
 // =============================================================================
@@ -241,6 +367,13 @@ export const CONTEXT_PARAMS: Record<string, ActionParamDef> = {
     required: [
       { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
       { name: 'data', type: 'object', description: 'Partial updates to merge' },
+    ],
+    optional: [],
+  },
+
+  workspace_populate: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
     ],
     optional: [],
   },

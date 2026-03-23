@@ -1,5 +1,6 @@
 import { getRecentEvents, type MCPEvent } from '../../events/event-emitter.js';
 import { getAllWorkspaceSessions } from '../../db/workspace-session-registry-db.js';
+import { isAnalystDispatchTarget } from './hub-policy-enforcement.js';
 
 export interface HubTelemetrySnapshot {
   generated_at: string;
@@ -169,7 +170,7 @@ export async function buildHubTelemetrySnapshot(
     }
 
     const targetAgentType = typeof data.target_agent_type === 'string' ? data.target_agent_type : null;
-    if (targetAgentType && targetAgentType !== 'Analyst') {
+    if (targetAgentType && !isAnalystDispatchTarget(targetAgentType)) {
       promptExpectedCount += 1;
       if (data.prompt_analyst_enrichment_applied === true) {
         promptAppliedCount += 1;

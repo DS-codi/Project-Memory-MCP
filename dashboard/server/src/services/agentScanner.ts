@@ -1,3 +1,22 @@
+/**
+ * Agent Scanner — template management, deployment, and sync status.
+ *
+ * ## DbRef migration status (Phase 11)
+ *
+ * This scanner works exclusively with **filesystem-backed artifacts**:
+ * - Agent template files (`.agent.md`) in the agents root directory
+ * - Deployed agent files in workspace `.github/agents/` directories
+ * - Workspace metadata files (`workspace.meta.json`) for path discovery
+ *
+ * All of these are `FileRef`-category artifacts and are NOT stored in SQLite.
+ * No DbRef migration is needed here.
+ *
+ * The `getAgentDeployments()` function reads workspace directories from the
+ * data root.  If any workspace metadata includes a `_ref` field with
+ * `ref_type: 'db'`, the scanner ignores it — agent files are always resolved
+ * from the filesystem.
+ */
+
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as crypto from 'crypto';
@@ -116,6 +135,14 @@ export async function getAgentDeployments(
       try {
         const metaContent = await fs.readFile(metaPath, 'utf-8');
         const meta = JSON.parse(metaContent);
+
+        // DbRef guard: if the meta carries a DB ref, the workspace path is
+        // still available as a sibling field — but if the path is missing,
+        // skip this entry since we can't resolve agent files without it.
+        if (meta._ref?.ref_type === 'db' && !meta.path) {
+          continue;
+        }
+
         workspacePath = meta.path;
         workspaceName = meta.name;
       } catch {
@@ -315,7 +342,14 @@ export async function deployAgentToWorkspaces(
       const metaPath = path.join(dataRoot, workspaceId, 'workspace.meta.json');
       const metaContent = await fs.readFile(metaPath, 'utf-8');
       const meta = JSON.parse(metaContent);
+
+      // DbRef guard: workspace meta may carry a _ref field; the filesystem
+      // path is still needed for agent deployment regardless of ref_type.
       const workspacePath = meta.path;
+      if (!workspacePath) {
+        failed.push({ workspace_id: workspaceId, error: 'Workspace meta missing path field' });
+        continue;
+      }
       
       // Create .github/agents directory if needed
       const agentsDir = path.join(workspacePath, '.github', 'agents');

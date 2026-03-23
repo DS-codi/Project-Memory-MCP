@@ -106,6 +106,32 @@ export const WORKSPACE_PARAMS: Record<string, ActionParamDef> = {
       { name: 'plan_id', type: 'string', description: 'Filter by plan ID' },
     ],
   },
+
+  set_display_name: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+      { name: 'display_name', type: 'string', description: 'New display name for the workspace' },
+    ],
+    optional: [],
+  },
+
+  check_context_sync: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+    ],
+    optional: [],
+  },
+
+  import_context_file: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+      { name: 'relative_path', type: 'string', description: 'Workspace-relative or .github-relative path' },
+    ],
+    optional: [
+      { name: 'confirm', type: 'boolean', description: 'When true, performs the import; otherwise previews' },
+      { name: 'expected_kind', type: 'string', description: 'Optional safety check: agent or instruction' },
+    ],
+  },
 };
 
 // =============================================================================

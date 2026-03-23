@@ -1,9 +1,9 @@
 /**
  * Instructions deployment section for the dashboard webview.
  *
- * Provides HTML template for listing available instructions and toggling
- * their deployment to the workspace. Instructions are .instructions.md files
- * in the instructions/ directory.
+ * Provides HTML template for listing available instructions and syncing
+ * workspace-local copies. Instructions are .instructions.md files in the
+ * instructions/ directory.
  */
 
 import { IconSvgs } from './icons';
@@ -24,12 +24,13 @@ export function getInstructionsSectionHtml(iconSvgs: IconSvgs): string {
                                 </button>
                                 <div class="collapsible-content">
                                     <div class="widget-body">
+                                        <p class="always-notes-help">Workspace-local instructions are preserved by context-sync classification. Use these actions to add or refresh copies, not to delete them.</p>
                                         <div class="instructions-header">
                                             <button class="btn btn-small" data-action="refresh-instructions" title="Refresh instructions list">
                                                 ${iconSvgs.syncHistory} Refresh
                                             </button>
-                                            <button class="btn btn-small btn-secondary" data-action="run-command" data-command="projectMemory.deployInstructions" title="Deploy instructions via picker">
-                                                ${iconSvgs.deployInstructions} Deploy All
+                                            <button class="btn btn-small btn-secondary" data-action="run-command" data-command="projectMemory.deployInstructions" title="Open the instructions picker">
+                                                ${iconSvgs.deployInstructions} Open Picker
                                             </button>
                                         </div>
                                         <div class="instructions-list" id="instructionsList">
@@ -54,12 +55,11 @@ export function getInstructionsClientHelpers(): string {
                 return '<div class="empty-state">No instructions found</div>';
             }
             return instructions.map(function(instr) {
-                var deployedBadge = instr.deployed
-                    ? '<span class="badge badge-ok">Deployed</span>'
+                var workspaceLocal = instr.workspaceLocal === true || instr.deployed === true;
+                var deployedBadge = workspaceLocal
+                    ? '<span class="badge badge-ok">In Workspace</span>'
                     : '';
-                var actionBtn = instr.deployed
-                    ? '<button class="btn btn-small btn-secondary" data-action="undeploy-instruction" data-instruction-name="' + escapeHtml(instr.name) + '" title="Remove from workspace">Undeploy</button>'
-                    : '<button class="btn btn-small" data-action="deploy-instruction" data-instruction-name="' + escapeHtml(instr.name) + '" title="Deploy to workspace">Deploy</button>';
+                var actionBtn = '<button class="btn btn-small' + (workspaceLocal ? ' btn-secondary' : '') + '" data-action="deploy-instruction" data-instruction-name="' + escapeHtml(instr.name) + '" title="' + (workspaceLocal ? 'Refresh workspace copy' : 'Add to workspace') + '">' + (workspaceLocal ? 'Sync Copy' : 'Add to Workspace') + '</button>';
                 return '<div class="instruction-item">' +
                     '<div class="instruction-info">' +
                         '<div class="instruction-name">' + escapeHtml(instr.name) + '</div>' +

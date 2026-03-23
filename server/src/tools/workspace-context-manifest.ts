@@ -5,8 +5,8 @@
  * when using Project Memory MCP.
  *
  * Rules:
- *   MANDATORY — must exist in the workspace; deployed from DB if missing.
- *   CULL      — should NOT exist in the workspace; they are DB-only and
+ *   MANDATORY - must exist in the workspace; deployed from DB if missing.
+ *   CULL      - should NOT exist in the workspace; they are DB-only and
  *               fetched on demand by agents via memory_instructions / memory_agent.
  *
  * Used by:
@@ -44,7 +44,7 @@ export const MANDATORY_INSTRUCTIONS: string[] = [
   'subagent-recovery.instructions.md', // recovery protocol (applyTo: hub.agent.md)
 ];
 
-/** No skill files are mandatory in the workspace. Skills are always DB-only. */
+/** No skill files are mandatory in the workspace. Workspace-local skills are preserved. */
 export const MANDATORY_SKILLS: string[] = [];
 
 export interface MandatoryWorkspaceFileSpec {
@@ -157,11 +157,11 @@ export const CULL_INSTRUCTIONS: string[] = [
 export const CULL_INSTRUCTIONS_ARCHIVE_DIR = 'archive';
 
 /**
- * Skill directories are never deployed to the workspace.
- * All skills are stored in the DB and pulled on demand.
- * If a .github/skills/ directory is detected, all its contents are cull candidates.
+ * Skill directories are not mandatory bootstrap files.
+ * Workspace-local copies are preserved because runtime skill discovery still reads
+ * .github/skills when present.
  */
-export const CULL_ALL_SKILLS = true;
+export const CULL_ALL_SKILLS = false;
 
 // ---------------------------------------------------------------------------
 // Helper types

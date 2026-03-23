@@ -1,7 +1,7 @@
 ---
 name: PromptAnalyst
 description: 'Prompt Analyst agent - Investigation and routing spoke. Reads plan state and lightly scans the codebase to classify incoming requests and identify noteworthy file paths. Returns a structured RoutingDecision that Hub uses to select a mode, category, and starting files for the Researcher.'
-tools: ['vscode', 'read', 'search', project-memory/*, 'agent', 'todo']
+tools: ['vscode', 'read', 'search', 'project-memory/*', 'agent', 'todo']
 handoffs:
   - label: "Return routing decision to Hub"
     agent: Hub
@@ -31,9 +31,27 @@ For every run, PromptAnalyst should default to this lightweight sequence:
 2. `memory_workspace(action: info)` to confirm workspace/plan context
 3. `memory_context(action: workspace_get)` for shared context and constraints
 4. `memory_filesystem(action: tree|search|list)` to identify likely entry points
-5. Optional `memory_filesystem(action: read)` for short confirmation reads only
+5. `memory_agent(action: list_skills)` + `memory_agent(action: list_workspace_skills, workspace_id: "...")` — to populate `skills_per_agent`
+6. `memory_agent(action: list_instructions)` + `memory_agent(action: list_workspace_instructions, workspace_id: "...")` — to populate `instructions_to_load` (names only; Hub passes these to spokes which fetch content from DB)
+7. Optional `memory_filesystem(action: read)` for short confirmation reads only
+8. `memory_cartographer` for plan/context graph queries — **required when request touches existing features** (see below)
 
 Return to Hub via `memory_agent(action: handoff, to_agent: "Hub")` only.
+
+### memory_cartographer
+
+**Required** when the request involves existing project features. Use Phase A actions to understand plan relationships and context structure before classifying:
+
+| Action | Use when |
+|--------|----------|
+| `get_plan_dependencies` | Request touches existing feature — check what it depends on |
+| `reverse_dependent_lookup` | Request touches existing feature — check what depends on it |
+| `context_items_projection` | Scanning workspace context items by type |
+| `db_map_summary` | Quick overview of DB schema relationships |
+
+Phase A actions are SQLite-based and always available. Skip Phase B actions (summary, file_context, layer_view, etc.) — they require Python runtime and are not needed for routing classification.
+
+Skip only for greenfield/new features with no existing plan history.
 
 ## Investigation Scope
 
@@ -89,6 +107,15 @@ Return a JSON payload:
   "category": "feature|bugfix|refactor|orchestration|program|quick_task|advisory",
   "hub_mode": "standard_orchestration|investigation|adhoc_runner|tdd_cycle",
   "scope_classification": "quick_task|single_plan|multi_plan|program",
+  "dispatch_sequence": ["Researcher", "Brainstorm", "Architect"],
+  "pause_gates": ["after_Architect"],
+  "hub_role_note": "string — one sentence: workflow mode, why selected, any non-obvious constraint",
+  "skills_per_agent": {
+    "Researcher": [],
+    "Architect": ["skill-name"],
+    "Executor": ["skill-name"]
+  },
+  "instructions_to_load": ["instruction-name"],
   "noteworthy_file_paths": [
     {
       "path": "string",
@@ -107,6 +134,43 @@ Return a JSON payload:
 ```
 
 `noteworthy_file_paths` are **paths and reasons only** — no content excerpts. Researcher will read the files.
+
+### Dispatch Sequence
+
+`dispatch_sequence` is the ordered agent list Hub executes in the pre-phase. Populate based on category:
+
+| Category | `dispatch_sequence` |
+|----------|---------------------|
+| `feature` | `["Researcher", "Brainstorm", "Architect"]` |
+| `bugfix` (cause unknown) | `["Researcher", "Architect"]` |
+| `bugfix` (cause stated explicitly) | `["Architect"]` |
+| `refactor` | `["Researcher", "Architect"]` |
+| `orchestration` | `["Researcher", "Brainstorm", "Architect"]` |
+| `program` | `["Researcher", "Brainstorm", "Architect"]` |
+| `quick_task` | `["Executor"]` or `["Worker"]` |
+| `advisory` | `[]` |
+
+Override cause-clear bugfix to `["Architect"]` only when the prompt explicitly states the root cause — not when you infer it. When in doubt, include Researcher.
+
+`pause_gates`: include `"after_Architect"` whenever Architect is in the sequence; `"after_Researcher"` for investigation mode; `[]` for quick_task and advisory.
+
+### Skill Assignment
+
+Scan available skills from `list_skills` + `list_workspace_skills`. Match skills to agents based on the request domain — assign to the agents that will actually use them:
+
+- Assign domain skills (e.g. UI framework, build system) to Architect and Executor, not Researcher
+- Researcher rarely needs skills — it explores freely
+- Only assign skills that are clearly relevant to the task; omit uncertain ones
+
+### Instruction Selection
+
+Scan available instructions from `list_instructions` + `list_workspace_instructions`. Select instructions that are relevant to the task type — Hub will pass these names to each spoke, and the spoke fetches content from DB at startup.
+
+Guidelines:
+- Always include `handoff-protocol` for any multi-agent task
+- Include tool-specific instructions (e.g. `mcp-tool-plan`, `mcp-tool-steps`) only when the spoke role will actively use that tool
+- Include workflow examples only for complex or first-time patterns
+- Omit instructions whose content is already covered by the role's agent definition
 
 ## Quality Rules
 

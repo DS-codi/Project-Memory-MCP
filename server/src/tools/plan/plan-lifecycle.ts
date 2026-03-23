@@ -34,6 +34,7 @@ import { evaluateSkillCreationNeed } from '../skill-creation-evaluator.js';
 import { storeKnowledgeFile } from '../knowledge.tools.js';
 import { events } from '../../events/event-emitter.js';
 import { appendWorkspaceFileUpdate } from '../../logging/workspace-update-log.js';
+import { makeDbRef, type DbRef } from '../../types/db-ref.types.js';
 
 // =============================================================================
 // Local Interfaces
@@ -62,7 +63,7 @@ export interface ListPlansResult {
 
 export interface FindPlanResult {
   workspace_id: string;
-  plan_state: PlanState;
+  plan_state: PlanState & { _ref?: DbRef };
   workspace_path: string;
   resume_instruction: string;
 }
@@ -201,7 +202,10 @@ export async function findPlan(
       success: true,
       data: {
         workspace_id: result.workspace_id,
-        plan_state: plan,
+        plan_state: {
+          ...plan,
+          _ref: makeDbRef('plans', plan_id, 'plan', plan.title || plan_id),
+        },
         workspace_path: workspace?.path || 'unknown',
         resume_instruction: `Plan "${plan.title}" found. ` +
           `Status: ${plan.status}, Phase: ${plan.current_phase}, ` +
@@ -227,7 +231,7 @@ export async function findPlan(
  */
 export async function createPlan(
   params: CreatePlanParams
-): Promise<ToolResponse<PlanState>> {
+): Promise<ToolResponse<PlanState & { _ref?: DbRef }>> {
   try {
     const { workspace_id, title, description, category, priority, categorization, goals, success_criteria } = params;
 
@@ -266,7 +270,10 @@ export async function createPlan(
 
     return {
       success: true,
-      data: plan
+      data: {
+        ...plan,
+        _ref: makeDbRef('plans', plan.id, 'plan', plan.title || plan.id),
+      }
     };
   } catch (error) {
     return {
@@ -281,7 +288,7 @@ export async function createPlan(
  */
 export async function getPlanState(
   params: GetPlanStateParams
-): Promise<ToolResponse<PlanState>> {
+): Promise<ToolResponse<PlanState & { _ref?: DbRef }>> {
   try {
     const { workspace_id, plan_id } = params;
 
@@ -302,7 +309,10 @@ export async function getPlanState(
 
     return {
       success: true,
-      data: state
+      data: {
+        ...state,
+        _ref: makeDbRef('plans', plan_id, 'plan', state.title || plan_id),
+      }
     };
   } catch (error) {
     return {

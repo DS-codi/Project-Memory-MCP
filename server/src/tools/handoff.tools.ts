@@ -60,6 +60,7 @@ import {
 } from '../storage/db-store.js';
 import { completeRegistrySession } from '../db/workspace-session-registry-db.js';
 import { clearLiveSession } from './session-live-store.js';
+import { makeDbRef, type DbRef } from '../types/db-ref.types.js';
 
 /**
  * Initialize an agent session - MUST be called first by every agent
@@ -125,16 +126,82 @@ export async function initialiseAgent(
       };
     }
     
-    // If no plan_id provided, return workspace status with available plans
+    // If no plan_id provided, allow workspace-scoped startup for hub agents only.
     if (!plan_id) {
+      const roleBoundaries = AGENT_BOUNDARIES[agent_type];
+      const allowsWorkspaceScopedStartup = roleBoundaries.is_hub || agent_type === 'Coordinator';
+      if (!allowsWorkspaceScopedStartup) {
+        const plans = await store.getWorkspacePlans(workspace_id);
+        const activePlans = plans.filter(p => p.status === 'active');
+
+        return {
+          success: false,
+          error: 'plan_id is required. Create a plan or use an existing one.',
+          data: {
+            session: null as unknown as AgentSession,
+            plan_state: null as unknown as PlanState,
+            workspace_status: {
+              registered: true,
+              workspace_id,
+              workspace_path: workspace.path,
+              active_plans: activePlans.map(p => `${p.id}: ${p.title} (${p.status}, phase: ${p.current_phase})`),
+              message: activePlans.length > 0
+                ? `Found ${activePlans.length} active plan(s). Provide plan_id to continue work, or create_plan/import_plan for new work.`
+                : 'No active plans. Call create_plan or import_plan to start.'
+            },
+            role_boundaries: roleBoundaries
+          }
+        };
+      }
+
       const plans = await store.getWorkspacePlans(workspace_id);
       const activePlans = plans.filter(p => p.status === 'active');
+      const rawContext = context ? sanitizeJsonData(context) : {};
+      const sessionId = store.generateSessionId();
+      const existingRunId = extractRunId(rawContext);
+      const runId = existingRunId ?? `run_${sessionId}`;
+      const sanitizedContext: Record<string, unknown> = {
+        ...(rawContext as Record<string, unknown>),
+        run_id: runId
+      };
+      const session: AgentSession = {
+        session_id: sessionId,
+        agent_type,
+        started_at: store.nowISO(),
+        context: sanitizedContext
+      };
+      const role_boundaries = roleBoundaries;
+
+      let workspace_context_summary: import('../types/index.js').WorkspaceContextSummary | undefined;
+      if (params.include_workspace_context) {
+        try {
+          workspace_context_summary = await buildWorkspaceContextSummary(workspace_id);
+        } catch {
+          // Non-fatal: if context loading fails, just omit the field
+        }
+      }
+
+      let tool_contracts: import('../types/preflight.types.js').ToolContractSummary[] | undefined;
+      try {
+        tool_contracts = buildToolContracts(agent_type);
+      } catch {
+        // Non-fatal: tool contract generation failure doesn't block init
+      }
+
+      try {
+        const ctxFilesToRead = (sanitizedContext as Record<string, unknown>)?.files_to_read;
+        const bundleFiles = Array.isArray(ctxFilesToRead)
+          ? ctxFilesToRead.filter((f): f is string => typeof f === 'string')
+          : [];
+        initSessionStats(session.session_id, bundleFiles);
+      } catch {
+        // Stats init failure is non-fatal
+      }
       
       return {
-        success: false,
-        error: 'plan_id is required. Create a plan or use an existing one.',
+        success: true,
         data: {
-          session: null as unknown as AgentSession,
+          session,
           plan_state: null as unknown as PlanState,
           workspace_status: {
             registered: true,
@@ -142,10 +209,13 @@ export async function initialiseAgent(
             workspace_path: workspace.path,
             active_plans: activePlans.map(p => `${p.id}: ${p.title} (${p.status}, phase: ${p.current_phase})`),
             message: activePlans.length > 0 
-              ? `Found ${activePlans.length} active plan(s). Provide plan_id to continue work, or create_plan/import_plan for new work.`
-              : 'No active plans. Call create_plan or import_plan to start.'
+              ? `Hub agent ${agent_type} initialized in workspace-scoped mode without a plan. ${activePlans.length} active plan(s) are available if you want plan-aware execution later.`
+              : `Hub agent ${agent_type} initialized in workspace-scoped mode without a plan. No active plans are available yet.`
           },
-          role_boundaries: AGENT_BOUNDARIES[agent_type]
+          role_boundaries,
+          workspace_context_summary,
+          tool_contracts,
+          context_size_bytes: measurePayloadSize(null, workspace_context_summary, undefined)
         }
       };
     }
@@ -666,6 +736,7 @@ export async function handoff(
   verification?: { valid: boolean; issues: string[] };
   coordinator_instruction: string;
   hub_instruction?: string;
+  _ref?: DbRef;
 }>> {
   try {
     const { workspace_id, plan_id, from_agent, to_agent, reason, data } = params;
@@ -779,7 +850,8 @@ export async function handoff(
         ...entry, 
         verification,
         coordinator_instruction: hubInstruction,
-        hub_instruction: hubInstruction
+        hub_instruction: hubInstruction,
+        _ref: makeDbRef('handoffs', `${entry.timestamp}_${from_agent}_${to_agent}`, 'handoff', `${from_agent}\u2192${to_agent}`),
       }
     };
   } catch (error) {

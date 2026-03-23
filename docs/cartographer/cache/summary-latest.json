@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-03-22T03:40:08.364Z",
+  "generated_at": "2026-03-23T19:39:27.965Z",
   "workspace_id": "project-memory-mcp-40f6678f5a9b",
-  "elapsed_ms": 20770,
+  "elapsed_ms": 18277,
   "action": "summary",
   "result": {
     "query": "summary",
@@ -13,18 +13,18 @@
       "languages": []
     },
     "summary": {
-      "file_count": 1373,
-      "module_count": 1084,
-      "symbol_count": 36148,
-      "dependency_edge_count": 1638,
-      "entry_point_count": 535,
+      "file_count": 1406,
+      "module_count": 1102,
+      "symbol_count": 44385,
+      "dependency_edge_count": 1694,
+      "entry_point_count": 546,
       "architecture_layers": [],
       "has_cycles": true,
       "language_count": 6,
       "language_breakdown": [
         {
           "language": "javascript",
-          "file_count": 410
+          "file_count": 412
         },
         {
           "language": "python",
@@ -32,19 +32,19 @@
         },
         {
           "language": "rust",
-          "file_count": 144
+          "file_count": 145
         },
         {
           "language": "shell",
-          "file_count": 76
+          "file_count": 91
         },
         {
           "language": "sql",
-          "file_count": 10
+          "file_count": 12
         },
         {
           "language": "typescript",
-          "file_count": 710
+          "file_count": 723
         }
       ]
     },

@@ -18,6 +18,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { DashboardViewProvider } from './providers/DashboardViewProvider';
 import { WorkspacePlanTreeProvider, StepItem } from './providers/WorkspacePlanTreeProvider';
+import { SprintTreeProvider } from './providers/SprintTreeProvider';
 import { DiagnosticsTreeProvider } from './providers/DiagnosticsTreeProvider';
 import { StatusBarManager } from './ui/StatusBarManager';
 import { EventSubscriptionService } from './services/EventSubscriptionService';
@@ -50,6 +51,7 @@ let connectionManager: ConnectionManager;
 let defaultDeployer: DefaultDeployer;
 let diagnosticsService: DiagnosticsService;
 let planTreeProvider: WorkspacePlanTreeProvider;
+let sprintTreeProvider: SprintTreeProvider;
 let diagnosticsTreeProvider: DiagnosticsTreeProvider;
 let eventSubscriptionService: EventSubscriptionService;
 let notificationService: NotificationService;
@@ -146,6 +148,24 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('projectMemory.planExplorer.toggleArchived', () => {
             planTreeProvider.toggleArchived();
         }),
+    );
+
+    // --- Register Sprints TreeView ---
+    sprintTreeProvider = new SprintTreeProvider(dashboardPort);
+    context.subscriptions.push(sprintTreeProvider);
+    context.subscriptions.push(
+        vscode.window.registerTreeDataProvider('projectMemory.sprints', sprintTreeProvider),
+        vscode.commands.registerCommand('projectMemory.sprintsExplorer.refresh', () => {
+            sprintTreeProvider.dashboardPort = getDashboardPort();
+            sprintTreeProvider.refresh();
+        }),
+        vscode.commands.registerCommand('projectMemory.sprintsExplorer.toggleArchived', () => {
+            sprintTreeProvider.toggleArchived();
+        }),
+    );
+
+    // --- Register plan-related commands ---
+    context.subscriptions.push(
         vscode.commands.registerCommand('projectMemory.openPlanInDashboard', (_workspaceId: string, _planId: string, _planTitle: string) => {
             // Opens full-tab dashboard; deep-link plan navigation can be added later
             vscode.commands.executeCommand('projectMemory.openDashboardPanel');

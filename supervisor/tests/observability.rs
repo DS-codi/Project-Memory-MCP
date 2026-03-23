@@ -526,7 +526,7 @@ async fn upgrade_mcp_pending_starts_false_before_command() {
 #[test]
 fn tooltip_backend_and_endpoint() {
     let services = [svc("MCP", "Connected", Some("node"), Some("tcp://localhost:3000"))];
-    let tt = build_tooltip(&services, 2);
+    let tt = build_tooltip(&services, 2, None);
     assert!(
         tt.contains("MCP: Connected (node) @ tcp://localhost:3000"),
         "expected full format with backend and endpoint; got: {tt}"
@@ -536,7 +536,7 @@ fn tooltip_backend_and_endpoint() {
 #[test]
 fn tooltip_backend_only() {
     let services = [svc("Terminal", "Running", Some("container"), None)];
-    let tt = build_tooltip(&services, 0);
+    let tt = build_tooltip(&services, 0, None);
     assert!(
         tt.contains("Terminal: Running (container)"),
         "expected format with backend only; got: {tt}"
@@ -550,7 +550,7 @@ fn tooltip_backend_only() {
 #[test]
 fn tooltip_endpoint_only() {
     let services = [svc("Dashboard", "Starting", None, Some("http://localhost:5173"))];
-    let tt = build_tooltip(&services, 1);
+    let tt = build_tooltip(&services, 1, None);
     assert!(
         tt.contains("Dashboard: Starting @ http://localhost:5173"),
         "expected format with endpoint only; got: {tt}"
@@ -560,7 +560,7 @@ fn tooltip_endpoint_only() {
 #[test]
 fn tooltip_neither_backend_nor_endpoint() {
     let services = [svc("MCP", "Disconnected", None, None)];
-    let tt = build_tooltip(&services, 0);
+    let tt = build_tooltip(&services, 0, None);
     assert!(
         tt.contains("MCP: Disconnected"),
         "expected bare name:state format; got: {tt}"
@@ -578,7 +578,7 @@ fn tooltip_neither_backend_nor_endpoint() {
 #[test]
 fn tooltip_zero_clients() {
     let services = [svc("MCP", "Connected", None, None)];
-    let tt = build_tooltip(&services, 0);
+    let tt = build_tooltip(&services, 0, None);
     assert!(
         tt.contains("Clients: 0 attached"),
         "0 clients should use plural 'Clients'; got: {tt}"
@@ -588,7 +588,7 @@ fn tooltip_zero_clients() {
 #[test]
 fn tooltip_one_client_singular() {
     let services = [svc("MCP", "Connected", None, None)];
-    let tt = build_tooltip(&services, 1);
+    let tt = build_tooltip(&services, 1, None);
     assert!(
         tt.contains("Client: 1 attached"),
         "1 client should use singular 'Client'; got: {tt}"
@@ -602,7 +602,7 @@ fn tooltip_one_client_singular() {
 #[test]
 fn tooltip_many_clients_plural() {
     let services = [svc("MCP", "Connected", None, None)];
-    let tt = build_tooltip(&services, 5);
+    let tt = build_tooltip(&services, 5, None);
     assert!(
         tt.contains("Clients: 5 attached"),
         "5 clients should use plural 'Clients'; got: {tt}"
@@ -620,7 +620,7 @@ fn tooltip_multiple_services_all_appear() {
         svc("Terminal", "Running", Some("container"), None),
         svc("Dashboard", "Starting", None, Some("http://localhost:5173")),
     ];
-    let tt = build_tooltip(&services, 3);
+    let tt = build_tooltip(&services, 3, None);
     let lines: Vec<&str> = tt.lines().collect();
     // 3 service lines + 1 clients line = 4 lines total.
     assert_eq!(lines.len(), 4, "expected 4 output lines; got:\n{tt}");
@@ -632,7 +632,7 @@ fn tooltip_multiple_services_all_appear() {
 
 #[test]
 fn tooltip_empty_services_only_clients_line() {
-    let tt = build_tooltip(&[], 0);
+    let tt = build_tooltip(&[], 0, None);
     let lines: Vec<&str> = tt.lines().collect();
     assert_eq!(lines.len(), 1, "empty services slice should yield only clients line; got:\n{tt}");
     assert!(tt.contains("Clients: 0 attached"));
@@ -644,7 +644,7 @@ fn tooltip_services_joined_by_newlines() {
         svc("MCP", "Connected", None, None),
         svc("Dashboard", "Starting", None, None),
     ];
-    let tt = build_tooltip(&services, 2);
+    let tt = build_tooltip(&services, 2, None);
     // Verify newline separator between service line and next line.
     let lines: Vec<&str> = tt.lines().collect();
     assert_eq!(lines.len(), 3, "expected 3 lines for 2 services + clients; got:\n{tt}");

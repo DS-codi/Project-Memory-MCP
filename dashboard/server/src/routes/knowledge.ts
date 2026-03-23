@@ -10,6 +10,7 @@ import { Router, type Request } from 'express';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { listKnowledge, getKnowledgeItem } from '../db/queries.js';
+import { makeDbRef } from '../types/db-ref.types.js';
 
 export const knowledgeRouter = Router({ mergeParams: true });
 
@@ -102,6 +103,7 @@ knowledgeRouter.get('/', async (req: Request<KnowledgeParams>, res) => {
         updated_at: row.updated_at,
         created_by_agent: row.created_by_agent ?? undefined,
         created_by_plan: row.created_by_plan ?? undefined,
+        _ref: makeDbRef('knowledge', row.id, 'knowledge', row.title || row.slug),
       };
     });
 
@@ -153,6 +155,7 @@ knowledgeRouter.get('/:slug', async (req: Request<KnowledgeParams>, res) => {
       updated_at: row.updated_at,
       created_by_agent: row.created_by_agent ?? undefined,
       created_by_plan: row.created_by_plan ?? undefined,
+      _ref: makeDbRef('knowledge', row.id, 'knowledge', row.title || row.slug),
     };
 
     res.json({ file });

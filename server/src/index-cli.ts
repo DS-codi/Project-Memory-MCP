@@ -330,6 +330,35 @@ function createCliMcpServer(): McpServer {
     },
   );
 
+  // ---- memory_sprint ----------------------------------------------------------
+  server.tool(
+    'memory_sprint',
+    'Sprint management. Actions: list (by workspace), get (single sprint with goals), create (new sprint), update (title/status), archive, delete, set_goals (replace goals array), add_goal, complete_goal, remove_goal, attach_plan, detach_plan.',
+    {
+      action: z.enum([
+        'list', 'get', 'create', 'update', 'archive', 'delete',
+        'set_goals', 'add_goal', 'complete_goal', 'remove_goal',
+        'attach_plan', 'detach_plan',
+      ]).describe('The action to perform'),
+      workspace_id: z.string().optional().describe('Workspace ID (required for list, create)'),
+      sprint_id: z.string().optional().describe('Sprint ID'),
+      title: z.string().optional().describe('Sprint title'),
+      status: z.enum(['active', 'completed', 'archived']).optional().describe('Sprint status'),
+      plan_id: z.string().optional().describe('Plan ID to attach'),
+      goals: z.array(z.string()).optional().describe('Array of goal descriptions (for set_goals)'),
+      goal_description: z.string().optional().describe('Goal description (for add_goal)'),
+      goal_id: z.string().optional().describe('Goal ID (for complete_goal, remove_goal)'),
+      include_archived: z.boolean().optional().describe('Include archived sprints in list'),
+      confirm: z.boolean().optional().describe('Confirmation for delete action'),
+    },
+    async (params) => {
+      const result = await consolidatedTools.memorySprint(
+        params as consolidatedTools.MemorySprintParams,
+      );
+      return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+    },
+  );
+
   return server;
 }
 

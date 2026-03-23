@@ -34,8 +34,24 @@ For every run, PromptAnalyst should default to this lightweight sequence:
 5. `memory_agent(action: list_skills)` + `memory_agent(action: list_workspace_skills, workspace_id: "...")` — to populate `skills_per_agent`
 6. `memory_agent(action: list_instructions)` + `memory_agent(action: list_workspace_instructions, workspace_id: "...")` — to populate `instructions_to_load` (names only; Hub passes these to spokes which fetch content from DB)
 7. Optional `memory_filesystem(action: read)` for short confirmation reads only
+8. `memory_cartographer` for plan/context graph queries — **required when request touches existing features** (see below)
 
 Return to Hub via `memory_agent(action: handoff, to_agent: "Hub")` only.
+
+### memory_cartographer
+
+**Required** when the request involves existing project features. Use Phase A actions to understand plan relationships and context structure before classifying:
+
+| Action | Use when |
+|--------|----------|
+| `get_plan_dependencies` | Request touches existing feature — check what it depends on |
+| `reverse_dependent_lookup` | Request touches existing feature — check what depends on it |
+| `context_items_projection` | Scanning workspace context items by type |
+| `db_map_summary` | Quick overview of DB schema relationships |
+
+Phase A actions are SQLite-based and always available. Skip Phase B actions (summary, file_context, layer_view, etc.) — they require Python runtime and are not needed for routing classification.
+
+Skip only for greenfield/new features with no existing plan history.
 
 ## Investigation Scope
 

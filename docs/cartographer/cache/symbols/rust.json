@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-03-22T03:40:26.123Z",
+  "generated_at": "2026-03-23T19:39:46.044Z",
   "workspace_id": "project-memory-mcp-40f6678f5a9b",
   "language": "rust",
   "partial": false,
-  "total": 2550,
+  "total": 2576,
   "symbols": [
     {
       "id": "crates/cartographer-core/src/lib.rs::__module__",
@@ -2306,11 +2306,21 @@
       "exported": false
     },
     {
+      "id": "interactive-terminal/src/cxxqt_bridge/ffi.rs::crash_alert",
+      "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
+      "name": "crash_alert",
+      "kind": "function",
+      "start_line": 69,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
       "id": "interactive-terminal/src/cxxqt_bridge/ffi.rs::approve_command",
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "approve_command",
       "kind": "function",
-      "start_line": 65,
+      "start_line": 73,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2320,7 +2330,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "decline_command",
       "kind": "function",
-      "start_line": 69,
+      "start_line": 77,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2330,7 +2340,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "clear_output",
       "kind": "function",
-      "start_line": 73,
+      "start_line": 81,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2340,7 +2350,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "create_session",
       "kind": "function",
-      "start_line": 77,
+      "start_line": 85,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2350,7 +2360,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "switch_session",
       "kind": "function",
-      "start_line": 81,
+      "start_line": 89,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2360,7 +2370,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "close_session",
       "kind": "function",
-      "start_line": 85,
+      "start_line": 93,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2370,7 +2380,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "rename_session",
       "kind": "function",
-      "start_line": 89,
+      "start_line": 97,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2380,7 +2390,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "set_session_terminal_profile",
       "kind": "function",
-      "start_line": 93,
+      "start_line": 101,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2390,7 +2400,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "set_default_terminal_profile",
       "kind": "function",
-      "start_line": 97,
+      "start_line": 105,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2400,7 +2410,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "set_session_workspace_path",
       "kind": "function",
-      "start_line": 101,
+      "start_line": 109,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2410,7 +2420,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "set_session_venv_path",
       "kind": "function",
-      "start_line": 105,
+      "start_line": 113,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2420,7 +2430,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "set_session_activate_venv",
       "kind": "function",
-      "start_line": 109,
+      "start_line": 117,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2430,7 +2440,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "set_start_with_windows_enabled",
       "kind": "function",
-      "start_line": 113,
+      "start_line": 121,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2440,7 +2450,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "set_gemini_api_key",
       "kind": "function",
-      "start_line": 117,
+      "start_line": 125,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2450,7 +2460,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "clear_gemini_api_key",
       "kind": "function",
-      "start_line": 121,
+      "start_line": 129,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2460,7 +2470,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "launch_gemini_session",
       "kind": "function",
-      "start_line": 125,
+      "start_line": 133,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2470,7 +2480,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "launch_gemini_in_tab",
       "kind": "function",
-      "start_line": 129,
+      "start_line": 137,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2480,7 +2490,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "launch_copilot_in_tab",
       "kind": "function",
-      "start_line": 133,
+      "start_line": 141,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2490,7 +2500,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "open_saved_commands",
       "kind": "function",
-      "start_line": 137,
+      "start_line": 145,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2500,7 +2510,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "saved_commands_json",
       "kind": "function",
-      "start_line": 141,
+      "start_line": 149,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2510,7 +2520,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "saved_commands_workspace_id",
       "kind": "function",
-      "start_line": 145,
+      "start_line": 153,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2520,7 +2530,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "reopen_saved_commands",
       "kind": "function",
-      "start_line": 149,
+      "start_line": 157,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2530,7 +2540,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "save_saved_command",
       "kind": "function",
-      "start_line": 153,
+      "start_line": 161,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2540,7 +2550,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "delete_saved_command",
       "kind": "function",
-      "start_line": 161,
+      "start_line": 169,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2550,7 +2560,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "execute_saved_command",
       "kind": "function",
-      "start_line": 165,
+      "start_line": 173,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2560,7 +2570,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "run_command",
       "kind": "function",
-      "start_line": 169,
+      "start_line": 177,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2570,7 +2580,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "show_session_startup",
       "kind": "function",
-      "start_line": 173,
+      "start_line": 181,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2580,7 +2590,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "export_output_text",
       "kind": "function",
-      "start_line": 177,
+      "start_line": 185,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2590,7 +2600,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "export_output_json",
       "kind": "function",
-      "start_line": 181,
+      "start_line": 189,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2600,7 +2610,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "copy_current_output",
       "kind": "function",
-      "start_line": 185,
+      "start_line": 193,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2610,7 +2620,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "copy_last_command_output",
       "kind": "function",
-      "start_line": 189,
+      "start_line": 197,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2620,7 +2630,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "approval_provider_prefill_policy",
       "kind": "function",
-      "start_line": 193,
+      "start_line": 201,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2630,7 +2640,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "refresh_allowlist",
       "kind": "function",
-      "start_line": 201,
+      "start_line": 209,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2640,7 +2650,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "add_allowlist_pattern",
       "kind": "function",
-      "start_line": 205,
+      "start_line": 213,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2650,7 +2660,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "remove_allowlist_pattern",
       "kind": "function",
-      "start_line": 209,
+      "start_line": 217,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2660,7 +2670,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "derive_allowlist_pattern",
       "kind": "function",
-      "start_line": 213,
+      "start_line": 221,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2670,7 +2680,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "confirm_add_proposed_pattern",
       "kind": "function",
-      "start_line": 217,
+      "start_line": 225,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2680,7 +2690,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "cancel_proposed_pattern",
       "kind": "function",
-      "start_line": 221,
+      "start_line": 229,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2690,7 +2700,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "select_exact_proposed_pattern",
       "kind": "function",
-      "start_line": 225,
+      "start_line": 233,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2700,7 +2710,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "select_general_proposed_pattern",
       "kind": "function",
-      "start_line": 229,
+      "start_line": 237,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -2710,7 +2720,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/ffi.rs",
       "name": "compute_approval_risk_tier",
       "kind": "function",
-      "start_line": 236,
+      "start_line": 244,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4120,7 +4130,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/pty_host_client.rs",
       "name": "create_session",
       "kind": "function",
-      "start_line": 219,
+      "start_line": 224,
       "qualified_name": null,
       "end_line": null,
       "exported": true
@@ -4130,7 +4140,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/pty_host_client.rs",
       "name": "connect_with_retry",
       "kind": "function",
-      "start_line": 259,
+      "start_line": 264,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4420,7 +4430,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "separate_stdout_stderr",
       "kind": "function",
-      "start_line": 1792,
+      "start_line": 1833,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4430,7 +4440,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "should_route_via_ws_terminal",
       "kind": "function",
-      "start_line": 1811,
+      "start_line": 1852,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4440,7 +4450,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "is_safe_env_key",
       "kind": "function",
-      "start_line": 1827,
+      "start_line": 1868,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4450,7 +4460,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "escape_powershell_single_quoted",
       "kind": "function",
-      "start_line": 1838,
+      "start_line": 1879,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4460,7 +4470,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "normalize_ws_request_env",
       "kind": "function",
-      "start_line": 1842,
+      "start_line": 1883,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4470,7 +4480,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "build_ws_env_prefix",
       "kind": "function",
-      "start_line": 1873,
+      "start_line": 1914,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4480,7 +4490,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "parse_marker_exit_code",
       "kind": "function",
-      "start_line": 1881,
+      "start_line": 1922,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4490,7 +4500,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "strip_leading_current_dir_components",
       "kind": "function",
-      "start_line": 1887,
+      "start_line": 1928,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4500,7 +4510,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "resolve_ws_working_directory",
       "kind": "function",
-      "start_line": 1908,
+      "start_line": 1949,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4510,7 +4520,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "strip_ansi",
       "kind": "function",
-      "start_line": 1968,
+      "start_line": 2009,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4520,7 +4530,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "build_ws_wrapped_command",
       "kind": "function",
-      "start_line": 1989,
+      "start_line": 2030,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4530,7 +4540,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "execute_command_via_ws_terminal",
       "kind": "function",
-      "start_line": 2014,
+      "start_line": 2055,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4540,7 +4550,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "msg_read_output_completed_session_with_stderr",
       "kind": "function",
-      "start_line": 2146,
+      "start_line": 2187,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4550,7 +4560,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "msg_read_output_failed_session",
       "kind": "function",
-      "start_line": 2175,
+      "start_line": 2216,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4560,7 +4570,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "msg_read_output_unknown_session",
       "kind": "function",
-      "start_line": 2201,
+      "start_line": 2242,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4570,7 +4580,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "msg_read_output_running_session",
       "kind": "function",
-      "start_line": 2220,
+      "start_line": 2261,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4580,7 +4590,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "msg_kill_running_session",
       "kind": "function",
-      "start_line": 2245,
+      "start_line": 2286,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4590,7 +4600,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "msg_kill_completed_session",
       "kind": "function",
-      "start_line": 2268,
+      "start_line": 2309,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4600,7 +4610,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "msg_kill_unknown_session",
       "kind": "function",
-      "start_line": 2289,
+      "start_line": 2330,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4610,7 +4620,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "exec_store_running_then_read",
       "kind": "function",
-      "start_line": 2319,
+      "start_line": 2360,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4620,7 +4630,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "exec_mark_completed_then_read",
       "kind": "function",
-      "start_line": 2346,
+      "start_line": 2387,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4630,7 +4640,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "exec_kill_channel_signal_delivery",
       "kind": "function",
-      "start_line": 2379,
+      "start_line": 2420,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4640,7 +4650,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "exec_killed_stores_negative_exit_code",
       "kind": "function",
-      "start_line": 2407,
+      "start_line": 2448,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4650,7 +4660,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "exec_kill_after_completion_returns_false",
       "kind": "function",
-      "start_line": 2441,
+      "start_line": 2482,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4660,7 +4670,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "exec_concurrent_sessions_independent",
       "kind": "function",
-      "start_line": 2475,
+      "start_line": 2516,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4670,7 +4680,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "separate_stdout_stderr_mixed_lines",
       "kind": "function",
-      "start_line": 2521,
+      "start_line": 2562,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4680,7 +4690,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "separate_stdout_stderr_empty_input",
       "kind": "function",
-      "start_line": 2545,
+      "start_line": 2586,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4690,7 +4700,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "ws_wrap_resolves_relative_cwd_against_workspace",
       "kind": "function",
-      "start_line": 2553,
+      "start_line": 2594,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4700,7 +4710,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "ws_wrap_falls_back_to_workspace_when_relative_target_missing",
       "kind": "function",
-      "start_line": 2586,
+      "start_line": 2627,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -4710,7 +4720,7 @@
       "file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
       "name": "ws_wrap_includes_args_in_powershell_command",
       "kind": "function",
-      "start_line": 2619,
+      "start_line": 2660,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -8170,7 +8180,7 @@
       "file": "interactive-terminal/src/pty_host_protocol.rs",
       "name": "PtyHostMessage",
       "kind": "enum",
-      "start_line": 12,
+      "start_line": 15,
       "qualified_name": null,
       "end_line": null,
       "exported": true
@@ -8180,7 +8190,7 @@
       "file": "interactive-terminal/src/pty_host_protocol.rs",
       "name": "SessionCreate",
       "kind": "class",
-      "start_line": 34,
+      "start_line": 38,
       "qualified_name": null,
       "end_line": null,
       "exported": true
@@ -8190,7 +8200,7 @@
       "file": "interactive-terminal/src/pty_host_protocol.rs",
       "name": "SessionCreated",
       "kind": "class",
-      "start_line": 47,
+      "start_line": 52,
       "qualified_name": null,
       "end_line": null,
       "exported": true
@@ -8200,7 +8210,7 @@
       "file": "interactive-terminal/src/pty_host_protocol.rs",
       "name": "SessionCreateFailed",
       "kind": "class",
-      "start_line": 52,
+      "start_line": 58,
       "qualified_name": null,
       "end_line": null,
       "exported": true
@@ -8210,7 +8220,7 @@
       "file": "interactive-terminal/src/pty_host_protocol.rs",
       "name": "SessionInput",
       "kind": "class",
-      "start_line": 58,
+      "start_line": 65,
       "qualified_name": null,
       "end_line": null,
       "exported": true
@@ -8220,7 +8230,7 @@
       "file": "interactive-terminal/src/pty_host_protocol.rs",
       "name": "SessionResize",
       "kind": "class",
-      "start_line": 65,
+      "start_line": 73,
       "qualified_name": null,
       "end_line": null,
       "exported": true
@@ -8230,7 +8240,7 @@
       "file": "interactive-terminal/src/pty_host_protocol.rs",
       "name": "SessionOutput",
       "kind": "class",
-      "start_line": 72,
+      "start_line": 81,
       "qualified_name": null,
       "end_line": null,
       "exported": true
@@ -8240,7 +8250,7 @@
       "file": "interactive-terminal/src/pty_host_protocol.rs",
       "name": "SessionExited",
       "kind": "class",
-      "start_line": 79,
+      "start_line": 89,
       "qualified_name": null,
       "end_line": null,
       "exported": true
@@ -8250,7 +8260,7 @@
       "file": "interactive-terminal/src/pty_host_protocol.rs",
       "name": "SessionKill",
       "kind": "class",
-      "start_line": 85,
+      "start_line": 96,
       "qualified_name": null,
       "end_line": null,
       "exported": true
@@ -8260,7 +8270,7 @@
       "file": "interactive-terminal/src/pty_host_protocol.rs",
       "name": "Heartbeat",
       "kind": "class",
-      "start_line": 90,
+      "start_line": 102,
       "qualified_name": null,
       "end_line": null,
       "exported": true
@@ -8270,7 +8280,7 @@
       "file": "interactive-terminal/src/pty_host_protocol.rs",
       "name": "roundtrip",
       "kind": "function",
-      "start_line": 98,
+      "start_line": 110,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -8280,7 +8290,7 @@
       "file": "interactive-terminal/src/pty_host_protocol.rs",
       "name": "session_create_roundtrip",
       "kind": "function",
-      "start_line": 104,
+      "start_line": 116,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -8290,7 +8300,7 @@
       "file": "interactive-terminal/src/pty_host_protocol.rs",
       "name": "session_created_roundtrip",
       "kind": "function",
-      "start_line": 118,
+      "start_line": 130,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -8300,7 +8310,7 @@
       "file": "interactive-terminal/src/pty_host_protocol.rs",
       "name": "session_create_failed_roundtrip",
       "kind": "function",
-      "start_line": 126,
+      "start_line": 138,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -8310,7 +8320,7 @@
       "file": "interactive-terminal/src/pty_host_protocol.rs",
       "name": "session_input_roundtrip",
       "kind": "function",
-      "start_line": 135,
+      "start_line": 147,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -8320,7 +8330,7 @@
       "file": "interactive-terminal/src/pty_host_protocol.rs",
       "name": "session_resize_roundtrip",
       "kind": "function",
-      "start_line": 144,
+      "start_line": 156,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -8330,7 +8340,7 @@
       "file": "interactive-terminal/src/pty_host_protocol.rs",
       "name": "session_output_roundtrip",
       "kind": "function",
-      "start_line": 154,
+      "start_line": 166,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -8340,7 +8350,7 @@
       "file": "interactive-terminal/src/pty_host_protocol.rs",
       "name": "session_exited_roundtrip",
       "kind": "function",
-      "start_line": 163,
+      "start_line": 175,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -8350,7 +8360,7 @@
       "file": "interactive-terminal/src/pty_host_protocol.rs",
       "name": "session_exited_no_exit_code_roundtrip",
       "kind": "function",
-      "start_line": 172,
+      "start_line": 184,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -8360,7 +8370,7 @@
       "file": "interactive-terminal/src/pty_host_protocol.rs",
       "name": "session_kill_roundtrip",
       "kind": "function",
-      "start_line": 181,
+      "start_line": 193,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -8370,7 +8380,7 @@
       "file": "interactive-terminal/src/pty_host_protocol.rs",
       "name": "heartbeat_roundtrip",
       "kind": "function",
-      "start_line": 189,
+      "start_line": 201,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -8380,7 +8390,7 @@
       "file": "interactive-terminal/src/pty_host_protocol.rs",
       "name": "type_tag_is_snake_case",
       "kind": "function",
-      "start_line": 195,
+      "start_line": 207,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -10480,7 +10490,7 @@
       "file": "pm-approval-gui/src/cxxqt_bridge/mod.rs",
       "name": "ApprovalRenderMode",
       "kind": "enum",
-      "start_line": 17,
+      "start_line": 13,
       "qualified_name": null,
       "end_line": null,
       "exported": true
@@ -10490,7 +10500,7 @@
       "file": "pm-approval-gui/src/cxxqt_bridge/mod.rs",
       "name": "AppState",
       "kind": "class",
-      "start_line": 23,
+      "start_line": 19,
       "qualified_name": null,
       "end_line": null,
       "exported": true
@@ -10500,7 +10510,7 @@
       "file": "pm-approval-gui/src/cxxqt_bridge/mod.rs",
       "name": "default",
       "kind": "function",
-      "start_line": 41,
+      "start_line": 37,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -10510,17 +10520,17 @@
       "file": "pm-approval-gui/src/cxxqt_bridge/mod.rs",
       "name": "ApprovalAppRust",
       "kind": "class",
-      "start_line": 62,
+      "start_line": 58,
       "qualified_name": null,
       "end_line": null,
       "exported": true
     },
     {
-      "id": "pm-approval-gui/src/cxxqt_bridge/mod.rs::default_function_90",
+      "id": "pm-approval-gui/src/cxxqt_bridge/mod.rs::default_function_86",
       "file": "pm-approval-gui/src/cxxqt_bridge/mod.rs",
       "name": "default",
       "kind": "function",
-      "start_line": 90,
+      "start_line": 86,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -10530,7 +10540,7 @@
       "file": "pm-approval-gui/src/cxxqt_bridge/mod.rs",
       "name": "timer_expired",
       "kind": "function",
-      "start_line": 157,
+      "start_line": 153,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -10540,7 +10550,7 @@
       "file": "pm-approval-gui/src/cxxqt_bridge/mod.rs",
       "name": "form_completed",
       "kind": "function",
-      "start_line": 162,
+      "start_line": 158,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -10550,7 +10560,7 @@
       "file": "pm-approval-gui/src/cxxqt_bridge/mod.rs",
       "name": "approve",
       "kind": "function",
-      "start_line": 168,
+      "start_line": 164,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -10560,7 +10570,7 @@
       "file": "pm-approval-gui/src/cxxqt_bridge/mod.rs",
       "name": "reject",
       "kind": "function",
-      "start_line": 172,
+      "start_line": 168,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -10570,7 +10580,7 @@
       "file": "pm-approval-gui/src/cxxqt_bridge/mod.rs",
       "name": "set_notes",
       "kind": "function",
-      "start_line": 177,
+      "start_line": 173,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -10580,7 +10590,7 @@
       "file": "pm-approval-gui/src/cxxqt_bridge/mod.rs",
       "name": "set_selected_option",
       "kind": "function",
-      "start_line": 182,
+      "start_line": 178,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -10590,7 +10600,7 @@
       "file": "pm-approval-gui/src/cxxqt_bridge/mod.rs",
       "name": "submit_selection",
       "kind": "function",
-      "start_line": 187,
+      "start_line": 183,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -10600,7 +10610,7 @@
       "file": "pm-approval-gui/src/cxxqt_bridge/mod.rs",
       "name": "pause_timer",
       "kind": "function",
-      "start_line": 192,
+      "start_line": 188,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -10610,7 +10620,7 @@
       "file": "pm-approval-gui/src/cxxqt_bridge/mod.rs",
       "name": "resume_timer",
       "kind": "function",
-      "start_line": 197,
+      "start_line": 193,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -10910,7 +10920,7 @@
       "file": "pm-brainstorm-gui/src/cxxqt_bridge/mod.rs",
       "name": "AppState",
       "kind": "class",
-      "start_line": 17,
+      "start_line": 14,
       "qualified_name": null,
       "end_line": null,
       "exported": true
@@ -10920,7 +10930,7 @@
       "file": "pm-brainstorm-gui/src/cxxqt_bridge/mod.rs",
       "name": "default",
       "kind": "function",
-      "start_line": 44,
+      "start_line": 39,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -10930,17 +10940,17 @@
       "file": "pm-brainstorm-gui/src/cxxqt_bridge/mod.rs",
       "name": "FormAppRust",
       "kind": "class",
-      "start_line": 67,
+      "start_line": 61,
       "qualified_name": null,
       "end_line": null,
       "exported": true
     },
     {
-      "id": "pm-brainstorm-gui/src/cxxqt_bridge/mod.rs::default_function_88",
+      "id": "pm-brainstorm-gui/src/cxxqt_bridge/mod.rs::default_function_82",
       "file": "pm-brainstorm-gui/src/cxxqt_bridge/mod.rs",
       "name": "default",
       "kind": "function",
-      "start_line": 88,
+      "start_line": 82,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -10950,7 +10960,7 @@
       "file": "pm-brainstorm-gui/src/cxxqt_bridge/mod.rs",
       "name": "timer_expired",
       "kind": "function",
-      "start_line": 135,
+      "start_line": 129,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -10960,7 +10970,7 @@
       "file": "pm-brainstorm-gui/src/cxxqt_bridge/mod.rs",
       "name": "form_completed",
       "kind": "function",
-      "start_line": 140,
+      "start_line": 134,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -10970,7 +10980,7 @@
       "file": "pm-brainstorm-gui/src/cxxqt_bridge/mod.rs",
       "name": "refinement_completed",
       "kind": "function",
-      "start_line": 145,
+      "start_line": 139,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -10980,7 +10990,7 @@
       "file": "pm-brainstorm-gui/src/cxxqt_bridge/mod.rs",
       "name": "set_answer",
       "kind": "function",
-      "start_line": 153,
+      "start_line": 147,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -10990,7 +11000,7 @@
       "file": "pm-brainstorm-gui/src/cxxqt_bridge/mod.rs",
       "name": "submit_form",
       "kind": "function",
-      "start_line": 159,
+      "start_line": 153,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -11000,7 +11010,7 @@
       "file": "pm-brainstorm-gui/src/cxxqt_bridge/mod.rs",
       "name": "cancel_form",
       "kind": "function",
-      "start_line": 165,
+      "start_line": 159,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -11010,7 +11020,7 @@
       "file": "pm-brainstorm-gui/src/cxxqt_bridge/mod.rs",
       "name": "use_all_recommendations",
       "kind": "function",
-      "start_line": 171,
+      "start_line": 165,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -11020,7 +11030,7 @@
       "file": "pm-brainstorm-gui/src/cxxqt_bridge/mod.rs",
       "name": "toggle_refinement",
       "kind": "function",
-      "start_line": 176,
+      "start_line": 170,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -11030,7 +11040,7 @@
       "file": "pm-brainstorm-gui/src/cxxqt_bridge/mod.rs",
       "name": "set_refinement_feedback",
       "kind": "function",
-      "start_line": 182,
+      "start_line": 176,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -11040,7 +11050,7 @@
       "file": "pm-brainstorm-gui/src/cxxqt_bridge/mod.rs",
       "name": "request_refinement",
       "kind": "function",
-      "start_line": 191,
+      "start_line": 185,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -11050,7 +11060,7 @@
       "file": "pm-brainstorm-gui/src/cxxqt_bridge/mod.rs",
       "name": "request_refinement_for_question",
       "kind": "function",
-      "start_line": 199,
+      "start_line": 193,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -11060,7 +11070,7 @@
       "file": "pm-brainstorm-gui/src/cxxqt_bridge/mod.rs",
       "name": "pause_timer",
       "kind": "function",
-      "start_line": 204,
+      "start_line": 198,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -11070,7 +11080,7 @@
       "file": "pm-brainstorm-gui/src/cxxqt_bridge/mod.rs",
       "name": "resume_timer",
       "kind": "function",
-      "start_line": 209,
+      "start_line": 203,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -11121,6 +11131,246 @@
       "name": "main",
       "kind": "function",
       "start_line": 36,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "pm-cli/src/main.rs::__module__",
+      "file": "pm-cli/src/main.rs",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "pm-cli/src/main.rs::AnimStyle",
+      "file": "pm-cli/src/main.rs",
+      "name": "AnimStyle",
+      "kind": "enum",
+      "start_line": 41,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "pm-cli/src/main.rs::next",
+      "file": "pm-cli/src/main.rs",
+      "name": "next",
+      "kind": "function",
+      "start_line": 49,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "pm-cli/src/main.rs::prev",
+      "file": "pm-cli/src/main.rs",
+      "name": "prev",
+      "kind": "function",
+      "start_line": 57,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "pm-cli/src/main.rs::name",
+      "file": "pm-cli/src/main.rs",
+      "name": "name",
+      "kind": "function",
+      "start_line": 65,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "pm-cli/src/main.rs::prng",
+      "file": "pm-cli/src/main.rs",
+      "name": "prng",
+      "kind": "function",
+      "start_line": 76,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "pm-cli/src/main.rs::TerminalGuard",
+      "file": "pm-cli/src/main.rs",
+      "name": "TerminalGuard",
+      "kind": "class",
+      "start_line": 118,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "pm-cli/src/main.rs::drop",
+      "file": "pm-cli/src/main.rs",
+      "name": "drop",
+      "kind": "function",
+      "start_line": 120,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "pm-cli/src/main.rs::main",
+      "file": "pm-cli/src/main.rs",
+      "name": "main",
+      "kind": "function",
+      "start_line": 128,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "pm-cli/src/main.rs::render_banner_with_palette",
+      "file": "pm-cli/src/main.rs",
+      "name": "render_banner_with_palette",
+      "kind": "function",
+      "start_line": 146,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "pm-cli/src/main.rs::render_animated_banner",
+      "file": "pm-cli/src/main.rs",
+      "name": "render_animated_banner",
+      "kind": "function",
+      "start_line": 213,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "pm-cli/src/main.rs::run_app",
+      "file": "pm-cli/src/main.rs",
+      "name": "run_app",
+      "kind": "function",
+      "start_line": 219,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "pm-cli/src/main.rs::handle_action",
+      "file": "pm-cli/src/main.rs",
+      "name": "handle_action",
+      "kind": "function",
+      "start_line": 304,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "pm-cli/src/main.rs::show_install_submenu",
+      "file": "pm-cli/src/main.rs",
+      "name": "show_install_submenu",
+      "kind": "function",
+      "start_line": 337,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "pm-cli/src/main.rs::PhaseResult",
+      "file": "pm-cli/src/main.rs",
+      "name": "PhaseResult",
+      "kind": "class",
+      "start_line": 408,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "pm-cli/src/main.rs::component_build_plan",
+      "file": "pm-cli/src/main.rs",
+      "name": "component_build_plan",
+      "kind": "function",
+      "start_line": 418,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "pm-cli/src/main.rs::ps",
+      "file": "pm-cli/src/main.rs",
+      "name": "ps",
+      "kind": "function",
+      "start_line": 419,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "pm-cli/src/main.rs::run_build_component",
+      "file": "pm-cli/src/main.rs",
+      "name": "run_build_component",
+      "kind": "function",
+      "start_line": 466,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "pm-cli/src/main.rs::run_build_phase",
+      "file": "pm-cli/src/main.rs",
+      "name": "run_build_phase",
+      "kind": "function",
+      "start_line": 500,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "pm-cli/src/main.rs::show_warning_summary",
+      "file": "pm-cli/src/main.rs",
+      "name": "show_warning_summary",
+      "kind": "function",
+      "start_line": 750,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "pm-cli/src/main.rs::run_streaming_command",
+      "file": "pm-cli/src/main.rs",
+      "name": "run_streaming_command",
+      "kind": "function",
+      "start_line": 860,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "pm-cli/src/main.rs::show_launch_submenu",
+      "file": "pm-cli/src/main.rs",
+      "name": "show_launch_submenu",
+      "kind": "function",
+      "start_line": 989,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "pm-cli/src/main.rs::run_detached",
+      "file": "pm-cli/src/main.rs",
+      "name": "run_detached",
+      "kind": "function",
+      "start_line": 1053,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "pm-cli/src/main.rs::copy_to_clipboard",
+      "file": "pm-cli/src/main.rs",
+      "name": "copy_to_clipboard",
+      "kind": "function",
+      "start_line": 1065,
       "qualified_name": null,
       "end_line": null,
       "exported": false
@@ -19731,6 +19981,16 @@
       "name": "subscriber_count_reflects_receivers",
       "kind": "function",
       "start_line": 228,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "supervisor/src/events/mod.rs::focused_workspace_generated_roundtrip",
+      "file": "supervisor/src/events/mod.rs",
+      "name": "focused_workspace_generated_roundtrip",
+      "kind": "function",
+      "start_line": 241,
       "qualified_name": null,
       "end_line": null,
       "exported": false

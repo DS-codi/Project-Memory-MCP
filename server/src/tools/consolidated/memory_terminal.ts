@@ -1224,23 +1224,36 @@ export async function memoryTerminal(
   params: MemoryTerminalParams,
   extra?: McpToolExtra,
 ): Promise<ToolResponse> {
+  let result: ToolResponse;
   switch (params.action) {
     case 'run':
-      return handleRun(params, extra);
+      result = await handleRun(params, extra);
+      break;
     case 'spawn_cli_session':
-      return handleSpawnCliSession(params, extra);
+      result = await handleSpawnCliSession(params, extra);
+      break;
     case 'read_output':
-      return handleReadOutputAction(params);
+      result = await handleReadOutputAction(params);
+      break;
     case 'kill':
-      return handleKillAction(params);
+      result = await handleKillAction(params);
+      break;
     case 'get_allowlist':
-      return handleGetAllowlistAction(params);
+      result = await handleGetAllowlistAction(params);
+      break;
     case 'update_allowlist':
-      return handleUpdateAllowlistAction(params);
+      result = await handleUpdateAllowlistAction(params);
+      break;
     default:
       return {
         success: false,
         error: `Unknown action: "${(params as { action: string }).action}". Valid actions: run, spawn_cli_session, read_output, kill, get_allowlist, update_allowlist`,
       };
   }
+
+  // Wrap successful results in action envelope for consistency
+  if (result.success && result.data !== undefined) {
+    return { success: true, data: { action: params.action, data: result.data } };
+  }
+  return result;
 }

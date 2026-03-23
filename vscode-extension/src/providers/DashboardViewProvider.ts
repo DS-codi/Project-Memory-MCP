@@ -13,7 +13,7 @@ import { notificationsEnabled } from '../utils/helpers';
 import { getWebviewHtml } from './dashboard-webview';
 import {
     handleGetSkills, handleDeploySkill,
-    handleGetInstructions, handleDeployInstruction, handleUndeployInstruction,
+    handleGetInstructions, handleDeployInstruction,
 } from './dashboard-webview/dashboard-message-handlers';
 
 function notify(message: string, ...items: string[]): Thenable<string | undefined> {
@@ -301,20 +301,6 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                     handleDeployInstruction(this, message.data as { instructionName: string });
                     break;
 
-                case 'undeployInstruction':
-                    handleUndeployInstruction(this, message.data as { instructionName: string });
-                    break;
-
-                case 'getSessions':
-                case 'stopSession':
-                case 'injectSession':
-                case 'clearAllSessions':
-                case 'forceCloseSession':
-                    // Session management has been archived (Plan 01: Extension Strip-Down).
-                    // The dashboard may still send these messages — respond with empty data.
-                    this.postMessage({ type: 'sessionsList', data: { sessions: [] } });
-                    break;
-
                 case 'openWorkspaceFolder': {
                     const folderUri = vscode.workspace.workspaceFolders?.[0]?.uri;
                     if (folderUri) {
@@ -328,7 +314,7 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                 case 'copySupervisorCommand': {
                     const wsPath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
                     if (wsPath) {
-                        const scriptPath = require('path').join(wsPath, 'start-supervisor.ps1');
+                        const scriptPath = require('path').join(wsPath, 'launch-supervisor.ps1');
                         await vscode.env.clipboard.writeText(scriptPath);
                         this.postMessage({ type: 'supervisorCommandCopied', data: { path: scriptPath } });
                         notify(`Copied: ${scriptPath}`);

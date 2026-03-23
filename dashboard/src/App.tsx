@@ -15,6 +15,8 @@ import { DataRootPage } from './pages/DataRootPage';
 import { WorkspaceStatusPage } from './pages/WorkspaceStatusPage';
 import { PlanBuildScriptsPage } from './pages/PlanBuildScriptsPage';
 import { ProgramDetailPage } from './pages/ProgramDetailPage';
+import { SprintsPage } from './pages/SprintsPage';
+import { SprintDetailPage } from './pages/SprintDetailPage';
 import { useMCPEvents } from './hooks/useMCPEvents';
 import { ToastContainer } from './components/common/Toast';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
@@ -35,6 +37,8 @@ function App() {
           <Route path="/workspace/:workspaceId/plan/:planId/context" element={<ContextFilesPage />} />
           <Route path="/workspace/:workspaceId/plan/:planId/build-scripts" element={<PlanBuildScriptsPage />} />
           <Route path="/workspace/:workspaceId/program/:programId" element={<ProgramDetailPage />} />
+          <Route path="/workspace/:workspaceId/sprints" element={<SprintsPage />} />
+          <Route path="/workspace/:workspaceId/sprint/:sprintId" element={<SprintDetailPage />} />
           
           <Route path="/agents" element={<AgentsPage />} />
           <Route path="/agents/:agentId" element={<AgentEditorPage />} />

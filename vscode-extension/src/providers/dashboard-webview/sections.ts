@@ -8,7 +8,7 @@
 import { IconSvgs } from './icons';
 import { getSkillsSectionHtml } from './skills-section';
 import { getInstructionsSectionHtml } from './instructions-section';
-import { getSessionsSectionHtml } from './sessions-section';
+import { getArchivedSessionsNoticeHtml } from './sessions-section';
 
 /**
  * HTML for the connected dashboard state.
@@ -25,6 +25,7 @@ export function getConnectedDashboardHtml(
                         <div class="dashboard-top-tabs" role="tablist" aria-label="Dashboard Sections">
                             <button class="dashboard-top-tab active" id="dashboardTopTabDashboard" data-top-level-tab="dashboard" role="tab" aria-selected="true" aria-controls="dashboardPaneDashboard">Dashboard</button>
                             <button class="dashboard-top-tab" id="dashboardTopTabPlans" data-top-level-tab="plans" role="tab" aria-selected="false" aria-controls="dashboardPanePlans">Plans</button>
+                            <button class="dashboard-top-tab" id="dashboardTopTabSprints" data-top-level-tab="sprints" role="tab" aria-selected="false" aria-controls="dashboardPaneSprints">Sprints</button>
                             <button class="dashboard-top-tab" id="dashboardTopTabOperations" data-top-level-tab="operations" role="tab" aria-selected="false" aria-controls="dashboardPaneOperations">Operations</button>
                         </div>
 
@@ -69,7 +70,7 @@ export function getConnectedDashboardHtml(
                             <section class="collapsible" id="widget-actions">
                                 <button class="collapsible-header" data-action="toggle-collapse" data-target="widget-actions">
                                     <span class="chevron">></span>
-                                    <h3>Control Center</h3>
+                                    <h3>Workspace Actions</h3>
                                 </button>
                                 <div class="collapsible-content">
                                     <div class="widget-body">
@@ -150,7 +151,7 @@ export function getConnectedDashboardHtml(
                             <section class="collapsible" id="widget-config-context">
                                 <button class="collapsible-header" data-action="toggle-collapse" data-target="widget-config-context">
                                     <span class="chevron">></span>
-                                    <h3>Configuration & Context</h3>
+                                    <h3>Context Shortcuts</h3>
                                 </button>
                                 <div class="collapsible-content">
                                     <div class="widget-body">
@@ -160,9 +161,6 @@ export function getConnectedDashboardHtml(
                                                 <div class="icon-grid">
                                                     <button class="icon-btn" data-action="run-command" data-command="projectMemory.openSettings" title="Configure Defaults">
                                                         ${iconSvgs.configureDefaults}
-                                                    </button>
-                                                    <button class="icon-btn" data-action="run-command" data-command="projectMemory.deployDefaults" title="Deploy All Defaults">
-                                                        ${iconSvgs.deployAllDefaults}
                                                     </button>
                                                 </div>
                                             </div>
@@ -266,6 +264,63 @@ export function getConnectedDashboardHtml(
                             </section>
                             </div>
 
+                            <div class="dashboard-pane" id="dashboardPaneSprints" role="tabpanel" aria-labelledby="dashboardTopTabSprints">
+                            <section class="collapsible" id="widget-sprints">
+                                <button class="collapsible-header" data-action="toggle-collapse" data-target="widget-sprints">
+                                    <span class="chevron">></span>
+                                    <h3>Sprints</h3>
+                                </button>
+                                <div class="collapsible-content">
+                                    <div class="sprints-widget">
+                                        <div class="sprints-header">
+                                            <h3>Sprints</h3>
+                                            <div class="sprints-header-controls">
+                                                <button class="btn btn-small" data-action="create-sprint">+ New Sprint</button>
+                                                <button class="btn btn-small btn-secondary" data-action="refresh-sprints">Refresh</button>
+                                            </div>
+                                        </div>
+                                        <div class="sprints-tabs">
+                                            <button class="sprints-tab active" id="sprintsTabActive" data-sprint-tab="active">
+                                                Active <span class="count" id="activeSprintsCount">0</span>
+                                            </button>
+                                            <button class="sprints-tab" id="sprintsTabCompleted" data-sprint-tab="completed">
+                                                Completed <span class="count" id="completedSprintsCount">0</span>
+                                            </button>
+                                            <button class="sprints-tab" id="sprintsTabArchived" data-sprint-tab="archived">
+                                                Archived <span class="count" id="archivedSprintsCount">0</span>
+                                            </button>
+                                        </div>
+                                        <div class="sprints-content">
+                                            <div class="sprints-pane active" id="sprintsPaneActive">
+                                                <div id="sprintsListActive">
+                                                    <div class="empty-state">Loading...</div>
+                                                </div>
+                                            </div>
+                                            <div class="sprints-pane" id="sprintsPaneCompleted">
+                                                <div id="sprintsListCompleted">
+                                                    <div class="empty-state">Loading...</div>
+                                                </div>
+                                            </div>
+                                            <div class="sprints-pane" id="sprintsPaneArchived">
+                                                <div id="sprintsListArchived">
+                                                    <div class="empty-state">Loading...</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="selected-sprint-panel" id="selectedSprintPanel">
+                                            <div class="selected-sprint-header">
+                                                <h4 id="selectedSprintTitle">No sprint selected</h4>
+                                                <span class="selected-sprint-meta" id="selectedSprintMeta"></span>
+                                            </div>
+                                            <div class="selected-sprint-body" id="selectedSprintBody">
+                                                <div class="empty-state">Select a sprint to view goals and progress.</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                            </div>
+
                             <div class="dashboard-pane" id="dashboardPaneOperations" role="tabpanel" aria-labelledby="dashboardTopTabOperations">
 
                             <section class="collapsible" id="widget-always-notes">
@@ -359,27 +414,29 @@ export function getConnectedDashboardHtml(
                             <section class="collapsible" id="widget-operations-surface">
                                 <button class="collapsible-header" data-action="toggle-collapse" data-target="widget-operations-surface">
                                     <span class="chevron">></span>
-                                    <h3>Operations Surface</h3>
+                                    <h3>Supported Dashboard Sections</h3>
                                 </button>
                                 <div class="collapsible-content">
                                     <div class="widget-body">
+                                        <p class="always-notes-help">The side-panel dashboard keeps live plan and context workflows in VS Code. Session control remains in the Supervisor GUI.</p>
                                         <div class="ops-card-grid">
                                             <div class="ops-card">
-                                                <div class="ops-card-title">Session Surface</div>
-                                                <div class="ops-card-value" id="operationsSessionSurface">Supervisor GUI</div>
-                                                <div class="ops-card-meta">Extension sessions panel remains archived.</div>
+                                                <div class="ops-card-title">Dashboard Pane</div>
+                                                <div class="ops-card-value">Status + workspace actions</div>
+                                                <div class="ops-card-meta">Health, dashboard launch, plan actions, deploy actions, and context shortcuts remain supported.</div>
                                             </div>
                                             <div class="ops-card">
-                                                <div class="ops-card-title">Terminal Surface</div>
-                                                <div class="ops-card-value" id="operationsTerminalSurface">Checking...</div>
-                                                <div class="ops-card-meta">Headless + interactive terminal paths.</div>
+                                                <div class="ops-card-title">Plans Pane</div>
+                                                <div class="ops-card-value">Plans + programs</div>
+                                                <div class="ops-card-meta">Selection, archive/resume, build scripts, and plan-route helpers remain supported.</div>
                                             </div>
                                             <div class="ops-card">
-                                                <div class="ops-card-title">Workspace Integrity</div>
-                                                <div class="ops-card-value" id="operationsIntegrity">Checking...</div>
-                                                <div class="ops-card-meta" id="operationsIntegrityMeta">Waiting for health snapshot.</div>
+                                                <div class="ops-card-title">Operations Pane</div>
+                                                <div class="ops-card-value">Notes + skills + instructions</div>
+                                                <div class="ops-card-meta">Always-provided notes, Prompt Analyst telemetry, build gate data, plan intelligence, skills, and instructions remain supported.</div>
                                             </div>
                                         </div>
+                                        ${getArchivedSessionsNoticeHtml()}
                                     </div>
                                 </div>
                             </section>
@@ -413,8 +470,6 @@ export function getConnectedDashboardHtml(
 ${getSkillsSectionHtml(iconSvgs)}
 
 ${getInstructionsSectionHtml(iconSvgs)}
-
-${getSessionsSectionHtml(iconSvgs)}
 
                             </div>
 

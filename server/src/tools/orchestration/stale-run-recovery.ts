@@ -1,6 +1,16 @@
 import type { PlanState, AgentSession } from '../../types/index.js';
 import * as store from '../../storage/db-store.js';
 
+// ---------------------------------------------------------------------------
+// DbRef migration note (Phase 11)
+// ---------------------------------------------------------------------------
+// `contextPath()` and `staleRecoveryContextPath()` build synthetic paths via
+// `store.getContextPath()`.  These resolve to SQLite-backed virtual paths
+// that the storage layer intercepts.  They are future migration targets:
+// once all callers adopt `_ref` / `DbRef`, these helpers should be replaced
+// with direct DB lookups using `makeDbRef('context_items', …)`.
+// ---------------------------------------------------------------------------
+
 const ACTIVE_RUN_CONTEXT_TYPE = 'active_run_lane';
 const STALE_RUN_CONTEXT_TYPE = 'stale_run_recovery';
 const STALE_SESSION_MS = 20 * 60 * 1000;

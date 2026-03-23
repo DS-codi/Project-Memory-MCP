@@ -10,6 +10,14 @@ import type { HandoffStats, StatsValidationResult } from './handoff-stats.types.
 // Agent Types
 // =============================================================================
 
+/**
+ * Canonical agent type identifiers.
+ *
+ * 'Hub' is accepted as an alias for 'Coordinator' via z.preprocess() in
+ * server/src/index.ts (AgentTypeSchema). The normalization happens at the
+ * Zod schema level before any handler code runs, so all runtime code only
+ * ever sees 'Coordinator'.
+ */
 export type AgentType =
   | 'Coordinator'
   | 'Analyst'
@@ -27,6 +35,9 @@ export type AgentType =
   | 'TDDDriver'
   | 'Cognition'
   | 'Migrator';
+
+/** Hub is normalized to Coordinator at the Zod schema level (AgentTypeSchema). */
+export type HubAgent = 'Coordinator';
 
 // =============================================================================
 // Lineage & Handoff
@@ -80,6 +91,9 @@ export interface AgentRoleBoundaries {
  * - Subagents complete and return control to Coordinator
  * - must_handoff_to = recommendation for which agent Coordinator should deploy next
  * - Only Archivist can finalize (complete without recommending next agent)
+ *
+ * NOTE: 'Hub' is pre-normalized to 'Coordinator' by AgentTypeSchema's
+ * z.preprocess() before any boundary lookup, so no 'Hub' key is needed here.
  */
 export const AGENT_BOUNDARIES: Record<AgentType, AgentRoleBoundaries> = {
   Coordinator: {

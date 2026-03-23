@@ -39,6 +39,8 @@ import type {
   ProgramRisk,
   ProgramManifest,
 } from '../types/program-v2.types.js';
+import type { DbRef } from '../types/db-ref.types.js';
+import { makeDbRef } from '../types/db-ref.types.js';
 
 // ── DB layer ─────────────────────────────────────────────────────────────────
 import { getDb } from '../db/connection.js';
@@ -386,7 +388,11 @@ export async function readProgramState(
   programId: string,
 ): Promise<ProgramState | null> {
   const row = dbGetProgram_prog(programId);
-  return row ? rowToProgramState(row) : null;
+  if (!row) return null;
+  const state = rowToProgramState(row);
+  // Additive _ref: typed DB reference for this program artifact
+  (state as any)._ref = makeDbRef('programs', programId, 'plan', state.title || programId);
+  return state;
 }
 
 export async function saveProgramState(
@@ -578,6 +584,12 @@ export async function listProgramSearchArtifacts(workspaceId: string): Promise<P
 }
 
 // ── projectmemory-paths (inlined from projectmemory-paths.ts) ────────────────
+//
+// FILE-REF BOUNDARY: All functions in this section return real filesystem paths
+// to physical files on disk. They are intentionally NOT converted to DbRef.
+// These paths point to agent deploy artifacts, config files, and workspace
+// identity files that exist outside of SQLite. See docs/artifact-boundary.md.
+//
 
 export function getProjectMemoryDir(workspacePath: string): string {
   return path.join(workspacePath, '.projectmemory');
@@ -1047,6 +1059,12 @@ export function getWorkspaceDisplayName(workspacePath: string): string {
   return posixBasename || trimmedResolved;
 }
 
+// LEGACY SYNTHETIC PATH HELPERS: These return data-folder paths that are
+// intercepted by the virtual-path system (tryParseVirtualPlanPath) and
+// redirected to SQLite. The underlying data is DB-backed — callers should
+// prefer the _ref field on returned objects. These are kept for backward
+// compatibility and will be deprecated in Phase 11.
+
 export function getWorkspacePath(workspaceId: string): string {
   return path.join(getDataRoot(), workspaceId);
 }
@@ -1218,7 +1236,10 @@ function buildPlanState(planId: string): PlanState | null {
   const steps    = getAllSteps(planId);
   const sessions = getSessions(planId);
   const lineage  = getLineage(planId);
-  return assemblePlanState(planRow, phases, steps, sessions, lineage);
+  const state = assemblePlanState(planRow, phases, steps, sessions, lineage);
+  // Additive _ref: typed DB reference for this plan artifact
+  (state as any)._ref = makeDbRef('plans', planId, 'plan', state.title || planId);
+  return state;
 }
 
 function rowToPlanMeta(row: WorkspaceRow, wsId: string): WorkspaceMeta {
@@ -1229,6 +1250,8 @@ function rowToPlanMeta(row: WorkspaceRow, wsId: string): WorkspaceMeta {
   meta.archived_plans = allPlans.filter(p => p.status === 'archived').map(p => p.id);
   // Populate child_workspace_ids from parent_workspace_id FK relationship
   meta.child_workspace_ids = listChildWorkspaces(wsId).map(c => c.id);
+  // Additive _ref: typed DB reference for this workspace artifact
+  (meta as any)._ref = makeDbRef('workspaces', wsId, 'workspace', meta.name || wsId);
   return meta;
 }
 
@@ -1607,6 +1630,8 @@ export async function getBuildScripts(workspaceId: string, planId?: string): Pro
     directory:    r.directory,
     mcp_handle:   r.mcp_handle  ?? undefined,
     created_at:   r.created_at,
+    // Additive _ref: typed DB reference for this build script artifact
+    _ref:         makeDbRef('build_scripts', r.id, 'plan', r.name),
   } as BuildScript));
 }
 
@@ -1639,6 +1664,8 @@ export async function addBuildScript(
     directory:    row.directory,
     mcp_handle:   row.mcp_handle  ?? undefined,
     created_at:   row.created_at,
+    // Additive _ref: typed DB reference for this build script artifact
+    _ref:         makeDbRef('build_scripts', row.id, 'plan', row.name),
   } as BuildScript;
 }
 
@@ -1688,6 +1715,10 @@ export async function findBuildScript(
 }
 
 // ── Investigation CRUD (kept for backward-compat; backed by flat JSON) ────────
+//
+// FILE-REF BOUNDARY: Investigation state files are real files on disk under
+// data/{wsId}/plans/{planId}/investigations/. They are intentionally NOT
+// converted to DbRef. See docs/artifact-boundary.md.
 
 function getInvestigationsDir(workspaceId: string, planId: string): string {
   return path.join(getDataRoot(), workspaceId, 'plans', planId, 'investigations');
@@ -1836,7 +1867,10 @@ export async function getWorkspaceContextFromDb(
 ): Promise<WorkspaceContext | null> {
   const rows = dbGetContext('workspace', workspaceId, 'workspace_context');
   if (!rows.length) return null;
-  return JSON.parse(rows[0].data) as WorkspaceContext;
+  const ctx = JSON.parse(rows[0].data) as WorkspaceContext;
+  // Additive _ref: typed DB reference for this workspace context artifact
+  (ctx as any)._ref = makeDbRef('context_items', rows[0].id, 'context', `workspace_context:${workspaceId}`);
+  return ctx;
 }
 
 /**
@@ -1871,7 +1905,12 @@ export async function getPlanContextFromDb(
   if (!plan || plan.workspace_id !== workspaceId) return null;
   const rows = dbGetContext('plan', planId, contextType);
   if (!rows.length) return null;
-  return unwrapContextValue(rowData(rows[0]));
+  const value = unwrapContextValue(rowData(rows[0]));
+  // Additive _ref: attach typed DB reference when the unwrapped value is an object
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    (value as any)._ref = makeDbRef('context_items', rows[0].id, 'context', `${contextType}:${planId}`);
+  }
+  return value;
 }
 
 export async function listPlanContextTypesFromDb(

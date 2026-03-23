@@ -40,13 +40,33 @@ import { sendStartupAlert } from './transport/container-startup-alert.js';
 import { setDataRoot, startLivenessPolling, stopLivenessPolling } from './transport/data-root-liveness.js';
 import { getDb } from './db/connection.js';
 import { getImportantResponseContextForRequest } from './utils/important-response-context.js';
+import { formatZodError, isZodError } from './utils/zod-error-formatter.js';
+import { detectUnknownFields } from './tools/preflight/index.js';
 
 // =============================================================================
 // Logging Helper
 // =============================================================================
 
 /**
- * Wrap a tool execution with logging
+ * Wrap a tool execution with logging.
+ *
+ * Unknown-property handling (architecture decision 2026-03-24):
+ * The MCP SDK's server.tool() API only accepts ZodRawShapeCompat (raw shapes),
+ * which are internally wrapped in z.object() — Zod default "strip" mode.
+ * Unknown properties sent by agents are silently dropped before reaching this
+ * function. This is intentional:
+ *   - Forward compatibility: future agents may send new fields we don't know yet
+ *   - The main pain point (_session_id being stripped) is solved by adding it
+ *     explicitly to every tool schema
+ *   - Applying .strict() would require migrating all tools to registerTool()
+ *     (accepts AnySchema) — a separate, larger effort
+ * If strict validation is ever needed, migrate individual tools to registerTool().
+ *
+ * Debug diagnostic: When params contain keys not recognized by the
+ * action-param-registry for the given tool+action, a debug-level message
+ * is logged to stderr. This does NOT reject the call — it aids debugging
+ * when agents send properties that may be silently stripped by Zod or are
+ * simply unrecognized by the registry.
  */
 async function withLogging<T>(
   toolName: string,
@@ -60,6 +80,22 @@ async function withLogging<T>(
     const sessionId = params._session_id as string | undefined;
     if (sessionId) {
       touchLiveSession(sessionId, toolName);
+    }
+
+    // Debug diagnostic: detect params unknown to the action-param-registry.
+    // NOTE: The MCP SDK's Zod strip mode removes truly unknown properties
+    // before they reach this function. This check catches keys that Zod
+    // accepted but the action-param-registry doesn't list — useful for
+    // spotting registry gaps or unusual field usage.
+    const action = params.action as string | undefined;
+    if (action) {
+      const unknowns = detectUnknownFields(toolName, action, params);
+      if (unknowns) {
+        const details = unknowns.map(u =>
+          u.suggestion ? `${u.field} (did you mean '${u.suggestion}'?)` : u.field
+        ).join(', ');
+        console.error(`[withLogging] Unknown properties in ${toolName}(action: "${action}"): [${details}]`);
+      }
     }
 
     try {
@@ -90,13 +126,19 @@ async function withLogging<T>(
       return result;
     } catch (error) {
       const durationMs = Date.now() - startTime;
+      const errorMessage = isZodError(error)
+        ? formatZodError(error, toolName)
+        : (error as Error).message;
       await logToolCall(
         toolName,
         params,
         'error',
-        (error as Error).message,
+        errorMessage,
         durationMs
       );
+      if (isZodError(error)) {
+        throw new Error(errorMessage);
+      }
       throw error;
     }
   });
@@ -153,12 +195,15 @@ const server = new McpServer({
 // Tool Schemas
 // =============================================================================
 
-const AgentTypeSchema = z.enum([
-  'Coordinator', 'Analyst', 'Researcher', 'Architect', 'Executor',
-  'Reviewer', 'Tester', 'Revisionist', 'Archivist',
-  'Brainstorm', 'Runner', 'SkillWriter', 'Worker', 'TDDDriver', 'Cognition',
-  'Migrator'
-]);
+const AgentTypeSchema = z.preprocess(
+  (val) => val === 'Hub' ? 'Coordinator' : val,
+  z.enum([
+    'Coordinator', 'Analyst', 'Researcher', 'Architect', 'Executor',
+    'Reviewer', 'Tester', 'Revisionist', 'Archivist',
+    'Brainstorm', 'Runner', 'SkillWriter', 'Worker', 'TDDDriver', 'Cognition',
+    'Migrator'
+  ])
+);
 
 const StepStatusSchema = z.enum(['pending', 'active', 'done', 'blocked']);
 
@@ -279,7 +324,8 @@ server.tool(
     session_id: z.string().optional().describe('Session ID to update workspace_session_registry files_in_scope (for generate_focused_workspace)'),
     relative_path: z.string().optional().describe('Workspace-relative or .github-relative path for import_context_file'),
     confirm: z.boolean().optional().describe('When true, performs the explicit import for import_context_file; otherwise returns a preview only for a metadata-valid eligible candidate'),
-    expected_kind: z.enum(['agent', 'instruction']).optional().describe('Optional safety check for import_context_file')
+    expected_kind: z.enum(['agent', 'instruction']).optional().describe('Optional safety check for import_context_file'),
+    _session_id: z.string().optional().describe('Session ID for instrumentation tracking')
   },
   async (params) => {
     const result = await withLogging('memory_workspace', params, () =>
@@ -360,7 +406,8 @@ server.tool(
     search_status: z.string().optional().describe('Filter step matches by status, e.g. "blocked" or "pending" (for search action)'),
     search_phase: z.string().optional().describe('Filter matches to steps/phases whose phase name contains this substring (for search action)'),
     search_limit: z.number().int().positive().optional().describe('Max results to return in detail mode (for search action; default 50, max 200)'),
-    search_include_archived: z.boolean().optional().describe('Include archived plans in search (for search action; default false)')
+    search_include_archived: z.boolean().optional().describe('Include archived plans in search (for search action; default false)'),
+    _session_id: z.string().optional().describe('Session ID for instrumentation tracking')
   },
   async (params) => {
     const result = await withLogging('memory_plan', params, () =>
@@ -429,7 +476,8 @@ server.tool(
       requires_validation: z.boolean().optional(),
       requires_confirmation: z.boolean().optional(),
       requires_user_confirmation: z.boolean().optional()
-    })).optional().describe('Complete new steps array (for replace action)')
+    })).optional().describe('Complete new steps array (for replace action)'),
+    _session_id: z.string().optional().describe('Session ID for instrumentation tracking')
   },
   async (params) => {
     const result = await withLogging('memory_steps', params, () =>
@@ -500,7 +548,8 @@ server.tool(
     requested_scope: z.enum(['task', 'phase', 'plan']).optional().describe('Requested bundle scope (for deploy_for_task)'),
     strict_bundle_resolution: z.boolean().optional().describe('When true, prefer explicit bundle IDs/subsets and minimize ambient discovery (for deploy_for_task)'),
     phase_name: z.string().optional().describe('Current phase name (for deploy_for_task)'),
-    step_indices: z.array(z.number()).optional().describe('Step indices to work on (for deploy_for_task)')
+    step_indices: z.array(z.number()).optional().describe('Step indices to work on (for deploy_for_task)'),
+    _session_id: z.string().optional().describe('Session ID for instrumentation tracking')
   },
   async (params) => {
     const result = await withLogging('memory_agent', params, () =>
@@ -514,9 +563,9 @@ server.tool(
 
 server.tool(
   'memory_context',
-  'Consolidated context and research management tool. Actions: store (store plan context), get (retrieve plan context), store_initial (store initial user request), list (list plan context files), list_research (list research notes), append_research (add research note), generate_instructions (generate plan instructions file), batch_store (store multiple context items at once), workspace_get/workspace_set/workspace_update/workspace_delete (workspace-scoped context CRUD), knowledge_store/knowledge_get/knowledge_list/knowledge_delete (workspace knowledge file CRUD), search (search context across scopes), promptanalyst_discover (metadata-only linked-workspace memory discovery), pull (stage selected context for use), write_prompt (create plan-specific .prompt.md files).',
+  'Consolidated context and research management tool. Actions: store (store plan context), get (retrieve plan context), store_initial (store initial user request), list (list plan context files), list_research (list research notes), append_research (add research note), generate_instructions (generate plan instructions file), batch_store (store multiple context items at once), workspace_get/workspace_set/workspace_update/workspace_populate/workspace_delete (workspace-scoped context CRUD plus canonical section population), knowledge_store/knowledge_get/knowledge_list/knowledge_delete (workspace knowledge file CRUD), search (search context across scopes), promptanalyst_discover (metadata-only linked-workspace memory discovery), pull (stage selected context for use), write_prompt (create plan-specific .prompt.md files).',
   {
-    action: z.enum(['store', 'get', 'store_initial', 'list', 'list_research', 'append_research', 'generate_instructions', 'batch_store', 'workspace_get', 'workspace_set', 'workspace_update', 'workspace_delete', 'knowledge_store', 'knowledge_get', 'knowledge_list', 'knowledge_delete', 'search', 'promptanalyst_discover', 'pull', 'write_prompt', 'dump_context']).describe('The action to perform'),
+    action: z.enum(['store', 'get', 'store_initial', 'list', 'list_research', 'append_research', 'generate_instructions', 'batch_store', 'workspace_get', 'workspace_set', 'workspace_update', 'workspace_populate', 'workspace_delete', 'knowledge_store', 'knowledge_get', 'knowledge_list', 'knowledge_delete', 'search', 'promptanalyst_discover', 'pull', 'write_prompt', 'dump_context']).describe('The action to perform'),
     workspace_id: z.string().describe('Workspace ID'),
     plan_id: z.string().optional().describe('Plan ID (required for plan-scoped actions)'),
     type: z.string().optional().describe('Context type (for store/get)'),
@@ -559,6 +608,7 @@ server.tool(
     prompt_expires_after: z.string().optional().describe('Expiry: plan_completion, phase_completion, or ISO date (for write_prompt)'),
     prompt_version: z.string().optional().describe('Semver version (for write_prompt)'),
     prompt_slug: z.string().optional().describe('Filename slug override (for write_prompt)'),
+    _session_id: z.string().optional().describe('Session ID for instrumentation tracking')
   },
   async (params) => {
     const result = await withLogging('memory_context', params, () =>
@@ -614,6 +664,7 @@ server.tool(
       .passthrough()
       .optional()
       .describe('Structured context payload for spawn_cli_session'),
+    _session_id: z.string().optional().describe('Session ID for instrumentation tracking')
   },
   async (params, extra) => {
     const result = await withLogging('memory_terminal', params, () =>
@@ -650,7 +701,8 @@ server.tool(
     dry_run: z.boolean().optional().describe('Preview destructive operation without side effects (delete/move)'),
     source: z.string().optional().describe('Source path for move/copy actions'),
     destination: z.string().optional().describe('Destination path for move/copy actions'),
-    overwrite: z.boolean().optional().describe('Overwrite destination when it exists (move/copy). Default false')
+    overwrite: z.boolean().optional().describe('Overwrite destination when it exists (move/copy). Default false'),
+    _session_id: z.string().optional().describe('Session ID for instrumentation tracking')
   },
   async (params) => {
     const result = await withLogging('memory_filesystem', params, () =>
@@ -710,7 +762,8 @@ server.tool(
     prompt_analyst_latency_ms: z.number().optional().describe('PromptAnalyst enrichment latency in ms (for prep/deploy_and_prep telemetry)'),
     peer_sessions_count: z.number().int().nonnegative().optional().describe('Known peer session count at dispatch time (for prep/deploy_and_prep telemetry)'),
     session_id: z.string().optional().describe('Session ID to look up (for get_session)'),
-    status_filter: z.enum(['active', 'stopping', 'completed', 'all']).optional().describe('Filter sessions by status (for list_sessions)')
+    status_filter: z.enum(['active', 'stopping', 'completed', 'all']).optional().describe('Filter sessions by status (for list_sessions)'),
+    _session_id: z.string().optional().describe('Session ID for instrumentation tracking')
   },
   async (params) => {
     const result = await withLogging('memory_session', params, () =>
@@ -732,7 +785,8 @@ server.tool(
   {
     action: z.enum(['route', 'route_with_fallback', 'refine']).describe('The action to perform'),
     form_request: z.record(z.unknown()).optional().describe('FormRequest payload (required for route and route_with_fallback actions)'),
-    refinement_request: z.record(z.unknown()).optional().describe('FormRefinementRequest payload (required for refine action)')
+    refinement_request: z.record(z.unknown()).optional().describe('FormRefinementRequest payload (required for refine action)'),
+    _session_id: z.string().optional().describe('Session ID for instrumentation tracking')
   },
   async (params) => {
     const result = await withLogging('memory_brainstorm', params, () =>
@@ -835,6 +889,8 @@ server.tool(
         .describe('Section heading — partial case-insensitive ## or ### match (required for: get_section)'),
       workspace_id: z.string().optional()
         .describe('Workspace ID (required for: list_workspace)'),
+      _session_id: z.string().optional()
+        .describe('Session ID for instrumentation tracking'),
     },
     async (params) => {
       const result = await withLogging('memory_instructions', params, () =>

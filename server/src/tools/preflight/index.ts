@@ -24,7 +24,7 @@ export {
 export type { ActionParamDef } from './action-param-registry.js';
 
 // ── Preflight Validator ─────────────────────────────────────────────────────
-export { preflightValidate } from './preflight-validator.js';
+export { preflightValidate, buildPreflightFailure, detectUnknownFields } from './preflight-validator.js';
 
 // ── Contract Builder ────────────────────────────────────────────────────────
 export { buildToolContracts } from './contract-builder.js';

@@ -4,6 +4,15 @@ export const STORE_CHAT_PARTICIPANT_ID = 'project-memory.memory';
 export const STORE_CHAT_COMMAND = 'store-chat-details';
 export const CHAT_SECTION_KEY = 'chat_session_details';
 export const IMPORTANT_SECTION_KEY = 'important_context';
+export const CANONICAL_WORKSPACE_SECTION_KEYS = [
+    'project_details',
+    'purpose',
+    'dependencies',
+    'modules',
+    'test_confirmations',
+    'dev_patterns',
+    'resources',
+] as const;
 
 interface WorkspaceContextSectionItem {
     title: string;
@@ -368,6 +377,23 @@ function normalizeSections(
     }
 
     return normalized;
+}
+
+function isSectionEmpty(section: WorkspaceContextSection | undefined): boolean {
+    if (!section) {
+        return true;
+    }
+
+    const hasSummary = typeof section.summary === 'string' && section.summary.trim().length > 0;
+    const hasItems = Array.isArray(section.items) && section.items.some((item) => item.title.trim().length > 0);
+    return !hasSummary && !hasItems;
+}
+
+export function getEmptyCanonicalSectionKeys(
+    sections: Record<string, WorkspaceContextSection> | undefined
+): string[] {
+    const normalized = normalizeSections(sections);
+    return CANONICAL_WORKSPACE_SECTION_KEYS.filter((key) => isSectionEmpty(normalized[key]));
 }
 
 function buildDetailedChatSection(digest: SessionDigest): WorkspaceContextSection {
@@ -832,6 +858,27 @@ class StoreChatDetailsParticipant implements vscode.Disposable {
                 const message = getErrorMessage(error);
                 if (!isMissingWorkspaceContextError(message)) {
                     throw error;
+                }
+            }
+
+            const emptyCanonicalSectionKeys = getEmptyCanonicalSectionKeys(existingContext?.sections);
+            if (!contextExists || emptyCanonicalSectionKeys.length > 0) {
+                throwIfCancelled(token);
+                response.progress('Populating canonical workspace context sections...');
+
+                const populatePayload = await invokeMemoryTool(
+                    contextToolName,
+                    {
+                        action: 'workspace_populate',
+                        workspace_id: workspaceId,
+                    },
+                    token,
+                );
+
+                const populatedContext = extractWorkspaceContext(populatePayload);
+                if (populatedContext) {
+                    existingContext = populatedContext;
+                    contextExists = Boolean(populatedContext.sections);
                 }
             }
 

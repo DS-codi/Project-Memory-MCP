@@ -10,6 +10,7 @@ import path from 'path';
 import { promises as fs } from 'fs';
 import * as store from '../storage/db-store.js';
 import type { ToolResponse } from '../types/index.js';
+import { makeDbRef, type DbRef } from '../types/db-ref.types.js';
 
 // =============================================================================
 // Types
@@ -115,7 +116,7 @@ function validateCategory(category: string): category is KnowledgeFileCategory {
  */
 export async function storeKnowledgeFile(
   params: StoreKnowledgeParams
-): Promise<ToolResponse<{ knowledge_file: KnowledgeFile; created: boolean }>> {
+): Promise<ToolResponse<{ knowledge_file: KnowledgeFile; created: boolean; _ref?: DbRef }>> {
   const { workspace_id, slug, title, content, tags = [], created_by_agent, created_by_plan } = params;
   const category = params.category || 'reference';
 
@@ -183,7 +184,11 @@ export async function storeKnowledgeFile(
 
   return {
     success: true,
-    data: { knowledge_file: knowledgeFile, created: !isUpdate }
+    data: {
+      knowledge_file: knowledgeFile,
+      created: !isUpdate,
+      _ref: makeDbRef('knowledge', slug, 'knowledge', knowledgeFile.title || slug),
+    }
   };
 }
 
@@ -193,7 +198,7 @@ export async function storeKnowledgeFile(
 export async function getKnowledgeFile(
   workspaceId: string,
   slug: string
-): Promise<ToolResponse<{ knowledge_file: KnowledgeFile }>> {
+): Promise<ToolResponse<{ knowledge_file: KnowledgeFile; _ref?: DbRef }>> {
   const slugError = validateSlug(slug);
   if (slugError) {
     return { success: false, error: slugError };
@@ -209,7 +214,13 @@ export async function getKnowledgeFile(
     };
   }
 
-  return { success: true, data: { knowledge_file: file } };
+  return {
+    success: true,
+    data: {
+      knowledge_file: file,
+      _ref: makeDbRef('knowledge', slug, 'knowledge', file.title || slug),
+    }
+  };
 }
 
 /**

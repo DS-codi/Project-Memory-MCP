@@ -1,5 +1,15 @@
 /**
  * Workspace Tools - MCP tools for workspace management
+ *
+ * ## DbRef migration status (Phase 11)
+ *
+ * This module consumes db-store helpers (`store.createWorkspace`,
+ * `store.getAllWorkspaces`, `store.getWorkspacePlans`, etc.) that now attach
+ * an additive `_ref: DbRef` field to returned objects (Phase 9).
+ *
+ * All returned data objects are passed through to MCP tool responses as-is,
+ * so `_ref` flows transparently to consumers without any explicit handling
+ * here.  No synthetic path construction is performed for DB-backed artifacts.
  */
 
 import fs from 'node:fs';
@@ -332,7 +342,10 @@ async function seedWorkspaceContext(
 
     const now = store.nowISO();
 
-    const sections = buildWorkspaceContextSectionsFromProfile(profile);
+    const sections = buildWorkspaceContextSectionsFromProfile(profile, {
+      workspaceName,
+      workspacePath
+    });
 
     const context: WorkspaceContext = {
       schema_version: '1.0',

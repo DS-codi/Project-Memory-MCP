@@ -401,6 +401,28 @@ describe('MCP Tool: memory_context Actions', () => {
       }
     });
 
+    it('should populate canonical workspace context when requested', async () => {
+      vi.spyOn(workspaceContextTools, 'populateWorkspaceContext').mockResolvedValue({
+        success: true,
+        data: {
+          context: mockWorkspaceContext,
+          path: '/tmp/workspace.context.json',
+          populated_section_keys: ['purpose', 'modules'],
+          skipped_section_keys: ['project_details'],
+        }
+      });
+
+      const result = await memoryContext({
+        action: 'workspace_populate',
+        workspace_id: mockWorkspaceId
+      });
+
+      expect(result.success).toBe(true);
+      if (result.data && result.data.action === 'workspace_populate') {
+        expect(result.data.data.populated_section_keys).toEqual(['purpose', 'modules']);
+      }
+    });
+
     it('should delete workspace context when valid', async () => {
       vi.spyOn(workspaceContextTools, 'deleteWorkspaceContext').mockResolvedValue({
         success: true,

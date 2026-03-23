@@ -22,7 +22,10 @@ import {
     type CanonicalHubMode,
     type HubAliasResolution,
 } from '../orchestration/hub-alias-routing.js';
-import { evaluateHubDispatchPolicy } from '../orchestration/hub-policy-enforcement.js';
+import {
+    evaluateHubDispatchPolicy,
+    isAnalystDispatchTarget,
+} from '../orchestration/hub-policy-enforcement.js';
 import { events } from '../../events/event-emitter.js';
 import type {
     PromptAnalystOutput,
@@ -266,8 +269,8 @@ function buildAlwaysProvidedNotesBlock(
     return lines.join('\n');
 }
 
-function ok<T>(data: T) {
-    return { success: true as const, data: { action: 'memory_session' as const, data } };
+function ok<T>(actionName: string, data: T) {
+    return { success: true as const, data: { action: actionName, data } };
 }
 
 function err(message: string) {
@@ -711,7 +714,7 @@ async function handlePrep(
         });
     }
 
-    return ok(output);
+    return ok('prep', output);
 }
 
 // ---------------------------------------------------------------------------
@@ -722,7 +725,6 @@ async function handleDeployAndPrep(params: MemorySessionParams) {
     const { workspace_id, plan_id, agent_name } = params;
 
     if (!workspace_id) return err('workspace_id is required');
-    if (!plan_id) return err('plan_id is required');
     if (!agent_name) return err('agent_name is required');
     if (!params.prompt) return err('prompt is required');
 
@@ -736,6 +738,42 @@ async function handleDeployAndPrep(params: MemorySessionParams) {
 
     const workspacePath = ws.workspace_path || ws.path;
     if (!workspacePath) return err(`Workspace path missing for workspace: ${workspace_id}`);
+
+    if (!plan_id) {
+        if (!isAnalystDispatchTarget(agent_name)) {
+            return err('plan_id is required');
+        }
+
+        const prepResponse = await handlePrep(params, dispatchPolicy.evaluation);
+        if (!prepResponse.success || !prepResponse.data) {
+            return prepResponse;
+        }
+
+        const prepData = prepResponse.data.data as Record<string, unknown>;
+        const warnings = Array.isArray(prepData.warnings)
+            ? [...prepData.warnings as PrepWarning[]]
+            : [];
+        warnings.push({
+            code: 'DEPLOYMENT_SKIPPED_NO_PLAN',
+            message: 'Hub pre-routing analyst startup does not require a plan; skipped plan-scoped deployment and returned prep-only output.'
+        });
+
+        return ok('deploy_and_prep', {
+            accepted: true,
+            mode: 'context-prep-only',
+            message: 'Analyst-class pre-routing spawn context prepared without a plan. Call runSubagent next using prep_config.enriched_prompt.',
+            deployment: null,
+            deploy_result: null,
+            prep_config: prepData.prep_config,
+            prep_result: prepData.prep_config,
+            compatibility_metadata: prepData.compatibility_metadata,
+            launch_routing: prepData.launch_routing,
+            orchestration_routing: prepData.orchestration_routing,
+            warnings,
+            note: 'Hub pre-routing analyst startup skipped plan-scoped deployment because plan_id was not provided.',
+            deprecation_notice: 'Use memory_session(action: "deploy_and_prep") for new orchestration flows. memory_agent(action: "deploy_for_task") and memory_session(action: "prep") remain supported for backward compatibility.'
+        });
+    }
 
     const prepResponse = await handlePrep(params, dispatchPolicy.evaluation);
     if (!prepResponse.success || !prepResponse.data) {
@@ -766,7 +804,7 @@ async function handleDeployAndPrep(params: MemorySessionParams) {
 
     const prepData = prepResponse.data.data as Record<string, unknown>;
 
-    return ok({
+    return ok('deploy_and_prep', {
         accepted: true,
         mode: 'deploy-and-prep',
         message: 'Deployment and spawn prep complete. Call runSubagent using prep_config.enriched_prompt.',
@@ -803,7 +841,7 @@ async function handleListSessions(params: MemorySessionParams) {
                 ? sessions.filter((s: any) => s.status === status_filter)
                 : sessions;
 
-            return ok({
+            return ok('list_sessions', {
                 workspace_id,
                 plan_id,
                 session_count: filtered.length,
@@ -833,7 +871,7 @@ async function handleListSessions(params: MemorySessionParams) {
             ? allSessions.filter(s => s.status === status_filter)
             : allSessions;
 
-        return ok({
+        return ok('list_sessions', {
             workspace_id,
             session_count: filtered.length,
             sessions: filtered
@@ -862,7 +900,7 @@ async function handleGetSession(params: MemorySessionParams) {
         const match = sessions.find((s: any) => s.session_id === session_id);
 
         return match
-            ? ok({ session: match, plan_id, workspace_id })
+            ? ok('get_session', { session: match, plan_id, workspace_id })
             : err(`Session not found: ${session_id}`);
     }
 
@@ -873,7 +911,7 @@ async function handleGetSession(params: MemorySessionParams) {
         if (state && (state as any).agent_sessions) {
             const match = (state as any).agent_sessions.find((s: any) => s.session_id === session_id);
             if (match) {
-                return ok({ session: match, plan_id: plan.id, workspace_id });
+                return ok('get_session', { session: match, plan_id: plan.id, workspace_id });
             }
         }
     }

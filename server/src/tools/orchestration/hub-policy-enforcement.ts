@@ -95,6 +95,18 @@ const MODE_ALLOWED_TARGETS: Record<CanonicalHubMode, Set<string>> = {
   tdd_cycle: new Set(['Tester', 'Executor', 'Reviewer', 'Revisionist']),
 };
 
+function normalizeTargetAgentType(targetAgentType: string): string {
+  const normalized = targetAgentType.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (normalized === 'promptanalyst') {
+    return 'Analyst';
+  }
+  return targetAgentType;
+}
+
+export function isAnalystDispatchTarget(targetAgentType: string): boolean {
+  return normalizeTargetAgentType(targetAgentType) === 'Analyst';
+}
+
 export function hasHubPolicyContext(input: HubPolicyInput): boolean {
   return Boolean(
     input.current_hub_mode
@@ -112,6 +124,7 @@ export function validateHubPolicy(
   input: HubPolicyInput,
   aliasRouting: HubAliasResolution,
 ): HubPolicyResult {
+  const canonicalTargetAgentType = normalizeTargetAgentType(input.target_agent_type);
   const requestedMode = input.requested_hub_mode ?? aliasRouting.resolved_mode ?? undefined;
   const currentMode = input.current_hub_mode ?? requestedMode;
   const recheckTrigger = resolvePromptAnalystRecheckTrigger(input);
@@ -120,7 +133,7 @@ export function validateHubPolicy(
     previous_hub_mode: input.previous_hub_mode,
     requested_hub_mode: requestedMode,
     requested_hub_label: input.requested_hub_label ?? aliasRouting.requested_hub_label ?? undefined,
-    target_agent_type: input.target_agent_type,
+    target_agent_type: canonicalTargetAgentType,
     transition_event: input.transition_event,
     transition_reason_code: input.transition_reason_code,
     prompt_analyst_enrichment_applied: input.prompt_analyst_enrichment_applied,
@@ -143,13 +156,13 @@ export function validateHubPolicy(
     };
   }
 
-  if (currentMode) {
+  if (currentMode && canonicalTargetAgentType !== 'Analyst') {
     const allowed = MODE_ALLOWED_TARGETS[currentMode];
-    if (allowed && !allowed.has(input.target_agent_type)) {
+    if (allowed && !allowed.has(canonicalTargetAgentType)) {
       return {
         valid: false,
         code: 'POLICY_MODE_BOUNDARY_VIOLATION',
-        reason: `Target agent ${input.target_agent_type} is not allowed in hub mode ${currentMode}.`,
+        reason: `Target agent ${canonicalTargetAgentType} is not allowed in hub mode ${currentMode}.`,
         details,
       };
     }
@@ -157,7 +170,7 @@ export function validateHubPolicy(
 
   if (
     !input.bypass_prompt_analyst_policy
-    && input.target_agent_type !== 'Analyst'
+    && canonicalTargetAgentType !== 'Analyst'
     && recheckTrigger !== undefined
     && input.prompt_analyst_enrichment_applied !== true
   ) {
@@ -170,7 +183,7 @@ export function validateHubPolicy(
   }
 
   const bundleDecisionContractRequired =
-    input.target_agent_type !== 'Analyst'
+    canonicalTargetAgentType !== 'Analyst'
     && (
       input.strict_bundle_resolution === true
       || input.provisioning_mode === 'on_demand'
@@ -252,12 +265,14 @@ export function evaluateHubDispatchPolicy(input: HubPolicyInput): HubPolicyEvalu
     input.requested_hub_label ?? 'Hub',
     input.requested_hub_mode,
   );
+  const canonicalTargetAgentType = normalizeTargetAgentType(input.target_agent_type);
 
   const fallbackRequested = input.bypass_prompt_analyst_policy === true;
   const fallbackAllowed = fallbackRequested && isPromptAnalystUnavailable(input);
 
   const normalizedInput: HubPolicyInput = {
     ...input,
+    target_agent_type: canonicalTargetAgentType,
     requested_hub_label: input.requested_hub_label ?? aliasRouting.requested_hub_label ?? 'Hub',
     requested_hub_mode: input.requested_hub_mode ?? aliasRouting.resolved_mode ?? 'standard_orchestration',
     current_hub_mode:

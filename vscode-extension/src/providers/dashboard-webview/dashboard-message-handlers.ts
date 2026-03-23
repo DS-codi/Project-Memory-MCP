@@ -1,8 +1,8 @@
 /**
  * Dashboard message handlers for skills and instructions management.
  *
- * These functions handle webview → extension messages for listing,
- * deploying, and undeploying skills and instructions.
+ * These functions handle webview → extension messages for listing and
+ * syncing skills and instructions into the workspace.
  */
 
 import * as vscode from 'vscode';
@@ -27,7 +27,7 @@ function notify(message: string, ...items: string[]): Thenable<string | undefine
 
 // --- Skills handlers ---
 
-/** List available skills and their deployment status */
+/** List available skills and whether a workspace-local copy exists */
 export function handleGetSkills(poster: MessagePoster): void {
     try {
         const config = vscode.workspace.getConfiguration('projectMemory');
@@ -60,13 +60,13 @@ export function handleGetSkills(poster: MessagePoster): void {
                     if (match) { description = match[1].substring(0, 120); }
                 } catch { /* ignore */ }
 
-                let deployed = false;
+                let workspaceLocal = false;
                 if (workspacePath) {
                     const deployedPath = path.join(workspacePath, '.github', 'skills', dir, 'SKILL.md');
-                    deployed = fs.existsSync(deployedPath);
+                    workspaceLocal = fs.existsSync(deployedPath);
                 }
 
-                return { name: dir, description, deployed };
+                return { name: dir, description, deployed: workspaceLocal, workspaceLocal };
             });
 
         poster.postMessage({ type: 'skillsList', data: { skills } });
@@ -76,7 +76,7 @@ export function handleGetSkills(poster: MessagePoster): void {
     }
 }
 
-/** Deploy a single skill to the workspace */
+/** Sync a single skill into the workspace-local .github surface */
 export function handleDeploySkill(poster: MessagePoster, data: { skillName: string }): void {
     const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     if (!workspacePath) {
@@ -106,6 +106,8 @@ export function handleDeploySkill(poster: MessagePoster, data: { skillName: stri
             return;
         }
         const destDir = path.join(workspacePath, '.github', 'skills', data.skillName);
+        const existingSkillFile = path.join(destDir, 'SKILL.md');
+        const hadWorkspaceCopy = fs.existsSync(existingSkillFile);
         fs.mkdirSync(destDir, { recursive: true });
 
         const files = fs.readdirSync(sourceDir);
@@ -116,7 +118,7 @@ export function handleDeploySkill(poster: MessagePoster, data: { skillName: stri
             }
         }
 
-        notify(`Deployed skill "${data.skillName}" to workspace`);
+        notify(`${hadWorkspaceCopy ? 'Synced' : 'Added'} skill "${data.skillName}" in workspace .github/skills`);
         handleGetSkills(poster); // Refresh the list
     } catch (error) {
         vscode.window.showErrorMessage(`Failed to deploy skill: ${error}`);
@@ -125,7 +127,7 @@ export function handleDeploySkill(poster: MessagePoster, data: { skillName: stri
 
 // --- Instructions handlers ---
 
-/** List available instructions and their deployment status */
+/** List available instructions and whether a workspace-local copy exists */
 export function handleGetInstructions(poster: MessagePoster): void {
     try {
         const config = vscode.workspace.getConfiguration('projectMemory');
@@ -140,12 +142,12 @@ export function handleGetInstructions(poster: MessagePoster): void {
             .filter((f: string) => f.endsWith('.instructions.md'))
             .map((f: string) => {
                 const name = f.replace('.instructions.md', '');
-                let deployed = false;
+                let workspaceLocal = false;
                 if (workspacePath) {
                     const deployedPath = path.join(workspacePath, '.github', 'instructions', f);
-                    deployed = fs.existsSync(deployedPath);
+                    workspaceLocal = fs.existsSync(deployedPath);
                 }
-                return { name, fileName: f, deployed };
+                return { name, fileName: f, deployed: workspaceLocal, workspaceLocal };
             });
 
         poster.postMessage({ type: 'instructionsList', data: { instructions } });
@@ -155,7 +157,7 @@ export function handleGetInstructions(poster: MessagePoster): void {
     }
 }
 
-/** Deploy a single instruction to the workspace */
+/** Sync a single instruction into the workspace-local .github surface */
 export function handleDeployInstruction(poster: MessagePoster, data: { instructionName: string }): void {
     const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     if (!workspacePath) {
@@ -174,34 +176,15 @@ export function handleDeployInstruction(poster: MessagePoster, data: { instructi
         const fileName = `${data.instructionName}.instructions.md`;
         const sourcePath = path.join(instructionsRoot, fileName);
         const targetDir = path.join(workspacePath, '.github', 'instructions');
+        const targetPath = path.join(targetDir, fileName);
+        const hadWorkspaceCopy = fs.existsSync(targetPath);
         fs.mkdirSync(targetDir, { recursive: true });
-        fs.copyFileSync(sourcePath, path.join(targetDir, fileName));
+        fs.copyFileSync(sourcePath, targetPath);
 
-        notify(`Deployed instruction "${data.instructionName}" to workspace`);
+        notify(`${hadWorkspaceCopy ? 'Synced' : 'Added'} instruction "${data.instructionName}" in workspace .github/instructions`);
         handleGetInstructions(poster); // Refresh the list
     } catch (error) {
         vscode.window.showErrorMessage(`Failed to deploy instruction: ${error}`);
-    }
-}
-
-/** Remove an instruction from the workspace */
-export function handleUndeployInstruction(poster: MessagePoster, data: { instructionName: string }): void {
-    const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-    if (!workspacePath) {
-        vscode.window.showErrorMessage('No workspace folder open');
-        return;
-    }
-
-    try {
-        const fileName = `${data.instructionName}.instructions.md`;
-        const filePath = path.join(workspacePath, '.github', 'instructions', fileName);
-        if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-            notify(`Removed instruction "${data.instructionName}" from workspace`);
-        }
-        handleGetInstructions(poster); // Refresh the list
-    } catch (error) {
-        vscode.window.showErrorMessage(`Failed to remove instruction: ${error}`);
     }
 }
 

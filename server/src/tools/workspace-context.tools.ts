@@ -12,6 +12,7 @@ import type {
 import * as store from '../storage/db-store.js';
 import { sanitizeJsonData } from '../security/sanitize.js';
 import { appendWorkspaceFileUpdate } from '../logging/workspace-update-log.js';
+import { buildWorkspaceContextSectionsFromProfile, CANONICAL_WORKSPACE_SECTION_KEYS } from '../utils/workspace-context-seed.js';
 
 const WORKSPACE_CONTEXT_SCHEMA_VERSION = '1.0.0';
 const MAX_CONTEXT_BYTES = 1024 * 1024;
@@ -24,6 +25,21 @@ interface WorkspaceContextResult {
 interface WorkspaceContextDeleteResult {
   deleted: boolean;
   path: string;
+}
+
+interface WorkspaceContextPopulateResult extends WorkspaceContextResult {
+  populated_section_keys: string[];
+  skipped_section_keys: string[];
+}
+
+function isSectionEmpty(section: WorkspaceContextSection | undefined): boolean {
+  if (!section) {
+    return true;
+  }
+
+  const hasSummary = typeof section.summary === 'string' && section.summary.trim().length > 0;
+  const hasItems = Array.isArray(section.items) && section.items.some(item => item.title.trim().length > 0);
+  return !hasSummary && !hasItems;
 }
 
 function getWorkspacePathForValidation(workspace: WorkspaceMeta): string {
@@ -493,6 +509,117 @@ export async function deleteWorkspaceContext(
     return {
       success: false,
       error: `Failed to delete workspace context: ${(error as Error).message}`
+    };
+  }
+}
+
+export async function populateWorkspaceContext(
+  params: { workspace_id: string }
+): Promise<ToolResponse<WorkspaceContextPopulateResult>> {
+  try {
+    const { workspace_id } = params;
+
+    if (!workspace_id) {
+      return {
+        success: false,
+        error: 'workspace_id is required'
+      };
+    }
+
+    const workspaceResult = await loadWorkspace(workspace_id);
+    if (!workspaceResult.success || !workspaceResult.data) {
+      return {
+        success: false,
+        error: workspaceResult.error || 'Workspace validation failed'
+      };
+    }
+
+    const workspace = workspaceResult.data;
+    const existing = await store.getWorkspaceContextFromDb(workspace_id);
+    const workspacePath = getWorkspacePathForValidation(workspace);
+    const generatedSections = workspace.profile
+      ? buildWorkspaceContextSectionsFromProfile(workspace.profile, {
+          workspaceName: workspace.name,
+          workspacePath
+        })
+      : {
+          project_details: {
+            summary: `Workspace ${workspace.name} is registered at ${workspacePath}.`
+          },
+          purpose: {
+            summary: 'Workspace context was populated from workspace metadata because no codebase profile is available yet.'
+          },
+          resources: {
+            summary: 'Workspace metadata is available even though indexing data has not been generated yet.',
+            items: [{ title: 'Workspace root', description: workspacePath }]
+          }
+        };
+
+    const now = store.nowISO();
+    const identityFilePath = store.getWorkspaceIdentityPath(workspacePath);
+    const currentSections = existing?.sections || {};
+    const mergedSections: Record<string, WorkspaceContextSection> = { ...currentSections };
+    const populatedSectionKeys: string[] = [];
+    const skippedSectionKeys: string[] = [];
+
+    for (const sectionKey of CANONICAL_WORKSPACE_SECTION_KEYS) {
+      const generatedSection = generatedSections[sectionKey];
+      if (!generatedSection || isSectionEmpty(generatedSection)) {
+        skippedSectionKeys.push(sectionKey);
+        continue;
+      }
+
+      if (isSectionEmpty(currentSections[sectionKey])) {
+        mergedSections[sectionKey] = generatedSection;
+        populatedSectionKeys.push(sectionKey);
+      } else {
+        skippedSectionKeys.push(sectionKey);
+      }
+    }
+
+    const context: WorkspaceContext = {
+      schema_version: existing?.schema_version || WORKSPACE_CONTEXT_SCHEMA_VERSION,
+      workspace_id,
+      workspace_path: workspacePath,
+      identity_file_path: identityFilePath,
+      name: existing?.name || workspace.name,
+      created_at: existing?.created_at || now,
+      updated_at: !existing || populatedSectionKeys.length > 0 ? now : (existing.updated_at || now),
+      sections: mergedSections,
+      update_log: existing?.update_log,
+      audit_log: existing?.audit_log
+    };
+
+    const sizeCheck = ensureSizeLimit(context);
+    if (!sizeCheck.success) {
+      return sizeCheck as ToolResponse<WorkspaceContextPopulateResult>;
+    }
+
+    if (!existing || populatedSectionKeys.length > 0) {
+      await store.saveWorkspaceContextToDb(workspace_id, context);
+      await appendWorkspaceFileUpdate({
+        workspace_id,
+        file_path: `db:workspace/${workspace_id}/workspace_context`,
+        summary: populatedSectionKeys.length > 0
+          ? `Populated canonical workspace context sections: ${populatedSectionKeys.join(', ')}`
+          : 'Initialized workspace context from workspace metadata',
+        action: 'populate_workspace_context'
+      });
+    }
+
+    return {
+      success: true,
+      data: {
+        context,
+        path: `db:workspace/${workspace_id}/workspace_context`,
+        populated_section_keys: populatedSectionKeys,
+        skipped_section_keys: skippedSectionKeys
+      }
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Failed to populate workspace context: ${(error as Error).message}`
     };
   }
 }

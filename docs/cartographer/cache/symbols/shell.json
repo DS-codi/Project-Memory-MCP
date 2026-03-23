@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-03-22T03:40:26.123Z",
+  "generated_at": "2026-03-23T19:39:46.044Z",
   "workspace_id": "project-memory-mcp-40f6678f5a9b",
   "language": "shell",
   "partial": false,
-  "total": 535,
+  "total": 557,
   "symbols": [
     {
       "id": "archive/legacy-scripts/2026-03-01/build_install.ps1::__module__",
@@ -606,6 +606,16 @@
       "exported": null
     },
     {
+      "id": "build-cli.ps1::__module__",
+      "file": "build-cli.ps1",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
       "id": "container/entrypoint.sh::__module__",
       "file": "container/entrypoint.sh",
       "name": "__module__",
@@ -1046,11 +1056,31 @@
       "exported": null
     },
     {
+      "id": "install.ps1::Invoke",
+      "file": "install.ps1",
+      "name": "Invoke",
+      "kind": "function",
+      "start_line": 165,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "install.ps1::Invoke_function_181",
+      "file": "install.ps1",
+      "name": "Invoke",
+      "kind": "function",
+      "start_line": 181,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
       "id": "install.ps1::Sync",
       "file": "install.ps1",
       "name": "Sync",
       "kind": "function",
-      "start_line": 165,
+      "start_line": 232,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1060,47 +1090,57 @@
       "file": "install.ps1",
       "name": "Test",
       "kind": "function",
-      "start_line": 217,
+      "start_line": 284,
       "qualified_name": null,
       "end_line": null,
       "exported": null
     },
     {
-      "id": "install.ps1::Invoke",
+      "id": "install.ps1::Invoke_function_325",
       "file": "install.ps1",
       "name": "Invoke",
       "kind": "function",
-      "start_line": 258,
+      "start_line": 325,
       "qualified_name": null,
       "end_line": null,
       "exported": null
     },
     {
-      "id": "install.ps1::Invoke_function_316",
+      "id": "install.ps1::Invoke_function_383",
       "file": "install.ps1",
       "name": "Invoke",
       "kind": "function",
-      "start_line": 316,
+      "start_line": 383,
       "qualified_name": null,
       "end_line": null,
       "exported": null
     },
     {
-      "id": "install.ps1::Test_function_350",
+      "id": "install.ps1::Test_function_417",
       "file": "install.ps1",
       "name": "Test",
       "kind": "function",
-      "start_line": 350,
+      "start_line": 417,
       "qualified_name": null,
       "end_line": null,
       "exported": null
     },
     {
-      "id": "install.ps1::Invoke_function_372",
+      "id": "install.ps1::Invoke_function_461",
       "file": "install.ps1",
       "name": "Invoke",
       "kind": "function",
-      "start_line": 372,
+      "start_line": 461,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "install.ps1::Invoke_function_473",
+      "file": "install.ps1",
+      "name": "Invoke",
+      "kind": "function",
+      "start_line": 473,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1110,7 +1150,7 @@
       "file": "install.ps1",
       "name": "Stop",
       "kind": "function",
-      "start_line": 387,
+      "start_line": 499,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1120,67 +1160,47 @@
       "file": "install.ps1",
       "name": "Resolve",
       "kind": "function",
-      "start_line": 453,
+      "start_line": 565,
       "qualified_name": null,
       "end_line": null,
       "exported": null
     },
     {
-      "id": "install.ps1::Invoke_function_527",
+      "id": "install.ps1::Invoke_function_641",
       "file": "install.ps1",
       "name": "Invoke",
       "kind": "function",
-      "start_line": 527,
+      "start_line": 641,
       "qualified_name": null,
       "end_line": null,
       "exported": null
     },
     {
-      "id": "install.ps1::Invoke_function_538",
+      "id": "install.ps1::Invoke_function_743",
       "file": "install.ps1",
       "name": "Invoke",
       "kind": "function",
-      "start_line": 538,
+      "start_line": 743,
       "qualified_name": null,
       "end_line": null,
       "exported": null
     },
     {
-      "id": "install.ps1::Invoke_function_591",
+      "id": "install.ps1::Invoke_function_842",
       "file": "install.ps1",
       "name": "Invoke",
       "kind": "function",
-      "start_line": 591,
+      "start_line": 842,
       "qualified_name": null,
       "end_line": null,
       "exported": null
     },
     {
-      "id": "install.ps1::Invoke_function_693",
+      "id": "install.ps1::Invoke_function_1014",
       "file": "install.ps1",
       "name": "Invoke",
       "kind": "function",
-      "start_line": 693,
-      "qualified_name": null,
-      "end_line": null,
-      "exported": null
-    },
-    {
-      "id": "install.ps1::Invoke_function_792",
-      "file": "install.ps1",
-      "name": "Invoke",
-      "kind": "function",
-      "start_line": 792,
-      "qualified_name": null,
-      "end_line": null,
-      "exported": null
-    },
-    {
-      "id": "install.ps1::Invoke_function_962",
-      "file": "install.ps1",
-      "name": "Invoke",
-      "kind": "function",
-      "start_line": 962,
+      "start_line": 1014,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1190,7 +1210,7 @@
       "file": "install.ps1",
       "name": "Set",
       "kind": "function",
-      "start_line": 1052,
+      "start_line": 1104,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1200,37 +1220,37 @@
       "file": "install.ps1",
       "name": "Install",
       "kind": "function",
-      "start_line": 1060,
+      "start_line": 1112,
       "qualified_name": null,
       "end_line": null,
       "exported": null
     },
     {
-      "id": "install.ps1::Install_function_1123",
+      "id": "install.ps1::Install_function_1175",
       "file": "install.ps1",
       "name": "Install",
       "kind": "function",
-      "start_line": 1123,
+      "start_line": 1175,
       "qualified_name": null,
       "end_line": null,
       "exported": null
     },
     {
-      "id": "install.ps1::Install_function_1167",
+      "id": "install.ps1::Install_function_1219",
       "file": "install.ps1",
       "name": "Install",
       "kind": "function",
-      "start_line": 1167,
+      "start_line": 1219,
       "qualified_name": null,
       "end_line": null,
       "exported": null
     },
     {
-      "id": "install.ps1::Install_function_1212",
+      "id": "install.ps1::Install_function_1264",
       "file": "install.ps1",
       "name": "Install",
       "kind": "function",
-      "start_line": 1212,
+      "start_line": 1264,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1240,7 +1260,7 @@
       "file": "install.ps1",
       "name": "Archive",
       "kind": "function",
-      "start_line": 1270,
+      "start_line": 1322,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1250,67 +1270,67 @@
       "file": "install.ps1",
       "name": "Try",
       "kind": "function",
-      "start_line": 1296,
+      "start_line": 1348,
       "qualified_name": null,
       "end_line": null,
       "exported": null
     },
     {
-      "id": "install.ps1::Install_function_1364",
+      "id": "install.ps1::Install_function_1416",
       "file": "install.ps1",
       "name": "Install",
       "kind": "function",
-      "start_line": 1364,
+      "start_line": 1416,
       "qualified_name": null,
       "end_line": null,
       "exported": null
     },
     {
-      "id": "install.ps1::Install_function_1415",
+      "id": "install.ps1::Install_function_1467",
       "file": "install.ps1",
       "name": "Install",
       "kind": "function",
-      "start_line": 1415,
+      "start_line": 1467,
       "qualified_name": null,
       "end_line": null,
       "exported": null
     },
     {
-      "id": "install.ps1::Install_function_1451",
+      "id": "install.ps1::Install_function_1503",
       "file": "install.ps1",
       "name": "Install",
       "kind": "function",
-      "start_line": 1451,
+      "start_line": 1503,
       "qualified_name": null,
       "end_line": null,
       "exported": null
     },
     {
-      "id": "install.ps1::Install_function_1512",
+      "id": "install.ps1::Install_function_1573",
       "file": "install.ps1",
       "name": "Install",
       "kind": "function",
-      "start_line": 1512,
+      "start_line": 1573,
       "qualified_name": null,
       "end_line": null,
       "exported": null
     },
     {
-      "id": "install.ps1::Install_function_1558",
+      "id": "install.ps1::Install_function_1619",
       "file": "install.ps1",
       "name": "Install",
       "kind": "function",
-      "start_line": 1558,
+      "start_line": 1619,
       "qualified_name": null,
       "end_line": null,
       "exported": null
     },
     {
-      "id": "install.ps1::Install_function_1606",
+      "id": "install.ps1::Install_function_1670",
       "file": "install.ps1",
       "name": "Install",
       "kind": "function",
-      "start_line": 1606,
+      "start_line": 1670,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1330,17 +1350,17 @@
       "file": "interactive-terminal/build-interactive-terminal.ps1",
       "name": "Invoke",
       "kind": "function",
-      "start_line": 57,
+      "start_line": 59,
       "qualified_name": null,
       "end_line": null,
       "exported": null
     },
     {
-      "id": "interactive-terminal/build-interactive-terminal.ps1::Invoke_function_114",
+      "id": "interactive-terminal/build-interactive-terminal.ps1::Invoke_function_116",
       "file": "interactive-terminal/build-interactive-terminal.ps1",
       "name": "Invoke",
       "kind": "function",
-      "start_line": 114,
+      "start_line": 116,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1350,7 +1370,7 @@
       "file": "interactive-terminal/build-interactive-terminal.ps1",
       "name": "Resolve",
       "kind": "function",
-      "start_line": 217,
+      "start_line": 219,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1360,17 +1380,17 @@
       "file": "interactive-terminal/build-interactive-terminal.ps1",
       "name": "Stop",
       "kind": "function",
-      "start_line": 249,
+      "start_line": 251,
       "qualified_name": null,
       "end_line": null,
       "exported": null
     },
     {
-      "id": "interactive-terminal/build-interactive-terminal.ps1::Invoke_function_278",
+      "id": "interactive-terminal/build-interactive-terminal.ps1::Invoke_function_280",
       "file": "interactive-terminal/build-interactive-terminal.ps1",
       "name": "Invoke",
       "kind": "function",
-      "start_line": 278,
+      "start_line": 280,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1380,7 +1400,7 @@
       "file": "interactive-terminal/build-interactive-terminal.ps1",
       "name": "Get",
       "kind": "function",
-      "start_line": 321,
+      "start_line": 323,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1390,7 +1410,7 @@
       "file": "interactive-terminal/build-interactive-terminal.ps1",
       "name": "Find",
       "kind": "function",
-      "start_line": 696,
+      "start_line": 349,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1410,27 +1430,27 @@
       "file": "launch-supervisor.ps1",
       "name": "Write",
       "kind": "function",
-      "start_line": 81,
+      "start_line": 80,
       "qualified_name": null,
       "end_line": null,
       "exported": null
     },
     {
-      "id": "launch-supervisor.ps1::Write_function_85",
+      "id": "launch-supervisor.ps1::Write_function_84",
       "file": "launch-supervisor.ps1",
       "name": "Write",
       "kind": "function",
-      "start_line": 85,
+      "start_line": 84,
       "qualified_name": null,
       "end_line": null,
       "exported": null
     },
     {
-      "id": "launch-supervisor.ps1::Write_function_89",
+      "id": "launch-supervisor.ps1::Write_function_88",
       "file": "launch-supervisor.ps1",
       "name": "Write",
       "kind": "function",
-      "start_line": 89,
+      "start_line": 88,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1440,7 +1460,7 @@
       "file": "launch-supervisor.ps1",
       "name": "Get",
       "kind": "function",
-      "start_line": 93,
+      "start_line": 92,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1450,7 +1470,7 @@
       "file": "launch-supervisor.ps1",
       "name": "Sync",
       "kind": "function",
-      "start_line": 137,
+      "start_line": 136,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1460,7 +1480,7 @@
       "file": "launch-supervisor.ps1",
       "name": "New",
       "kind": "function",
-      "start_line": 189,
+      "start_line": 188,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1540,7 +1560,7 @@
       "file": "new-install.ps1",
       "name": "Resolve",
       "kind": "function",
-      "start_line": 72,
+      "start_line": 76,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1550,7 +1570,7 @@
       "file": "new-install.ps1",
       "name": "Get",
       "kind": "function",
-      "start_line": 77,
+      "start_line": 81,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1560,7 +1580,7 @@
       "file": "new-install.ps1",
       "name": "Read",
       "kind": "function",
-      "start_line": 82,
+      "start_line": 86,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1570,27 +1590,27 @@
       "file": "new-install.ps1",
       "name": "Ensure",
       "kind": "function",
-      "start_line": 88,
+      "start_line": 92,
       "qualified_name": null,
       "end_line": null,
       "exported": null
     },
     {
-      "id": "new-install.ps1::Get_function_156",
+      "id": "new-install.ps1::Get_function_160",
       "file": "new-install.ps1",
       "name": "Get",
       "kind": "function",
-      "start_line": 156,
+      "start_line": 160,
       "qualified_name": null,
       "end_line": null,
       "exported": null
     },
     {
-      "id": "new-install.ps1::Get_function_188",
+      "id": "new-install.ps1::Get_function_192",
       "file": "new-install.ps1",
       "name": "Get",
       "kind": "function",
-      "start_line": 188,
+      "start_line": 192,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1600,7 +1620,7 @@
       "file": "new-install.ps1",
       "name": "New",
       "kind": "function",
-      "start_line": 192,
+      "start_line": 196,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1610,7 +1630,7 @@
       "file": "new-install.ps1",
       "name": "Import",
       "kind": "function",
-      "start_line": 211,
+      "start_line": 215,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1920,7 +1940,7 @@
       "file": "scripts/audit-outdated-settings-and-files.ps1",
       "name": "Resolve",
       "kind": "function",
-      "start_line": 213,
+      "start_line": 224,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1930,7 +1950,7 @@
       "file": "scripts/audit-outdated-settings-and-files.ps1",
       "name": "Get",
       "kind": "function",
-      "start_line": 238,
+      "start_line": 249,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1940,7 +1960,7 @@
       "file": "scripts/audit-outdated-settings-and-files.ps1",
       "name": "Update",
       "kind": "function",
-      "start_line": 284,
+      "start_line": 306,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1950,7 +1970,7 @@
       "file": "scripts/audit-outdated-settings-and-files.ps1",
       "name": "Ensure",
       "kind": "function",
-      "start_line": 378,
+      "start_line": 400,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1960,17 +1980,17 @@
       "file": "scripts/audit-outdated-settings-and-files.ps1",
       "name": "Scan",
       "kind": "function",
-      "start_line": 445,
+      "start_line": 467,
       "qualified_name": null,
       "end_line": null,
       "exported": null
     },
     {
-      "id": "scripts/audit-outdated-settings-and-files.ps1::Get_function_477",
+      "id": "scripts/audit-outdated-settings-and-files.ps1::Get_function_499",
       "file": "scripts/audit-outdated-settings-and-files.ps1",
       "name": "Get",
       "kind": "function",
-      "start_line": 477,
+      "start_line": 499,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -1980,17 +2000,167 @@
       "file": "scripts/audit-outdated-settings-and-files.ps1",
       "name": "Check",
       "kind": "function",
-      "start_line": 522,
+      "start_line": 544,
       "qualified_name": null,
       "end_line": null,
       "exported": null
     },
     {
-      "id": "scripts/audit-outdated-settings-and-files.ps1::Check_function_657",
+      "id": "scripts/audit-outdated-settings-and-files.ps1::Check_function_679",
       "file": "scripts/audit-outdated-settings-and-files.ps1",
       "name": "Check",
       "kind": "function",
-      "start_line": 657,
+      "start_line": 679,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/build.ps1::__module__",
+      "file": "scripts/build.ps1",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/cli-build-cartographer.ps1::__module__",
+      "file": "scripts/cli-build-cartographer.ps1",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/cli-build-dashboard.ps1::__module__",
+      "file": "scripts/cli-build-dashboard.ps1",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/cli-build-extension.ps1::__module__",
+      "file": "scripts/cli-build-extension.ps1",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/cli-build-guiforms.ps1::__module__",
+      "file": "scripts/cli-build-guiforms.ps1",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/cli-build-interactive-terminal.ps1::__module__",
+      "file": "scripts/cli-build-interactive-terminal.ps1",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/cli-build-mobile.ps1::__module__",
+      "file": "scripts/cli-build-mobile.ps1",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/cli-build-server.ps1::__module__",
+      "file": "scripts/cli-build-server.ps1",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/cli-build-supervisor.ps1::__module__",
+      "file": "scripts/cli-build-supervisor.ps1",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/cli-qmllint.ps1::__module__",
+      "file": "scripts/cli-qmllint.ps1",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/cli-qt-resolve.ps1::__module__",
+      "file": "scripts/cli-qt-resolve.ps1",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/cli-qt-resolve.ps1::Find",
+      "file": "scripts/cli-qt-resolve.ps1",
+      "name": "Find",
+      "kind": "function",
+      "start_line": 7,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/cli-qt-resolve.ps1::Find_function_50",
+      "file": "scripts/cli-qt-resolve.ps1",
+      "name": "Find",
+      "kind": "function",
+      "start_line": 50,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/cli-qt-resolve.ps1::Find_function_59",
+      "file": "scripts/cli-qt-resolve.ps1",
+      "name": "Find",
+      "kind": "function",
+      "start_line": 59,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/cli-qt-resolve.ps1::Initialize",
+      "file": "scripts/cli-qt-resolve.ps1",
+      "name": "Initialize",
+      "kind": "function",
+      "start_line": 77,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -2586,6 +2756,16 @@
       "exported": null
     },
     {
+      "id": "scripts/launch.ps1::__module__",
+      "file": "scripts/launch.ps1",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
       "id": "scripts/preflight-machine.ps1::__module__",
       "file": "scripts/preflight-machine.ps1",
       "name": "__module__",
@@ -2651,6 +2831,36 @@
       "name": "Test",
       "kind": "function",
       "start_line": 32,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/qmllint.ps1::__module__",
+      "file": "scripts/qmllint.ps1",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/qmllint.ps1::Find",
+      "file": "scripts/qmllint.ps1",
+      "name": "Find",
+      "kind": "function",
+      "start_line": 28,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/qmllint.ps1::Invoke",
+      "file": "scripts/qmllint.ps1",
+      "name": "Invoke",
+      "kind": "function",
+      "start_line": 71,
       "qualified_name": null,
       "end_line": null,
       "exported": null
@@ -2748,6 +2958,16 @@
     {
       "id": "scripts/setup-firewall-mobile.ps1::__module__",
       "file": "scripts/setup-firewall-mobile.ps1",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/test.ps1::__module__",
+      "file": "scripts/test.ps1",
       "name": "__module__",
       "kind": "module",
       "start_line": 1,

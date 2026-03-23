@@ -196,6 +196,75 @@ describe('memory_session launch routing', () => {
     );
   });
 
+  it('allows PromptAnalyst deploy_and_prep routing in standard orchestration mode', async () => {
+    mockIsSupervisorRunning.mockResolvedValue(true);
+
+    const result = await memorySession({
+      action: 'deploy_and_prep',
+      workspace_id: 'ws_test',
+      plan_id: 'plan_test',
+      agent_name: 'PromptAnalyst',
+      prompt: 'route this request',
+      requested_hub_mode: 'standard_orchestration',
+      current_hub_mode: 'standard_orchestration',
+      requested_scope: 'task',
+      strict_bundle_resolution: true,
+      prompt_analyst_enrichment_applied: false,
+    });
+
+    expect(result.success).toBe(false);
+    expect((result as any).error).toContain('Workspace not found: ws_test');
+    expect((result as any).error).not.toContain('POLICY_MODE_BOUNDARY_VIOLATION');
+    expect((result as any).error).not.toContain('POLICY_BUNDLE_DECISION_REQUIRED');
+  });
+
+  it('returns prep-only output for analyst-class pre-routing deploy_and_prep when no plan_id is provided', async () => {
+    mockIsSupervisorRunning.mockResolvedValue(true);
+    mockGetWorkspace.mockResolvedValueOnce({
+      workspace_path: '/tmp/ws_test',
+      path: '/tmp/ws_test',
+    } as any);
+
+    const result = await memorySession({
+      action: 'deploy_and_prep',
+      workspace_id: 'ws_test',
+      agent_name: 'PromptAnalyst',
+      prompt: 'route this request',
+      requested_hub_mode: 'standard_orchestration',
+      current_hub_mode: 'standard_orchestration',
+      requested_scope: 'task',
+      strict_bundle_resolution: true,
+      prompt_analyst_enrichment_applied: false,
+    });
+
+    expect(result.success).toBe(true);
+    const payload = (result as any).data?.data;
+    expect(payload?.mode).toBe('context-prep-only');
+    expect(payload?.deployment).toBeNull();
+    expect(payload?.warnings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'DEPLOYMENT_SKIPPED_NO_PLAN' }),
+    ]));
+  });
+
+  it('still requires a plan_id for non-analyst deploy_and_prep', async () => {
+    mockIsSupervisorRunning.mockResolvedValue(true);
+    mockGetWorkspace.mockResolvedValueOnce({
+      workspace_path: '/tmp/ws_test',
+      path: '/tmp/ws_test',
+    } as any);
+
+    const result = await memorySession({
+      action: 'deploy_and_prep',
+      workspace_id: 'ws_test',
+      agent_name: 'Executor',
+      prompt: 'hello',
+      prompt_analyst_enrichment_applied: true,
+    });
+
+    expect(result.success).toBe(false);
+    expect((result as any).error).toContain('plan_id is required');
+  });
+
   it('blocks bypass fallback when PromptAnalyst is not explicitly unavailable', async () => {
     mockIsSupervisorRunning.mockResolvedValue(true);
 

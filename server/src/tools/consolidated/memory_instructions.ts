@@ -20,6 +20,7 @@ import {
   getInstructionSection,
   listWorkspaceInstructionAssignments,
 } from '../../db/instruction-db.js';
+import type { ToolResponse } from '../../types/index.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -35,9 +36,8 @@ export interface MemoryInstructionsParams {
   workspace_id?: string;
 }
 
-export type MemoryInstructionsResponse =
-  | { success: true;  data: unknown }
-  | { success: false; error: string };
+type InstructionsResult =
+  | { action: InstructionsAction; data: unknown };
 
 // ---------------------------------------------------------------------------
 // Handler
@@ -45,7 +45,7 @@ export type MemoryInstructionsResponse =
 
 export async function memoryInstructions(
   params: MemoryInstructionsParams
-): Promise<MemoryInstructionsResponse> {
+): Promise<ToolResponse<InstructionsResult>> {
   const { action } = params;
 
   try {
@@ -56,11 +56,14 @@ export async function memoryInstructions(
         const rows = listInstructions();
         return {
           success: true,
-          data: rows.map(r => ({
-            filename:   r.filename,
-            applies_to: r.applies_to,
-            updated_at: r.updated_at,
-          })),
+          data: {
+            action: 'list',
+            data: rows.map(r => ({
+              filename:   r.filename,
+              applies_to: r.applies_to,
+              updated_at: r.updated_at,
+            })),
+          },
         };
       }
 
@@ -80,7 +83,7 @@ export async function memoryInstructions(
             updated_at:       row?.updated_at ?? a.assigned_at,
           };
         });
-        return { success: true, data };
+        return { success: true, data: { action: 'list_workspace', data } };
       }
 
       // ---- search -------------------------------------------------------------
@@ -95,7 +98,7 @@ export async function memoryInstructions(
           applies_to:      r.applies_to,
           section_matches: extractMatchingSections(r.content, query),
         }));
-        return { success: true, data };
+        return { success: true, data: { action: 'search', data } };
       }
 
       // ---- get ----------------------------------------------------------------
@@ -111,10 +114,13 @@ export async function memoryInstructions(
         return {
           success: true,
           data: {
-            filename:   row.filename,
-            applies_to: row.applies_to,
-            content:    row.content,
-            updated_at: row.updated_at,
+            action: 'get',
+            data: {
+              filename:   row.filename,
+              applies_to: row.applies_to,
+              content:    row.content,
+              updated_at: row.updated_at,
+            },
           },
         };
       }
@@ -137,7 +143,7 @@ export async function memoryInstructions(
           }
           return { success: false, error: `Section "${heading}" not found in ${filename}` };
         }
-        return { success: true, data: section };
+        return { success: true, data: { action: 'get_section', data: section } };
       }
 
       default: {

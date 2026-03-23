@@ -9,7 +9,8 @@ import {
   BarChart3,
   FileText,
   BookOpen,
-  Wand2
+  Wand2,
+  Target
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { HealthIndicator } from '../workspace/HealthIndicator';
@@ -86,32 +87,47 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           ) : (
             <div className="space-y-1">
               {workspaces.map((ws) => (
-                <Link
-                  key={ws.workspace_id}
-                  to={`/workspace/${ws.workspace_id}`}
-                  className={cn(
-                    'flex items-center gap-3 px-4 py-2 mx-2 rounded-lg transition-colors',
-                    location.pathname.includes(ws.workspace_id)
-                      ? 'bg-slate-700 text-slate-100'
-                      : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
-                  )}
-                >
-                  <div className="relative">
-                    <FolderOpen size={20} />
-                    <HealthIndicator 
-                      health={ws.health} 
-                      className="absolute -top-1 -right-1 w-2.5 h-2.5" 
-                    />
-                  </div>
-                  {!collapsed && (
-                    <div className="flex-1 min-w-0">
-                      <div className="truncate font-medium">{ws.name}</div>
-                      <div className="text-xs text-slate-500">
-                        {ws.active_plan_count} active
-                      </div>
+                <div key={ws.workspace_id}>
+                  <Link
+                    to={`/workspace/${ws.workspace_id}`}
+                    className={cn(
+                      'flex items-center gap-3 px-4 py-2 mx-2 rounded-lg transition-colors',
+                      location.pathname.includes(ws.workspace_id) && !location.pathname.includes('/sprints') && !location.pathname.includes('/sprint/')
+                        ? 'bg-slate-700 text-slate-100'
+                        : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
+                    )}
+                  >
+                    <div className="relative">
+                      <FolderOpen size={20} />
+                      <HealthIndicator 
+                        health={ws.health} 
+                        className="absolute -top-1 -right-1 w-2.5 h-2.5" 
+                      />
                     </div>
+                    {!collapsed && (
+                      <div className="flex-1 min-w-0">
+                        <div className="truncate font-medium">{ws.name}</div>
+                        <div className="text-xs text-slate-500">
+                          {ws.active_plan_count} active
+                        </div>
+                      </div>
+                    )}
+                  </Link>
+                  {!collapsed && (
+                    <Link
+                      to={`/workspace/${ws.workspace_id}/sprints`}
+                      className={cn(
+                        'flex items-center gap-3 px-4 py-1.5 ml-6 mr-2 rounded-lg transition-colors text-sm',
+                        location.pathname.includes(`${ws.workspace_id}/sprint`)
+                          ? 'bg-emerald-500/20 text-emerald-300'
+                          : 'text-slate-500 hover:bg-slate-700/50 hover:text-slate-300'
+                      )}
+                    >
+                      <Target size={16} />
+                      <span>Sprints</span>
+                    </Link>
                   )}
-                </Link>
+                </div>
               ))}
             </div>
           )}

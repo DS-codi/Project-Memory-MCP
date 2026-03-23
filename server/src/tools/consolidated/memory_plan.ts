@@ -36,7 +36,7 @@ import * as planTools from '../plan/index.js';
 import * as programTools from '../program/index.js';
 import * as fileStore from '../../storage/db-store.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
-import { preflightValidate } from '../preflight/index.js';
+import { preflightValidate, buildPreflightFailure } from '../preflight/index.js';
 import {
   maybeAttachCoordinatorHandoffInstruction,
   pausePlanAtApprovalGate,
@@ -560,7 +560,7 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
   // Preflight validation — catch missing required fields early
   const preflight = preflightValidate('memory_plan', action, params as unknown as Record<string, unknown>);
   if (!preflight.valid) {
-    return { success: false, error: preflight.message, preflight_failure: preflight } as ToolResponse<PlanResult>;
+    return buildPreflightFailure('memory_plan', action, preflight) as ToolResponse<PlanResult>;
   }
 
   switch (action) {

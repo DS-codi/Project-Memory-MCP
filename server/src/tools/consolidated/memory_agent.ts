@@ -52,6 +52,7 @@ import {
 } from '../orchestration/hub-alias-routing.js';
 import {
   evaluateHubDispatchPolicy,
+  isAnalystDispatchTarget,
 } from '../orchestration/hub-policy-enforcement.js';
 import {
   resolveHubRolloutDecision,
@@ -75,7 +76,7 @@ import {
   getInitContextPath,
   getManifestPath,
 } from '../../storage/db-store.js';
-import { preflightValidate } from '../preflight/index.js';
+import { preflightValidate, buildPreflightFailure } from '../preflight/index.js';
 import { incrementStat } from '../session-stats.js';
 import { events } from '../../events/event-emitter.js';
 import { registerLiveSession, clearLiveSession, serverSessionIdForPrepId } from '../session-live-store.js';
@@ -105,6 +106,7 @@ export type AgentAction =
   | 'init' 
   | 'complete' 
   | 'handoff' 
+  | 'recover'
   | 'validate' 
   | 'list' 
   | 'get_instructions' 
@@ -367,7 +369,8 @@ type AgentResult =
   | { action: 'delete_skill'; data: { name: string; deleted: boolean } }
   // ── Instruction management ────────────────────────────────────────────────
   | { action: 'create_instruction'; data: { filename: string; created: boolean; workspace_assigned: boolean; workspace_id?: string } }
-  | { action: 'delete_instruction'; data: { filename: string; deleted: boolean } };
+  | { action: 'delete_instruction'; data: { filename: string; deleted: boolean } }
+  | { action: 'recover'; data: { session: AgentSession; plan_id: string; workspace_id: string; role_boundaries: import('../../types/index.js').AgentRoleBoundaries; recovered_at: string } };
 
 export async function memoryAgent(params: MemoryAgentParams): Promise<ToolResponse<AgentResult>> {
   const { action } = params;
@@ -375,7 +378,7 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
   if (!action) {
     return {
       success: false,
-      error: 'action is required. Valid actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage, categorize, deploy_for_task, deploy_agent_to_workspace, list_skills, get_skill, assign_skill, unassign_skill, list_workspace_skills, list_instructions, get_instruction, assign_instruction, unassign_instruction, list_workspace_instructions'
+      error: 'action is required. Valid actions: init, complete, handoff, recover, validate, list, get_instructions, deploy, get_briefing, get_lineage, categorize, deploy_for_task, deploy_agent_to_workspace, list_skills, get_skill, assign_skill, unassign_skill, list_workspace_skills, list_instructions, get_instruction, assign_instruction, unassign_instruction, list_workspace_instructions'
     };
   }
 
@@ -389,7 +392,7 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
   // Preflight validation — catch missing required fields early
   const preflight = preflightValidate('memory_agent', action, params as unknown as Record<string, unknown>);
   if (!preflight.valid) {
-    return { success: false, error: preflight.message, preflight_failure: preflight } as ToolResponse<AgentResult>;
+    return buildPreflightFailure('memory_agent', action, preflight) as ToolResponse<AgentResult>;
   }
 
   switch (action) {
@@ -1440,10 +1443,112 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
       };
     }
 
+    case 'recover': {
+      if (!params.session_id || !params.workspace_id || !params.plan_id || !params.agent_type) {
+        return {
+          success: false,
+          error: 'session_id, workspace_id, plan_id, and agent_type are required for action: recover'
+        };
+      }
+
+      const { savePlanState: saveState } = await import('../../storage/db-store.js');
+      const { AGENT_BOUNDARIES } = await import('../../types/index.js');
+      const { nowISO: now } = await import('../../storage/db-store.js');
+
+      const planState = await getPlanState(params.workspace_id, params.plan_id);
+      if (!planState) {
+        return { success: false, error: `Plan not found: ${params.plan_id}` };
+      }
+
+      const sessions: AgentSession[] = (planState as any).agent_sessions || [];
+      const target = sessions.find((s: AgentSession) => s.session_id === params.session_id);
+
+      if (!target) {
+        return { success: false, error: `No session found with ID '${params.session_id}'` };
+      }
+
+      // Terminal state check
+      if (target.completed_at || (target as any).status === 'completed' || (target as any).status === 'failed') {
+        return { success: false, error: `Session '${params.session_id}' is in terminal state and cannot be recovered` };
+      }
+
+      // Agent type compatibility check
+      if (target.agent_type !== params.agent_type) {
+        return {
+          success: false,
+          error: `Session '${params.session_id}' belongs to agent type '${target.agent_type}', not '${params.agent_type}'`
+        };
+      }
+
+      // Update session timestamps so it doesn't get flagged as stale
+      const recoveredAt = now();
+      target.started_at = recoveredAt;
+      (target as any).recovered_at = recoveredAt;
+
+      // Clear any existing live session for this agent+plan to prevent duplicates
+      for (const s of sessions) {
+        if (s.session_id !== params.session_id && s.agent_type === params.agent_type && !s.completed_at) {
+          clearLiveSession(s.session_id);
+        }
+      }
+
+      // Register recovered session in the live store
+      registerLiveSession(
+        params.session_id,
+        params._session_id,
+        {
+          agentType: params.agent_type,
+          planId: params.plan_id,
+          workspaceId: params.workspace_id
+        }
+      );
+
+      // Acquire active run lane for non-Coordinator agents
+      if (params.agent_type !== 'Coordinator') {
+        const { acquireActiveRun, writeActiveRun: writeRun } = await import('../orchestration/stale-run-recovery.js');
+        const runId = (target.context as Record<string, unknown>)?.run_id as string || `run_${params.session_id}`;
+        const runState = {
+          run_id: runId,
+          workspace_id: params.workspace_id,
+          plan_id: params.plan_id,
+          status: 'active' as const,
+          started_at: recoveredAt,
+          last_updated_at: recoveredAt,
+          owner_agent: params.agent_type
+        };
+        const acquireResult = await acquireActiveRun(params.workspace_id, params.plan_id, runState);
+        if (!acquireResult.acquired) {
+          return {
+            success: false,
+            error: `Cannot recover session: plan ${params.plan_id} already has an active subagent lane (${acquireResult.active_run?.owner_agent ?? 'unknown'})`
+          };
+        }
+      }
+
+      // Persist updated session
+      await saveState(planState);
+
+      const role_boundaries = AGENT_BOUNDARIES[params.agent_type];
+
+      return {
+        success: true,
+        data: {
+          action: 'recover',
+          data: {
+            session: target,
+            plan_id: params.plan_id,
+            workspace_id: params.workspace_id,
+            role_boundaries,
+            recovered_at: recoveredAt
+          }
+        }
+      };
+    }
+
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage, categorize, deploy_for_task, deploy_agent_to_workspace, list_skills, get_skill, create_skill, delete_skill, assign_skill, unassign_skill, list_workspace_skills, list_instructions, get_instruction, create_instruction, delete_instruction, assign_instruction, unassign_instruction, list_workspace_instructions`
+        error: `Unknown action: ${action}. Valid actions: init, complete, handoff, recover, validate, list, get_instructions, deploy, get_briefing, get_lineage, categorize, deploy_for_task, deploy_agent_to_workspace, list_skills, get_skill, create_skill, delete_skill, assign_skill, unassign_skill, list_workspace_skills, list_instructions, get_instruction, create_instruction, delete_instruction, assign_instruction, unassign_instruction, list_workspace_instructions`
       };
   }
 }
@@ -1503,7 +1608,7 @@ async function enforceAgentDispatchPolicy(
     };
   }
 
-  if (targetAgentType !== 'Analyst') {
+  if (!isAnalystDispatchTarget(targetAgentType)) {
     await events.promptAnalystEnrichment(params.workspace_id, params.plan_id, {
       action,
       target_agent_type: targetAgentType,

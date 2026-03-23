@@ -14,9 +14,11 @@ import type {
   GenerateAgentInstructionsParams,
   AgentInstructionFile
 } from '../types/index.js';
+import type { DbRef } from '../types/db-ref.types.js';
 import * as store from '../storage/db-store.js';
 import { sanitizeJsonData, sanitizeContent, addSecurityMetadata } from '../security/sanitize.js';
 import { appendWorkspaceFileUpdate } from '../logging/workspace-update-log.js';
+import { makeDbRef } from '../types/db-ref.types.js';
 
 /**
  * Store context data (audit, research, decisions, etc.)
@@ -24,14 +26,19 @@ import { appendWorkspaceFileUpdate } from '../logging/workspace-update-log.js';
  */
 export async function storeContext(
   params: StoreContextParams
-): Promise<ToolResponse<{ path: string; security_warnings?: string[] }>> {
+): Promise<ToolResponse<{ path: string; _ref?: DbRef; security_warnings?: string[] }>> {
   try {
     const { workspace_id, plan_id, type, data } = params;
     
     if (!workspace_id || !plan_id || !type || !data) {
+      const missing: string[] = [];
+      if (!workspace_id) missing.push('workspace_id');
+      if (!plan_id) missing.push('plan_id');
+      if (!type) missing.push("type (string identifying context category)");
+      if (!data) missing.push("data (JSON object payload)");
       return {
         success: false,
-        error: 'workspace_id, plan_id, type, and data are required'
+        error: `memory_context(action: store) missing required field(s): ${missing.join(', ')}. Provide a JSON object as the 'data' payload.`
       };
     }
     
@@ -69,7 +76,10 @@ export async function storeContext(
     
     return {
       success: true,
-      data: { path: contextPath }
+      data: {
+        path: contextPath,
+        _ref: makeDbRef('context_items', `${plan_id}:${type}`, 'context', type),
+      }
     };
   } catch (error) {
     return {
@@ -107,7 +117,10 @@ export async function getContext(
     
     return {
       success: true,
-      data
+      data: {
+        ...data,
+        _ref: makeDbRef('context_items', `${plan_id}:${type}`, 'context', type),
+      }
     };
   } catch (error) {
     return {
@@ -128,7 +141,7 @@ export async function getContext(
  */
 export async function storeInitialContext(
   params: StoreInitialContextParams
-): Promise<ToolResponse<{ path: string; context_summary: string }>> {
+): Promise<ToolResponse<{ path: string; context_summary: string; _ref?: DbRef }>> {
   try {
     const { 
       workspace_id, 
@@ -201,7 +214,8 @@ export async function storeInitialContext(
       success: true,
       data: { 
         path: contextPath,
-        context_summary: contextSummary
+        context_summary: contextSummary,
+        _ref: makeDbRef('context_items', `${plan_id}:original_request`, 'context', 'original_request'),
       }
     };
   } catch (error) {

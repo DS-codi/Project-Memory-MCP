@@ -176,9 +176,9 @@ describe('Dynamic Hub scenario parity suite', () => {
     expect(allowed.policy.valid).toBe(true);
   });
 
-  it('prioritizes mode-boundary ownership checks over bundle-decision checks for Analyst dispatches', () => {
+  it('allows analyst-class dispatches without mode-boundary or bundle-decision failures', () => {
     const analystDispatch = evaluateHubDispatchPolicy({
-      target_agent_type: 'Analyst',
+      target_agent_type: 'PromptAnalyst',
       requested_hub_mode: 'standard_orchestration',
       prompt_analyst_enrichment_applied: false,
       strict_bundle_resolution: true,
@@ -186,8 +186,8 @@ describe('Dynamic Hub scenario parity suite', () => {
       requested_scope: 'task',
     });
 
-    expect(analystDispatch.policy.valid).toBe(false);
-    expect(analystDispatch.policy.code).toBe('POLICY_MODE_BOUNDARY_VIOLATION');
+    expect(analystDispatch.policy.valid).toBe(true);
+    expect(analystDispatch.normalized_input.target_agent_type).toBe('Analyst');
   });
 
   it('rejects invalid hub decision payloads when bundle contract is required', () => {

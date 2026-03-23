@@ -1,8 +1,8 @@
 /**
  * Skills management section for the dashboard webview.
  *
- * Provides HTML template for listing available skills and deploying them
- * to workspaces. Skills are subdirectories containing a SKILL.md file.
+ * Provides HTML template for listing available skills and syncing
+ * workspace-local copies. Skills are subdirectories containing a SKILL.md file.
  */
 
 import { IconSvgs } from './icons';
@@ -23,12 +23,13 @@ export function getSkillsSectionHtml(iconSvgs: IconSvgs): string {
                                 </button>
                                 <div class="collapsible-content">
                                     <div class="widget-body">
+                                        <p class="always-notes-help">Workspace-local skills remain runtime inputs and are preserved locally. Use these actions to add or refresh copies inside .github/skills.</p>
                                         <div class="skills-header">
                                             <button class="btn btn-small" data-action="refresh-skills" title="Refresh skills list">
                                                 ${iconSvgs.syncHistory} Refresh
                                             </button>
-                                            <button class="btn btn-small btn-secondary" data-action="run-command" data-command="projectMemory.deploySkills" title="Deploy skills via picker">
-                                                ${iconSvgs.deploySkills} Deploy All
+                                            <button class="btn btn-small btn-secondary" data-action="run-command" data-command="projectMemory.deploySkills" title="Open the skills picker">
+                                                ${iconSvgs.deploySkills} Open Picker
                                             </button>
                                         </div>
                                         <div class="skills-list" id="skillsList">
@@ -53,8 +54,9 @@ export function getSkillsClientHelpers(): string {
                 return '<div class="empty-state">No skills found</div>';
             }
             return skills.map(function(skill) {
-                var deployedBadge = skill.deployed
-                    ? '<span class="badge badge-ok">Deployed</span>'
+                var workspaceLocal = skill.workspaceLocal === true || skill.deployed === true;
+                var deployedBadge = workspaceLocal
+                    ? '<span class="badge badge-ok">In Workspace</span>'
                     : '';
                 return '<div class="skill-item">' +
                     '<div class="skill-info">' +
@@ -63,8 +65,8 @@ export function getSkillsClientHelpers(): string {
                     '</div>' +
                     '<div class="skill-actions">' +
                         deployedBadge +
-                        '<button class="btn btn-small" data-action="deploy-skill" data-skill-name="' + escapeHtml(skill.name) + '" title="Deploy to workspace">' +
-                            (skill.deployed ? 'Update' : 'Deploy') +
+                        '<button class="btn btn-small' + (workspaceLocal ? ' btn-secondary' : '') + '" data-action="deploy-skill" data-skill-name="' + escapeHtml(skill.name) + '" title="' + (workspaceLocal ? 'Refresh workspace copy' : 'Add to workspace') + '">' +
+                            (workspaceLocal ? 'Sync Copy' : 'Add to Workspace') +
                         '</button>' +
                     '</div>' +
                 '</div>';

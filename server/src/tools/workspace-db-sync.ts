@@ -32,7 +32,7 @@ import {
   type WorkspaceFileKind,
 } from './workspace-context-manifest.js';
 
-export type SyncStatus =
+export type WorkspaceContextSyncStatus =
   | 'in_sync'
   | 'local_only'
   | 'db_only'
@@ -41,52 +41,62 @@ export type SyncStatus =
   | 'ignored_local'
   | 'import_candidate';
 
-export interface SyncEntry {
+export type SyncStatus = WorkspaceContextSyncStatus;
+
+export interface WorkspaceContextSyncEntryPolicy {
+  sync_managed: boolean;
+  controlled: boolean;
+  import_mode: 'never' | 'manual';
+  canonical_source: 'none' | 'database_seed_resources';
+  canonical_path: string | null;
+  required_workspace_copy: boolean;
+  legacy_mandatory: boolean;
+  cull_reason?: string;
+  validation_errors: string[];
+}
+
+export interface WorkspaceContextSyncEntry {
   kind: 'agent' | 'instruction';
   filename: string;
   relative_path: string;
   canonical_name: string;
   canonical_filename: string;
-  status: SyncStatus;
+  status: WorkspaceContextSyncStatus;
   remediation: string;
   comparison_basis: 'ignored_local' | 'local_only' | 'db_only' | 'local_vs_db' | 'local_db_seed';
   db_updated_at?: string;
   local_size_bytes?: number;
   canonical_seed_path?: string;
   content_mismatch_hint?: string;
-  policy: {
-    sync_managed: boolean;
-    controlled: boolean;
-    import_mode: 'never' | 'manual';
-    canonical_source: 'none' | 'database_seed_resources';
-    canonical_path: string | null;
-    required_workspace_copy: boolean;
-    legacy_mandatory: boolean;
-    cull_reason?: string;
-    validation_errors: string[];
-  };
+  policy: WorkspaceContextSyncEntryPolicy;
 }
 
-export interface WorkspaceDbSyncReport {
+export type SyncEntry = WorkspaceContextSyncEntry;
+
+export interface WorkspaceContextSyncSummary {
+  total: number;
+  in_sync: number;
+  local_only: number;
+  db_only: number;
+  content_mismatch: number;
+  protected_drift: number;
+  ignored_local: number;
+  import_candidate: number;
+}
+
+export interface WorkspaceContextSyncReport {
   workspace_id?: string;
   workspace_path: string;
   report_mode: 'read_only';
   writes_performed: false;
   github_agents_dir: string;
   github_instructions_dir: string;
-  agents: SyncEntry[];
-  instructions: SyncEntry[];
-  summary: {
-    total: number;
-    in_sync: number;
-    local_only: number;
-    db_only: number;
-    content_mismatch: number;
-    protected_drift: number;
-    ignored_local: number;
-    import_candidate: number;
-  };
+  agents: WorkspaceContextSyncEntry[];
+  instructions: WorkspaceContextSyncEntry[];
+  summary: WorkspaceContextSyncSummary;
 }
+
+export type WorkspaceDbSyncReport = WorkspaceContextSyncReport;
 
 interface LocalFileRecord {
   filename: string;
@@ -190,8 +200,8 @@ function buildRemediation(status: SyncStatus, policy: ResolvedWorkspaceFilePolic
       return 'No action required.';
     case 'ignored_local':
       return policy.cull_reason
-        ? 'Leave this file out of watcher remediation; remove it only through explicit cleanup if it should not remain in the workspace.'
-        : 'No watcher action. Add explicit PM metadata only if this file should participate in manual sync workflows.';
+        ? 'Preserve passive sync behavior. This file is removable only when an explicit cleanup flow uses the server-provided cull classification.'
+        : 'Preserve by default. Add explicit PM metadata only if this file should participate in manual sync workflows.';
     case 'import_candidate':
       return 'Offer an explicit manual import action only. Do not update the DB from passive sync checks.';
     case 'local_only':
@@ -205,7 +215,7 @@ function buildRemediation(status: SyncStatus, policy: ResolvedWorkspaceFilePolic
   }
 }
 
-function toEntryPolicy(policy: ResolvedWorkspaceFilePolicy): SyncEntry['policy'] {
+function toEntryPolicy(policy: ResolvedWorkspaceFilePolicy): WorkspaceContextSyncEntryPolicy {
   return {
     sync_managed: policy.sync_managed,
     controlled: policy.controlled,
@@ -618,7 +628,7 @@ function classifyMandatorySeedOnlyEntry(args: {
   };
 }
 
-function buildSummary(entries: SyncEntry[]): WorkspaceDbSyncReport['summary'] {
+function buildSummary(entries: SyncEntry[]): WorkspaceContextSyncSummary {
   return {
     total: entries.length,
     in_sync: entries.filter(entry => entry.status === 'in_sync').length,

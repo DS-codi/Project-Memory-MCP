@@ -4,6 +4,14 @@
  * Extracted from terminal.tools.ts (MAJ-2) to keep each module focused:
  * - terminal.tools.ts → session management, process spawning, output buffering
  * - terminal-auth.ts  → authorization model, allowlist CRUD, disk persistence
+ *
+ * ## DbRef migration status (Phase 11)
+ *
+ * This module is NOT affected by the DB ref migration.  All paths here
+ * (`getAllowlistPath`, `saveAllowlistToDisk`, `loadAllowlistFromDisk`) point
+ * to **real filesystem files** (`terminal-allowlist.json`) that are never
+ * stored in SQLite.  These are `FileRef`-category artifacts and will remain
+ * filesystem-backed.
  */
 
 import { join } from 'node:path';

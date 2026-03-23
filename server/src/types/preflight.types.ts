@@ -76,6 +76,20 @@ export type PreflightResult =
       message: string;
     };
 
+/**
+ * Standardized preflight failure response shape.
+ * All consolidated handlers MUST return this shape when preflight validation fails.
+ */
+export interface PreflightFailureResponse {
+  success: false;
+  error: string;
+  preflight_failure: true;
+  tool_name: string;
+  action: string;
+  missing_fields?: string[];
+  unknown_fields?: string[];
+}
+
 // =============================================================================
 // Tool Contract Summary (compact, for init response)
 // =============================================================================

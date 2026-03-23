@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-22T03:40:26.123Z",
+  "generated_at": "2026-03-23T19:39:46.044Z",
   "workspace_id": "project-memory-mcp-40f6678f5a9b",
   "partial": false,
   "nodes": [
@@ -330,6 +330,10 @@
     "python-core/tests/test_code_cartography.py",
     "python-core/tests/test_contract_golden.py",
     "python-core/tests/test_runtime_entrypoint.py",
+    "scripts/cli-build-guiforms.ps1",
+    "scripts/cli-build-interactive-terminal.ps1",
+    "scripts/cli-build-supervisor.ps1",
+    "scripts/cli-qmllint.ps1",
     "scripts/folder_cleanup/audit_cleanup.py",
     "scripts/folder_cleanup/cleanup_common.py",
     "scripts/folder_cleanup/organize_by_category.py",
@@ -349,8 +353,10 @@
     "server/src/__tests__/events/event-emitter-webhook.test.ts",
     "server/src/__tests__/events/webhook-config.test.ts",
     "server/src/__tests__/events/webhook-dispatcher.test.ts",
+    "server/src/__tests__/integration/agent-lifecycle.test.ts",
     "server/src/__tests__/logging/tool-logger-retention.test.ts",
     "server/src/__tests__/schemas/action-parameter-validation.test.ts",
+    "server/src/__tests__/schemas/agent-type-alias.test.ts",
     "server/src/__tests__/schemas/step-type-schema.test.ts",
     "server/src/__tests__/storage/file-store-buildscripts-shell.test.ts",
     "server/src/__tests__/storage/workspace-hierarchy.test.ts",
@@ -409,6 +415,7 @@
     "server/src/__tests__/tools/prompt-storage.test.ts",
     "server/src/__tests__/tools/prompt-writer.test.ts",
     "server/src/__tests__/tools/research-limits.test.ts",
+    "server/src/__tests__/tools/session-recovery.test.ts",
     "server/src/__tests__/tools/shared-protocol-fixtures.json",
     "server/src/__tests__/tools/skill-auto-index.test.ts",
     "server/src/__tests__/tools/skill-creation-evaluator.test.ts",
@@ -434,6 +441,7 @@
     "server/src/__tests__/tools/workflow-mode-actions.test.ts",
     "server/src/__tests__/tools/workspace-context-autowrap.test.ts",
     "server/src/__tests__/tools/workspace-context-crossmachine.test.ts",
+    "server/src/__tests__/tools/workspace-context-populate.test.ts",
     "server/src/__tests__/tools/workspace-context-seed.test.ts",
     "server/src/__tests__/tools/workspace-db-sync.test.ts",
     "server/src/__tests__/tools/workspace-link.test.ts",
@@ -500,6 +508,7 @@
     "server/src/db/session-db.ts",
     "server/src/db/skill-db.ts",
     "server/src/db/skill-deployment-db.ts",
+    "server/src/db/sprint-db.ts",
     "server/src/db/step-db.ts",
     "server/src/db/tool-catalog-db.ts",
     "server/src/db/types.ts",
@@ -590,6 +599,7 @@
     "server/src/tools/preflight/action-params-cartography.ts",
     "server/src/tools/preflight/action-params-other.ts",
     "server/src/tools/preflight/action-params-plan.ts",
+    "server/src/tools/preflight/action-params-session.ts",
     "server/src/tools/preflight/contract-builder.ts",
     "server/src/tools/preflight/index.ts",
     "server/src/tools/preflight/preflight-validator.ts",
@@ -631,6 +641,7 @@
     "server/src/types/category-routing.ts",
     "server/src/types/common.types.ts",
     "server/src/types/context.types.ts",
+    "server/src/types/db-ref.types.ts",
     "server/src/types/deploy.types.ts",
     "server/src/types/gui-forms.types.ts",
     "server/src/types/handoff-stats.types.ts",
@@ -641,6 +652,7 @@
     "server/src/types/program-v2.types.ts",
     "server/src/types/program.types.ts",
     "server/src/types/skill.types.ts",
+    "server/src/types/sprint.types.ts",
     "server/src/types/workspace.types.ts",
     "server/src/utils/agent-loader.ts",
     "server/src/utils/compact-plan-state.ts",
@@ -648,6 +660,7 @@
     "server/src/utils/important-response-context.ts",
     "server/src/utils/workspace-context-seed.ts",
     "server/src/utils/workspace-context-summary.ts",
+    "server/src/utils/zod-error-formatter.ts",
     "server/tests/cartography/contract.spec.ts",
     "server/vitest.config.ts",
     "supervisor/src/auth_middleware.rs",
@@ -924,7 +937,9 @@
     "vscode-extension/out/test/suite/ContainerHealthService.test.js",
     "vscode-extension/out/test/suite/ContainerStatusBar.test.js",
     "vscode-extension/out/test/suite/DefaultDeployer.test.js",
+    "vscode-extension/out/test/suite/DiagnosticsService.workspaceSync.test.js",
     "vscode-extension/out/test/suite/NotificationService.lifecycle.test.js",
+    "vscode-extension/out/test/suite/WorkspaceConfigWatcherService.test.js",
     "vscode-extension/out/test/suite/buildScriptCwd.test.js",
     "vscode-extension/out/test/suite/dashboard-client-helpers.test.js",
     "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
@@ -1015,6 +1030,7 @@
     "vscode-extension/src/services/DiagnosticsService.ts",
     "vscode-extension/src/services/EventSubscriptionService.ts",
     "vscode-extension/src/services/NotificationService.ts",
+    "vscode-extension/src/services/WorkspaceConfigWatcherService.ts",
     "vscode-extension/src/supervisor/SupervisorHeartbeat.ts",
     "vscode-extension/src/supervisor/activation.ts",
     "vscode-extension/src/supervisor/control-client.ts",
@@ -1047,7 +1063,9 @@
     "vscode-extension/src/test/suite/ContainerHealthService.test.ts",
     "vscode-extension/src/test/suite/ContainerStatusBar.test.ts",
     "vscode-extension/src/test/suite/DefaultDeployer.test.ts",
+    "vscode-extension/src/test/suite/DiagnosticsService.workspaceSync.test.ts",
     "vscode-extension/src/test/suite/NotificationService.lifecycle.test.ts",
+    "vscode-extension/src/test/suite/WorkspaceConfigWatcherService.test.ts",
     "vscode-extension/src/test/suite/buildScriptCwd.test.ts",
     "vscode-extension/src/test/suite/chat-phase1-buttons.test.ts",
     "vscode-extension/src/test/suite/dashboard-client-helpers.test.ts",
@@ -3125,6 +3143,16 @@
       "kind": "import"
     },
     {
+      "from": "server/src/__tests__/integration/agent-lifecycle.test.ts",
+      "to": "server/src/tools/preflight/index.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/__tests__/integration/agent-lifecycle.test.ts",
+      "to": "server/src/utils/zod-error-formatter.ts",
+      "kind": "import"
+    },
+    {
       "from": "server/src/__tests__/logging/tool-logger-retention.test.ts",
       "to": "server/src/__tests__/db/fixtures.ts",
       "kind": "import"
@@ -4115,6 +4143,56 @@
       "kind": "import"
     },
     {
+      "from": "server/src/__tests__/tools/session-recovery.test.ts",
+      "to": "server/src/storage/db-store.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/__tests__/tools/session-recovery.test.ts",
+      "to": "server/src/tools/agent-deploy.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/__tests__/tools/session-recovery.test.ts",
+      "to": "server/src/tools/agent-validation.tools.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/__tests__/tools/session-recovery.test.ts",
+      "to": "server/src/tools/agent.tools.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/__tests__/tools/session-recovery.test.ts",
+      "to": "server/src/tools/consolidated/memory_agent.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/__tests__/tools/session-recovery.test.ts",
+      "to": "server/src/tools/consolidated/memory_agent.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/__tests__/tools/session-recovery.test.ts",
+      "to": "server/src/tools/consolidated/workspace-validation.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/__tests__/tools/session-recovery.test.ts",
+      "to": "server/src/tools/handoff.tools.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/__tests__/tools/session-recovery.test.ts",
+      "to": "server/src/tools/orchestration/stale-run-recovery.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/__tests__/tools/session-recovery.test.ts",
+      "to": "server/src/tools/session-live-store.ts",
+      "kind": "import"
+    },
+    {
       "from": "server/src/__tests__/tools/skill-auto-index.test.ts",
       "to": "server/src/tools/difficulty-profile.ts",
       "kind": "import"
@@ -4381,6 +4459,16 @@
     },
     {
       "from": "server/src/__tests__/tools/workspace-context-crossmachine.test.ts",
+      "to": "server/src/tools/workspace-context.tools.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/__tests__/tools/workspace-context-populate.test.ts",
+      "to": "server/src/storage/db-store.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/__tests__/tools/workspace-context-populate.test.ts",
       "to": "server/src/tools/workspace-context.tools.ts",
       "kind": "import"
     },
@@ -5081,6 +5169,11 @@
     },
     {
       "from": "server/src/db/seed.ts",
+      "to": "server/src/db/event-log-db.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/db/seed.ts",
       "to": "server/src/db/gui-routing-contracts-db.ts",
       "kind": "import"
     },
@@ -5137,6 +5230,21 @@
     {
       "from": "server/src/db/skill-deployment-db.ts",
       "to": "server/src/db/types.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/db/sprint-db.ts",
+      "to": "server/src/db/query-helpers.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/db/sprint-db.ts",
+      "to": "server/src/db/types.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/db/sprint-db.ts",
+      "to": "server/src/types/sprint.types.ts",
       "kind": "import"
     },
     {
@@ -5291,6 +5399,11 @@
     },
     {
       "from": "server/src/index.ts",
+      "to": "server/src/tools/preflight/index.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/index.ts",
       "to": "server/src/tools/session-live-store.ts",
       "kind": "import"
     },
@@ -5322,6 +5435,11 @@
     {
       "from": "server/src/index.ts",
       "to": "server/src/utils/important-response-context.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/index.ts",
+      "to": "server/src/utils/zod-error-formatter.ts",
       "kind": "import"
     },
     {
@@ -5705,6 +5823,16 @@
       "kind": "import"
     },
     {
+      "from": "server/src/storage/db-store.ts",
+      "to": "server/src/types/db-ref.types.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/storage/db-store.ts",
+      "to": "server/src/types/db-ref.types.ts",
+      "kind": "import"
+    },
+    {
       "from": "server/src/storage/workspace-hierarchy.ts",
       "to": "server/src/storage/db-store.ts",
       "kind": "import"
@@ -5901,6 +6029,16 @@
     },
     {
       "from": "server/src/tools/consolidated/memory_agent.ts",
+      "to": "server/src/storage/db-store.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/tools/consolidated/memory_agent.ts",
+      "to": "server/src/storage/db-store.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/tools/consolidated/memory_agent.ts",
       "to": "server/src/tools/agent-deploy.ts",
       "kind": "import"
     },
@@ -5966,6 +6104,11 @@
     },
     {
       "from": "server/src/tools/consolidated/memory_agent.ts",
+      "to": "server/src/tools/orchestration/stale-run-recovery.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/tools/consolidated/memory_agent.ts",
       "to": "server/src/tools/preflight/index.ts",
       "kind": "import"
     },
@@ -5986,12 +6129,27 @@
     },
     {
       "from": "server/src/tools/consolidated/memory_agent.ts",
+      "to": "server/src/types/index.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/tools/consolidated/memory_agent.ts",
+      "to": "server/src/types/index.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/tools/consolidated/memory_agent.ts",
       "to": "server/src/types/plan.types.ts",
       "kind": "import"
     },
     {
       "from": "server/src/tools/consolidated/memory_brainstorm.ts",
       "to": "server/src/types/gui-forms.types.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/tools/consolidated/memory_brainstorm.ts",
+      "to": "server/src/types/index.ts",
       "kind": "import"
     },
     {
@@ -6055,6 +6213,11 @@
       "kind": "import"
     },
     {
+      "from": "server/src/tools/consolidated/memory_instructions.ts",
+      "to": "server/src/types/index.ts",
+      "kind": "import"
+    },
+    {
       "from": "server/src/tools/consolidated/memory_plan.ts",
       "to": "server/src/storage/db-store.ts",
       "kind": "import"
@@ -6112,11 +6275,6 @@
     {
       "from": "server/src/tools/consolidated/memory_session.ts",
       "to": "server/src/tools/agent-deploy.ts",
-      "kind": "import"
-    },
-    {
-      "from": "server/src/tools/consolidated/memory_session.ts",
-      "to": "server/src/tools/orchestration/hub-policy-enforcement.ts",
       "kind": "import"
     },
     {
@@ -6186,6 +6344,11 @@
     },
     {
       "from": "server/src/tools/consolidated/memory_task.ts",
+      "to": "server/src/types/index.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/tools/consolidated/memory_task.ts",
       "to": "server/src/types/plan.types.ts",
       "kind": "import"
     },
@@ -6207,6 +6370,16 @@
     {
       "from": "server/src/tools/consolidated/memory_terminal.ts",
       "to": "server/src/types/index.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/tools/consolidated/memory_workspace.ts",
+      "to": "server/src/db/agent-definition-db.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/tools/consolidated/memory_workspace.ts",
+      "to": "server/src/db/instruction-db.ts",
       "kind": "import"
     },
     {
@@ -6456,6 +6629,16 @@
     },
     {
       "from": "server/src/tools/handoff.tools.ts",
+      "to": "server/src/types/index.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/tools/handoff.tools.ts",
+      "to": "server/src/types/preflight.types.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/tools/handoff.tools.ts",
       "to": "server/src/types/preflight.types.ts",
       "kind": "import"
     },
@@ -6582,6 +6765,11 @@
     {
       "from": "server/src/tools/orchestration/hub-telemetry-dashboard.ts",
       "to": "server/src/events/event-emitter.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/tools/orchestration/hub-telemetry-dashboard.ts",
+      "to": "server/src/tools/orchestration/hub-policy-enforcement.ts",
       "kind": "import"
     },
     {
@@ -6881,6 +7069,16 @@
     },
     {
       "from": "server/src/tools/preflight/action-param-registry.ts",
+      "to": "server/src/tools/preflight/action-params-session.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/tools/preflight/action-param-registry.ts",
+      "to": "server/src/tools/preflight/action-params-session.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/tools/preflight/action-param-registry.ts",
       "to": "server/src/types/preflight.types.ts",
       "kind": "import"
     },
@@ -6902,6 +7100,11 @@
     {
       "from": "server/src/tools/preflight/action-params-plan.ts",
       "to": "server/src/types/preflight.types.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/tools/preflight/action-params-session.ts",
+      "to": "server/src/tools/preflight/action-params-plan.ts",
       "kind": "import"
     },
     {
@@ -7140,6 +7343,11 @@
       "kind": "import"
     },
     {
+      "from": "server/src/tools/workspace-context.tools.ts",
+      "to": "server/src/utils/workspace-context-seed.ts",
+      "kind": "import"
+    },
+    {
       "from": "server/src/tools/workspace-db-sync.ts",
       "to": "server/src/db/agent-definition-db.ts",
       "kind": "import"
@@ -7361,6 +7569,11 @@
     },
     {
       "from": "server/src/types/index.ts",
+      "to": "server/src/types/db-ref.types.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/types/index.ts",
       "to": "server/src/types/deploy.types.ts",
       "kind": "import"
     },
@@ -7402,6 +7615,11 @@
     {
       "from": "server/src/types/index.ts",
       "to": "server/src/types/skill.types.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/types/index.ts",
+      "to": "server/src/types/sprint.types.ts",
       "kind": "import"
     },
     {
@@ -8331,12 +8549,22 @@
     },
     {
       "from": "vscode-extension/src/commands/deploy-commands.ts",
+      "to": "vscode-extension/src/commands/workspace-commands.ts",
+      "kind": "import"
+    },
+    {
+      "from": "vscode-extension/src/commands/deploy-commands.ts",
       "to": "vscode-extension/src/deployer/DefaultDeployer.ts",
       "kind": "import"
     },
     {
       "from": "vscode-extension/src/commands/deploy-commands.ts",
       "to": "vscode-extension/src/providers/DashboardViewProvider.ts",
+      "kind": "import"
+    },
+    {
+      "from": "vscode-extension/src/commands/deploy-commands.ts",
+      "to": "vscode-extension/src/server/ConnectionManager.ts",
       "kind": "import"
     },
     {
@@ -8497,6 +8725,11 @@
     {
       "from": "vscode-extension/src/extension.ts",
       "to": "vscode-extension/src/services/NotificationService.ts",
+      "kind": "import"
+    },
+    {
+      "from": "vscode-extension/src/extension.ts",
+      "to": "vscode-extension/src/services/WorkspaceConfigWatcherService.ts",
       "kind": "import"
     },
     {
@@ -8826,7 +9059,32 @@
     },
     {
       "from": "vscode-extension/src/services/NotificationService.ts",
+      "to": "vscode-extension/src/server/ConnectionManager.ts",
+      "kind": "import"
+    },
+    {
+      "from": "vscode-extension/src/services/NotificationService.ts",
       "to": "vscode-extension/src/services/EventSubscriptionService.ts",
+      "kind": "import"
+    },
+    {
+      "from": "vscode-extension/src/services/WorkspaceConfigWatcherService.ts",
+      "to": "vscode-extension/src/commands/workspace-commands.ts",
+      "kind": "import"
+    },
+    {
+      "from": "vscode-extension/src/services/WorkspaceConfigWatcherService.ts",
+      "to": "vscode-extension/src/server/ConnectionManager.ts",
+      "kind": "import"
+    },
+    {
+      "from": "vscode-extension/src/services/WorkspaceConfigWatcherService.ts",
+      "to": "vscode-extension/src/services/DiagnosticsService.ts",
+      "kind": "import"
+    },
+    {
+      "from": "vscode-extension/src/services/WorkspaceConfigWatcherService.ts",
+      "to": "vscode-extension/src/services/NotificationService.ts",
       "kind": "import"
     },
     {
@@ -9090,6 +9348,21 @@
       "kind": "import"
     },
     {
+      "from": "vscode-extension/src/test/suite/DiagnosticsService.workspaceSync.test.ts",
+      "to": "vscode-extension/src/server/ConnectionManager.ts",
+      "kind": "import"
+    },
+    {
+      "from": "vscode-extension/src/test/suite/DiagnosticsService.workspaceSync.test.ts",
+      "to": "vscode-extension/src/services/DiagnosticsService.ts",
+      "kind": "import"
+    },
+    {
+      "from": "vscode-extension/src/test/suite/NotificationService.lifecycle.test.ts",
+      "to": "vscode-extension/src/server/ConnectionManager.ts",
+      "kind": "import"
+    },
+    {
       "from": "vscode-extension/src/test/suite/NotificationService.lifecycle.test.ts",
       "to": "vscode-extension/src/services/EventSubscriptionService.ts",
       "kind": "import"
@@ -9097,6 +9370,31 @@
     {
       "from": "vscode-extension/src/test/suite/NotificationService.lifecycle.test.ts",
       "to": "vscode-extension/src/services/NotificationService.ts",
+      "kind": "import"
+    },
+    {
+      "from": "vscode-extension/src/test/suite/WorkspaceConfigWatcherService.test.ts",
+      "to": "vscode-extension/src/server/ConnectionManager.ts",
+      "kind": "import"
+    },
+    {
+      "from": "vscode-extension/src/test/suite/WorkspaceConfigWatcherService.test.ts",
+      "to": "vscode-extension/src/server/ConnectionManager.ts",
+      "kind": "import"
+    },
+    {
+      "from": "vscode-extension/src/test/suite/WorkspaceConfigWatcherService.test.ts",
+      "to": "vscode-extension/src/services/DiagnosticsService.ts",
+      "kind": "import"
+    },
+    {
+      "from": "vscode-extension/src/test/suite/WorkspaceConfigWatcherService.test.ts",
+      "to": "vscode-extension/src/services/NotificationService.ts",
+      "kind": "import"
+    },
+    {
+      "from": "vscode-extension/src/test/suite/WorkspaceConfigWatcherService.test.ts",
+      "to": "vscode-extension/src/services/WorkspaceConfigWatcherService.ts",
       "kind": "import"
     },
     {

@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-03-22T03:40:26.123Z",
+  "generated_at": "2026-03-23T19:39:46.044Z",
   "workspace_id": "project-memory-mcp-40f6678f5a9b",
   "partial": false,
-  "total": 7453,
+  "total": 7534,
   "references": [
     {
       "from_file": ".tmp/DashboardViewProvider.head.ts",
@@ -7517,21 +7517,21 @@
     },
     {
       "from_file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
-      "from_line": 521,
+      "from_line": 562,
       "to_symbol_id": "terminal_core/conpty_backend/::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
-      "from_line": 2130,
+      "from_line": 2171,
       "to_symbol_id": "cxxqt_bridge/completed_outputs/::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs",
-      "from_line": 2131,
+      "from_line": 2172,
       "to_symbol_id": "protocol/::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
@@ -9392,6 +9392,34 @@
       "reference_kind": "import"
     },
     {
+      "from_file": "scripts/cli-build-guiforms.ps1",
+      "from_line": 13,
+      "to_symbol_id": "\"$PSScriptRoot\\cli-qt-resolve.ps1\"::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "scripts/cli-build-interactive-terminal.ps1",
+      "from_line": 16,
+      "to_symbol_id": "\"$PSScriptRoot\\cli-qt-resolve.ps1\"::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "scripts/cli-build-supervisor.ps1",
+      "from_line": 13,
+      "to_symbol_id": "\"$PSScriptRoot\\cli-qt-resolve.ps1\"::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "scripts/cli-qmllint.ps1",
+      "from_line": 21,
+      "to_symbol_id": "\"$PSScriptRoot\\cli-qt-resolve.ps1\"::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
       "from_file": "scripts/folder_cleanup/audit_cleanup.py",
       "from_line": 1,
       "to_symbol_id": "__future__::__unresolved__",
@@ -10155,6 +10183,34 @@
       "reference_kind": "import"
     },
     {
+      "from_file": "server/src/__tests__/integration/agent-lifecycle.test.ts",
+      "from_line": 9,
+      "to_symbol_id": "vitest::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/__tests__/integration/agent-lifecycle.test.ts",
+      "from_line": 10,
+      "to_symbol_id": "zod::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/__tests__/integration/agent-lifecycle.test.ts",
+      "from_line": 11,
+      "to_symbol_id": "server/src/tools/preflight/index.ts::__module__",
+      "to_file": "server/src/tools/preflight/index.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/__tests__/integration/agent-lifecycle.test.ts",
+      "from_line": 12,
+      "to_symbol_id": "server/src/utils/zod-error-formatter.ts::__module__",
+      "to_file": "server/src/utils/zod-error-formatter.ts",
+      "reference_kind": "import"
+    },
+    {
       "from_file": "server/src/__tests__/logging/tool-logger-retention.test.ts",
       "from_line": 1,
       "to_symbol_id": "vitest::__unresolved__",
@@ -10191,6 +10247,20 @@
     },
     {
       "from_file": "server/src/__tests__/schemas/action-parameter-validation.test.ts",
+      "from_line": 2,
+      "to_symbol_id": "zod::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/__tests__/schemas/agent-type-alias.test.ts",
+      "from_line": 1,
+      "to_symbol_id": "vitest::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/__tests__/schemas/agent-type-alias.test.ts",
       "from_line": 2,
       "to_symbol_id": "zod::__unresolved__",
       "to_file": null,
@@ -12227,6 +12297,83 @@
       "reference_kind": "import"
     },
     {
+      "from_file": "server/src/__tests__/tools/session-recovery.test.ts",
+      "from_line": 1,
+      "to_symbol_id": "vitest::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/__tests__/tools/session-recovery.test.ts",
+      "from_line": 2,
+      "to_symbol_id": "server/src/tools/consolidated/memory_agent.ts::__module__",
+      "to_file": "server/src/tools/consolidated/memory_agent.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/__tests__/tools/session-recovery.test.ts",
+      "from_line": 3,
+      "to_symbol_id": "server/src/tools/consolidated/memory_agent.ts::__module__",
+      "to_file": "server/src/tools/consolidated/memory_agent.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/__tests__/tools/session-recovery.test.ts",
+      "from_line": 4,
+      "to_symbol_id": "server/src/tools/handoff.tools.ts::__module__",
+      "to_file": "server/src/tools/handoff.tools.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/__tests__/tools/session-recovery.test.ts",
+      "from_line": 5,
+      "to_symbol_id": "server/src/tools/agent.tools.ts::__module__",
+      "to_file": "server/src/tools/agent.tools.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/__tests__/tools/session-recovery.test.ts",
+      "from_line": 6,
+      "to_symbol_id": "server/src/tools/agent-validation.tools.ts::__module__",
+      "to_file": "server/src/tools/agent-validation.tools.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/__tests__/tools/session-recovery.test.ts",
+      "from_line": 7,
+      "to_symbol_id": "server/src/tools/consolidated/workspace-validation.ts::__module__",
+      "to_file": "server/src/tools/consolidated/workspace-validation.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/__tests__/tools/session-recovery.test.ts",
+      "from_line": 8,
+      "to_symbol_id": "server/src/tools/agent-deploy.ts::__module__",
+      "to_file": "server/src/tools/agent-deploy.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/__tests__/tools/session-recovery.test.ts",
+      "from_line": 9,
+      "to_symbol_id": "server/src/storage/db-store.ts::__module__",
+      "to_file": "server/src/storage/db-store.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/__tests__/tools/session-recovery.test.ts",
+      "from_line": 10,
+      "to_symbol_id": "server/src/tools/session-live-store.ts::__module__",
+      "to_file": "server/src/tools/session-live-store.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/__tests__/tools/session-recovery.test.ts",
+      "from_line": 11,
+      "to_symbol_id": "server/src/tools/orchestration/stale-run-recovery.ts::__module__",
+      "to_file": "server/src/tools/orchestration/stale-run-recovery.ts",
+      "reference_kind": "import"
+    },
+    {
       "from_file": "server/src/__tests__/tools/skill-auto-index.test.ts",
       "from_line": 10,
       "to_symbol_id": "vitest::__unresolved__",
@@ -12969,6 +13116,27 @@
       "reference_kind": "import"
     },
     {
+      "from_file": "server/src/__tests__/tools/workspace-context-populate.test.ts",
+      "from_line": 1,
+      "to_symbol_id": "vitest::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/__tests__/tools/workspace-context-populate.test.ts",
+      "from_line": 2,
+      "to_symbol_id": "server/src/tools/workspace-context.tools.ts::__module__",
+      "to_file": "server/src/tools/workspace-context.tools.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/__tests__/tools/workspace-context-populate.test.ts",
+      "from_line": 3,
+      "to_symbol_id": "server/src/storage/db-store.ts::__module__",
+      "to_file": "server/src/storage/db-store.ts",
+      "reference_kind": "import"
+    },
+    {
       "from_file": "server/src/__tests__/tools/workspace-context-seed.test.ts",
       "from_line": 6,
       "to_symbol_id": "vitest::__unresolved__",
@@ -13005,7 +13173,7 @@
     },
     {
       "from_file": "server/src/__tests__/tools/workspace-context-seed.test.ts",
-      "from_line": 132,
+      "from_line": 139,
       "to_symbol_id": "server/src/indexing/workspace-indexer.ts::__module__",
       "to_file": "server/src/indexing/workspace-indexer.ts",
       "reference_kind": "import"
@@ -14419,91 +14587,98 @@
     },
     {
       "from_file": "server/src/db/seed.ts",
-      "from_line": 14,
+      "from_line": 16,
       "to_symbol_id": "node:fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/db/seed.ts",
-      "from_line": 15,
+      "from_line": 17,
       "to_symbol_id": "node:path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/db/seed.ts",
-      "from_line": 16,
+      "from_line": 18,
       "to_symbol_id": "node:url::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/db/seed.ts",
-      "from_line": 18,
+      "from_line": 20,
       "to_symbol_id": "server/src/db/connection.ts::__module__",
       "to_file": "server/src/db/connection.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/db/seed.ts",
-      "from_line": 19,
+      "from_line": 21,
       "to_symbol_id": "server/src/db/migration-runner.ts::__module__",
       "to_file": "server/src/db/migration-runner.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/db/seed.ts",
-      "from_line": 20,
+      "from_line": 22,
       "to_symbol_id": "server/src/db/tool-catalog-db.ts::__module__",
       "to_file": "server/src/db/tool-catalog-db.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/db/seed.ts",
-      "from_line": 21,
+      "from_line": 23,
       "to_symbol_id": "server/src/db/agent-definition-db.ts::__module__",
       "to_file": "server/src/db/agent-definition-db.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/db/seed.ts",
-      "from_line": 22,
+      "from_line": 24,
       "to_symbol_id": "server/src/db/deployable-agent-profile-db.ts::__module__",
       "to_file": "server/src/db/deployable-agent-profile-db.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/db/seed.ts",
-      "from_line": 23,
+      "from_line": 25,
       "to_symbol_id": "server/src/db/category-workflow-db.ts::__module__",
       "to_file": "server/src/db/category-workflow-db.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/db/seed.ts",
-      "from_line": 24,
+      "from_line": 26,
       "to_symbol_id": "server/src/db/instruction-db.ts::__module__",
       "to_file": "server/src/db/instruction-db.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/db/seed.ts",
-      "from_line": 25,
+      "from_line": 27,
       "to_symbol_id": "server/src/db/skill-db.ts::__module__",
       "to_file": "server/src/db/skill-db.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/db/seed.ts",
-      "from_line": 26,
+      "from_line": 28,
+      "to_symbol_id": "server/src/db/event-log-db.ts::__module__",
+      "to_file": "server/src/db/event-log-db.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/db/seed.ts",
+      "from_line": 29,
       "to_symbol_id": "server/src/db/gui-routing-contracts-db.ts::__module__",
       "to_file": "server/src/db/gui-routing-contracts-db.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/db/seed.ts",
-      "from_line": 27,
+      "from_line": 30,
       "to_symbol_id": "server/src/types/category-routing.ts::__module__",
       "to_file": "server/src/types/category-routing.ts",
       "reference_kind": "import"
@@ -14545,6 +14720,27 @@
     },
     {
       "from_file": "server/src/db/skill-deployment-db.ts",
+      "from_line": 9,
+      "to_symbol_id": "server/src/db/query-helpers.ts::__module__",
+      "to_file": "server/src/db/query-helpers.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/db/sprint-db.ts",
+      "from_line": 7,
+      "to_symbol_id": "server/src/db/types.ts::__module__",
+      "to_file": "server/src/db/types.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/db/sprint-db.ts",
+      "from_line": 8,
+      "to_symbol_id": "server/src/types/sprint.types.ts::__module__",
+      "to_file": "server/src/types/sprint.types.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/db/sprint-db.ts",
       "from_line": 9,
       "to_symbol_id": "server/src/db/query-helpers.ts::__module__",
       "to_file": "server/src/db/query-helpers.ts",
@@ -14860,21 +15056,35 @@
     },
     {
       "from_file": "server/src/index.ts",
-      "from_line": 858,
+      "from_line": 43,
+      "to_symbol_id": "server/src/utils/zod-error-formatter.ts::__module__",
+      "to_file": "server/src/utils/zod-error-formatter.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/index.ts",
+      "from_line": 44,
+      "to_symbol_id": "server/src/tools/preflight/index.ts::__module__",
+      "to_file": "server/src/tools/preflight/index.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/index.ts",
+      "from_line": 917,
       "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/index.ts",
-      "from_line": 866,
+      "from_line": 925,
       "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/index.ts",
-      "from_line": 873,
+      "from_line": 932,
       "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
@@ -15567,140 +15777,154 @@
     },
     {
       "from_file": "server/src/storage/db-store.ts",
-      "from_line": 44,
+      "from_line": 42,
+      "to_symbol_id": "server/src/types/db-ref.types.ts::__module__",
+      "to_file": "server/src/types/db-ref.types.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/storage/db-store.ts",
+      "from_line": 43,
+      "to_symbol_id": "server/src/types/db-ref.types.ts::__module__",
+      "to_file": "server/src/types/db-ref.types.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/storage/db-store.ts",
+      "from_line": 46,
       "to_symbol_id": "server/src/db/connection.ts::__module__",
       "to_file": "server/src/db/connection.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/storage/db-store.ts",
-      "from_line": 45,
+      "from_line": 47,
       "to_symbol_id": "server/src/db/migration-runner.ts::__module__",
       "to_file": "server/src/db/migration-runner.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/storage/db-store.ts",
-      "from_line": 46,
+      "from_line": 48,
       "to_symbol_id": "server/src/db/query-helpers.ts::__module__",
       "to_file": "server/src/db/query-helpers.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/storage/db-store.ts",
-      "from_line": 63,
+      "from_line": 65,
       "to_symbol_id": "server/src/db/phase-db.ts::__module__",
       "to_file": "server/src/db/phase-db.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/storage/db-store.ts",
-      "from_line": 69,
+      "from_line": 71,
       "to_symbol_id": "server/src/db/session-db.ts::__module__",
       "to_file": "server/src/db/session-db.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/storage/db-store.ts",
-      "from_line": 70,
+      "from_line": 72,
       "to_symbol_id": "server/src/db/lineage-db.ts::__module__",
       "to_file": "server/src/db/lineage-db.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/storage/db-store.ts",
-      "from_line": 107,
+      "from_line": 109,
       "to_symbol_id": "server/src/db/types.ts::__module__",
       "to_file": "server/src/db/types.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/storage/db-store.ts",
-      "from_line": 299,
+      "from_line": 301,
       "to_symbol_id": "server/src/storage/workspace-identity.ts::__module__",
       "to_file": "server/src/storage/workspace-identity.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/storage/db-store.ts",
-      "from_line": 307,
+      "from_line": 309,
       "to_symbol_id": "server/src/storage/workspace-operations.ts::__module__",
       "to_file": "server/src/storage/workspace-operations.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/storage/db-store.ts",
-      "from_line": 677,
+      "from_line": 689,
       "to_symbol_id": "server/src/storage/workspace-identity.ts::__module__",
       "to_file": "server/src/storage/workspace-identity.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/storage/db-store.ts",
-      "from_line": 708,
+      "from_line": 720,
       "to_symbol_id": "server/src/storage/workspace-identity.ts::__module__",
       "to_file": "server/src/storage/workspace-identity.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/storage/db-store.ts",
-      "from_line": 714,
+      "from_line": 726,
       "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/storage/db-store.ts",
-      "from_line": 829,
+      "from_line": 841,
       "to_symbol_id": "server/src/storage/workspace-identity.ts::__module__",
       "to_file": "server/src/storage/workspace-identity.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/storage/db-store.ts",
-      "from_line": 872,
+      "from_line": 884,
       "to_symbol_id": "server/src/storage/workspace-identity.ts::__module__",
       "to_file": "server/src/storage/workspace-identity.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/storage/db-store.ts",
-      "from_line": 1093,
+      "from_line": 1111,
       "to_symbol_id": "server/src/storage/workspace-identity.ts::__module__",
       "to_file": "server/src/storage/workspace-identity.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/storage/db-store.ts",
-      "from_line": 1316,
+      "from_line": 1339,
       "to_symbol_id": "server/src/storage/workspace-identity.ts::__module__",
       "to_file": "server/src/storage/workspace-identity.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/storage/db-store.ts",
-      "from_line": 1347,
+      "from_line": 1370,
       "to_symbol_id": "server/src/storage/workspace-mounts.ts::__module__",
       "to_file": "server/src/storage/workspace-mounts.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/storage/db-store.ts",
-      "from_line": 1351,
+      "from_line": 1374,
       "to_symbol_id": "server/src/storage/workspace-identity.ts::__module__",
       "to_file": "server/src/storage/workspace-identity.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/storage/db-store.ts",
-      "from_line": 1373,
+      "from_line": 1396,
       "to_symbol_id": "server/src/storage/workspace-mounts.ts::__module__",
       "to_file": "server/src/storage/workspace-mounts.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/storage/db-store.ts",
-      "from_line": 1380,
+      "from_line": 1403,
       "to_symbol_id": "server/src/storage/workspace-identity.ts::__module__",
       "to_file": "server/src/storage/workspace-identity.ts",
       "reference_kind": "import"
@@ -16106,128 +16330,163 @@
     },
     {
       "from_file": "server/src/tools/consolidated/memory_agent.ts",
-      "from_line": 68,
+      "from_line": 69,
       "to_symbol_id": "server/src/tools/orchestration/category-workflow-resolver.ts::__module__",
       "to_file": "server/src/tools/orchestration/category-workflow-resolver.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/consolidated/memory_agent.ts",
-      "from_line": 69,
+      "from_line": 70,
       "to_symbol_id": "server/src/tools/orchestration/hub-deprecation-workflow.ts::__module__",
       "to_file": "server/src/tools/orchestration/hub-deprecation-workflow.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/consolidated/memory_agent.ts",
-      "from_line": 70,
+      "from_line": 71,
       "to_symbol_id": "server/src/tools/consolidated/workspace-validation.ts::__module__",
       "to_file": "server/src/tools/consolidated/workspace-validation.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/consolidated/memory_agent.ts",
-      "from_line": 71,
+      "from_line": 72,
       "to_symbol_id": "server/src/storage/db-store.ts::__module__",
       "to_file": "server/src/storage/db-store.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/consolidated/memory_agent.ts",
-      "from_line": 78,
+      "from_line": 79,
       "to_symbol_id": "server/src/tools/preflight/index.ts::__module__",
       "to_file": "server/src/tools/preflight/index.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/consolidated/memory_agent.ts",
-      "from_line": 79,
+      "from_line": 80,
       "to_symbol_id": "server/src/tools/session-stats.ts::__module__",
       "to_file": "server/src/tools/session-stats.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/consolidated/memory_agent.ts",
-      "from_line": 80,
+      "from_line": 81,
       "to_symbol_id": "server/src/events/event-emitter.ts::__module__",
       "to_file": "server/src/events/event-emitter.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/consolidated/memory_agent.ts",
-      "from_line": 81,
+      "from_line": 82,
       "to_symbol_id": "server/src/tools/session-live-store.ts::__module__",
       "to_file": "server/src/tools/session-live-store.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/consolidated/memory_agent.ts",
-      "from_line": 82,
+      "from_line": 83,
       "to_symbol_id": "server/src/db/agent-definition-db.ts::__module__",
       "to_file": "server/src/db/agent-definition-db.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/consolidated/memory_agent.ts",
-      "from_line": 347,
-      "to_symbol_id": "server/src/tools/orchestration/hub-telemetry-dashboard.ts::__module__",
-      "to_file": "server/src/tools/orchestration/hub-telemetry-dashboard.ts",
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "server/src/tools/consolidated/memory_agent.ts",
-      "from_line": 348,
-      "to_symbol_id": "server/src/tools/orchestration/hub-telemetry-dashboard.ts::__module__",
-      "to_file": "server/src/tools/orchestration/hub-telemetry-dashboard.ts",
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "server/src/tools/consolidated/memory_agent.ts",
       "from_line": 349,
-      "to_symbol_id": "server/src/tools/orchestration/hub-migration-plan.ts::__module__",
-      "to_file": "server/src/tools/orchestration/hub-migration-plan.ts",
+      "to_symbol_id": "server/src/tools/orchestration/hub-telemetry-dashboard.ts::__module__",
+      "to_file": "server/src/tools/orchestration/hub-telemetry-dashboard.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/consolidated/memory_agent.ts",
       "from_line": 350,
+      "to_symbol_id": "server/src/tools/orchestration/hub-telemetry-dashboard.ts::__module__",
+      "to_file": "server/src/tools/orchestration/hub-telemetry-dashboard.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/tools/consolidated/memory_agent.ts",
+      "from_line": 351,
       "to_symbol_id": "server/src/tools/orchestration/hub-migration-plan.ts::__module__",
       "to_file": "server/src/tools/orchestration/hub-migration-plan.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/consolidated/memory_agent.ts",
-      "from_line": 351,
+      "from_line": 352,
+      "to_symbol_id": "server/src/tools/orchestration/hub-migration-plan.ts::__module__",
+      "to_file": "server/src/tools/orchestration/hub-migration-plan.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/tools/consolidated/memory_agent.ts",
+      "from_line": 353,
       "to_symbol_id": "server/src/tools/orchestration/hub-deprecation-workflow.ts::__module__",
       "to_file": "server/src/tools/orchestration/hub-deprecation-workflow.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/consolidated/memory_agent.ts",
-      "from_line": 575,
+      "from_line": 373,
+      "to_symbol_id": "server/src/types/index.ts::__module__",
+      "to_file": "server/src/types/index.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/tools/consolidated/memory_agent.ts",
+      "from_line": 578,
       "to_symbol_id": "server/src/storage/db-store.ts::__module__",
       "to_file": "server/src/storage/db-store.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/consolidated/memory_agent.ts",
-      "from_line": 631,
+      "from_line": 634,
       "to_symbol_id": "server/src/storage/db-store.ts::__module__",
       "to_file": "server/src/storage/db-store.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/consolidated/memory_agent.ts",
-      "from_line": 802,
+      "from_line": 805,
       "to_symbol_id": "server/src/storage/db-store.ts::__module__",
       "to_file": "server/src/storage/db-store.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/consolidated/memory_agent.ts",
-      "from_line": 861,
+      "from_line": 864,
       "to_symbol_id": "server/src/storage/db-store.ts::__module__",
       "to_file": "server/src/storage/db-store.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/tools/consolidated/memory_agent.ts",
+      "from_line": 1454,
+      "to_symbol_id": "server/src/storage/db-store.ts::__module__",
+      "to_file": "server/src/storage/db-store.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/tools/consolidated/memory_agent.ts",
+      "from_line": 1455,
+      "to_symbol_id": "server/src/types/index.ts::__module__",
+      "to_file": "server/src/types/index.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/tools/consolidated/memory_agent.ts",
+      "from_line": 1456,
+      "to_symbol_id": "server/src/storage/db-store.ts::__module__",
+      "to_file": "server/src/storage/db-store.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/tools/consolidated/memory_agent.ts",
+      "from_line": 1508,
+      "to_symbol_id": "server/src/tools/orchestration/stale-run-recovery.ts::__module__",
+      "to_file": "server/src/tools/orchestration/stale-run-recovery.ts",
       "reference_kind": "import"
     },
     {
@@ -16235,6 +16494,13 @@
       "from_line": 19,
       "to_symbol_id": "server/src/types/gui-forms.types.ts::__module__",
       "to_file": "server/src/types/gui-forms.types.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/tools/consolidated/memory_brainstorm.ts",
+      "from_line": 20,
+      "to_symbol_id": "server/src/types/index.ts::__module__",
+      "to_file": "server/src/types/index.ts",
       "reference_kind": "import"
     },
     {
@@ -16319,6 +16585,13 @@
       "from_line": 9,
       "to_symbol_id": "server/src/tools/stats-hooks.ts::__module__",
       "to_file": "server/src/tools/stats-hooks.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/tools/consolidated/memory_instructions.ts",
+      "from_line": 23,
+      "to_symbol_id": "server/src/types/index.ts::__module__",
+      "to_file": "server/src/types/index.ts",
       "reference_kind": "import"
     },
     {
@@ -16435,14 +16708,7 @@
     },
     {
       "from_file": "server/src/tools/consolidated/memory_session.ts",
-      "from_line": 25,
-      "to_symbol_id": "server/src/tools/orchestration/hub-policy-enforcement.ts::__module__",
-      "to_file": "server/src/tools/orchestration/hub-policy-enforcement.ts",
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "server/src/tools/consolidated/memory_session.ts",
-      "from_line": 26,
+      "from_line": 29,
       "to_symbol_id": "server/src/events/event-emitter.ts::__module__",
       "to_file": "server/src/events/event-emitter.ts",
       "reference_kind": "import"
@@ -16506,27 +16772,34 @@
     {
       "from_file": "server/src/tools/consolidated/memory_task.ts",
       "from_line": 24,
+      "to_symbol_id": "server/src/types/index.ts::__module__",
+      "to_file": "server/src/types/index.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/tools/consolidated/memory_task.ts",
+      "from_line": 25,
       "to_symbol_id": "server/src/tools/plan/index.ts::__module__",
       "to_file": "server/src/tools/plan/index.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/consolidated/memory_task.ts",
-      "from_line": 25,
+      "from_line": 26,
       "to_symbol_id": "server/src/tools/context.tools.ts::__module__",
       "to_file": "server/src/tools/context.tools.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/consolidated/memory_task.ts",
-      "from_line": 26,
+      "from_line": 27,
       "to_symbol_id": "server/src/tools/consolidated/workspace-validation.ts::__module__",
       "to_file": "server/src/tools/consolidated/workspace-validation.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/consolidated/memory_task.ts",
-      "from_line": 27,
+      "from_line": 28,
       "to_symbol_id": "server/src/tools/preflight/index.ts::__module__",
       "to_file": "server/src/tools/preflight/index.ts",
       "reference_kind": "import"
@@ -16660,41 +16933,55 @@
     {
       "from_file": "server/src/tools/consolidated/memory_workspace.ts",
       "from_line": 22,
+      "to_symbol_id": "server/src/db/agent-definition-db.ts::__module__",
+      "to_file": "server/src/db/agent-definition-db.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/tools/consolidated/memory_workspace.ts",
+      "from_line": 23,
+      "to_symbol_id": "server/src/db/instruction-db.ts::__module__",
+      "to_file": "server/src/db/instruction-db.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/tools/consolidated/memory_workspace.ts",
+      "from_line": 24,
       "to_symbol_id": "server/src/tools/workspace-context-manifest.ts::__module__",
       "to_file": "server/src/tools/workspace-context-manifest.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/consolidated/memory_workspace.ts",
-      "from_line": 23,
+      "from_line": 25,
       "to_symbol_id": "server/src/tools/workspace-db-sync.ts::__module__",
       "to_file": "server/src/tools/workspace-db-sync.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/consolidated/memory_workspace.ts",
-      "from_line": 24,
+      "from_line": 26,
       "to_symbol_id": "server/src/storage/db-store.ts::__module__",
       "to_file": "server/src/storage/db-store.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/consolidated/memory_workspace.ts",
-      "from_line": 25,
+      "from_line": 27,
       "to_symbol_id": "server/src/events/event-emitter.ts::__module__",
       "to_file": "server/src/events/event-emitter.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/consolidated/memory_workspace.ts",
-      "from_line": 748,
+      "from_line": 920,
       "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/consolidated/memory_workspace.ts",
-      "from_line": 749,
+      "from_line": 921,
       "to_symbol_id": "path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
@@ -16799,63 +17086,63 @@
     },
     {
       "from_file": "server/src/tools/context.tools.ts",
-      "from_line": 476,
+      "from_line": 481,
       "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/context.tools.ts",
-      "from_line": 477,
+      "from_line": 482,
       "to_symbol_id": "path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/context.tools.ts",
-      "from_line": 562,
+      "from_line": 567,
       "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/context.tools.ts",
-      "from_line": 563,
+      "from_line": 568,
       "to_symbol_id": "path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/context.tools.ts",
-      "from_line": 733,
+      "from_line": 738,
       "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/context.tools.ts",
-      "from_line": 734,
+      "from_line": 739,
       "to_symbol_id": "path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/context.tools.ts",
-      "from_line": 839,
+      "from_line": 844,
       "to_symbol_id": "server/src/types/index.ts::__module__",
       "to_file": "server/src/types/index.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/context.tools.ts",
-      "from_line": 1022,
+      "from_line": 1027,
       "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/context.tools.ts",
-      "from_line": 1057,
+      "from_line": 1062,
       "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
@@ -17037,28 +17324,42 @@
     },
     {
       "from_file": "server/src/tools/handoff.tools.ts",
-      "from_line": 338,
+      "from_line": 174,
       "to_symbol_id": "server/src/types/index.ts::__module__",
       "to_file": "server/src/types/index.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/handoff.tools.ts",
-      "from_line": 348,
+      "from_line": 183,
+      "to_symbol_id": "server/src/types/preflight.types.ts::__module__",
+      "to_file": "server/src/types/preflight.types.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/tools/handoff.tools.ts",
+      "from_line": 407,
       "to_symbol_id": "server/src/types/index.ts::__module__",
       "to_file": "server/src/types/index.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/handoff.tools.ts",
-      "from_line": 379,
+      "from_line": 417,
       "to_symbol_id": "server/src/types/index.ts::__module__",
       "to_file": "server/src/types/index.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/handoff.tools.ts",
-      "from_line": 412,
+      "from_line": 448,
+      "to_symbol_id": "server/src/types/index.ts::__module__",
+      "to_file": "server/src/types/index.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/tools/handoff.tools.ts",
+      "from_line": 481,
       "to_symbol_id": "server/src/types/preflight.types.ts::__module__",
       "to_file": "server/src/types/preflight.types.ts",
       "reference_kind": "import"
@@ -17184,28 +17485,28 @@
     },
     {
       "from_file": "server/src/tools/memory_cartographer.ts",
-      "from_line": 745,
+      "from_line": 750,
       "to_symbol_id": "node:fs/promises::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/memory_cartographer.ts",
-      "from_line": 811,
+      "from_line": 816,
       "to_symbol_id": "node:fs/promises::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/memory_cartographer.ts",
-      "from_line": 879,
+      "from_line": 884,
       "to_symbol_id": "node:fs/promises::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/memory_cartographer.ts",
-      "from_line": 1016,
+      "from_line": 1021,
       "to_symbol_id": "node:fs/promises::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
@@ -17313,6 +17614,13 @@
       "from_line": 2,
       "to_symbol_id": "server/src/db/workspace-session-registry-db.ts::__module__",
       "to_file": "server/src/db/workspace-session-registry-db.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/tools/orchestration/hub-telemetry-dashboard.ts",
+      "from_line": 3,
+      "to_symbol_id": "server/src/tools/orchestration/hub-policy-enforcement.ts::__module__",
+      "to_file": "server/src/tools/orchestration/hub-policy-enforcement.ts",
       "reference_kind": "import"
     },
     {
@@ -17688,51 +17996,51 @@
     },
     {
       "from_file": "server/src/tools/preflight/action-param-registry.ts",
-      "from_line": 14,
+      "from_line": 16,
       "to_symbol_id": "server/src/types/preflight.types.ts::__module__",
       "to_file": "server/src/types/preflight.types.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/preflight/action-param-registry.ts",
-      "from_line": 15,
+      "from_line": 17,
       "to_symbol_id": "server/src/tools/preflight/action-params-plan.ts::__module__",
       "to_file": "server/src/tools/preflight/action-params-plan.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/preflight/action-param-registry.ts",
-      "from_line": 18,
+      "from_line": 20,
       "to_symbol_id": "server/src/tools/preflight/action-params-plan.ts::__module__",
       "to_file": "server/src/tools/preflight/action-params-plan.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/preflight/action-param-registry.ts",
-      "from_line": 19,
+      "from_line": 21,
       "to_symbol_id": "server/src/tools/preflight/action-params-agent.ts::__module__",
       "to_file": "server/src/tools/preflight/action-params-agent.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/preflight/action-param-registry.ts",
-      "from_line": 20,
+      "from_line": 22,
       "to_symbol_id": "server/src/tools/preflight/action-params-other.ts::__module__",
       "to_file": "server/src/tools/preflight/action-params-other.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/preflight/action-param-registry.ts",
-      "from_line": 21,
+      "from_line": 23,
       "to_symbol_id": "server/src/tools/preflight/action-params-cartography.ts::__module__",
       "to_file": "server/src/tools/preflight/action-params-cartography.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/preflight/action-param-registry.ts",
-      "from_line": 22,
-      "to_symbol_id": "server/src/tools/preflight/action-params-plan.ts::__module__",
-      "to_file": "server/src/tools/preflight/action-params-plan.ts",
+      "from_line": 24,
+      "to_symbol_id": "server/src/tools/preflight/action-params-session.ts::__module__",
+      "to_file": "server/src/tools/preflight/action-params-session.ts",
       "reference_kind": "import"
     },
     {
@@ -17744,23 +18052,37 @@
     },
     {
       "from_file": "server/src/tools/preflight/action-param-registry.ts",
-      "from_line": 26,
+      "from_line": 28,
+      "to_symbol_id": "server/src/tools/preflight/action-params-plan.ts::__module__",
+      "to_file": "server/src/tools/preflight/action-params-plan.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/tools/preflight/action-param-registry.ts",
+      "from_line": 29,
       "to_symbol_id": "server/src/tools/preflight/action-params-agent.ts::__module__",
       "to_file": "server/src/tools/preflight/action-params-agent.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/preflight/action-param-registry.ts",
-      "from_line": 27,
+      "from_line": 30,
       "to_symbol_id": "server/src/tools/preflight/action-params-other.ts::__module__",
       "to_file": "server/src/tools/preflight/action-params-other.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/preflight/action-param-registry.ts",
-      "from_line": 28,
+      "from_line": 31,
       "to_symbol_id": "server/src/tools/preflight/action-params-cartography.ts::__module__",
       "to_file": "server/src/tools/preflight/action-params-cartography.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/tools/preflight/action-param-registry.ts",
+      "from_line": 32,
+      "to_symbol_id": "server/src/tools/preflight/action-params-session.ts::__module__",
+      "to_file": "server/src/tools/preflight/action-params-session.ts",
       "reference_kind": "import"
     },
     {
@@ -17789,6 +18111,13 @@
       "from_line": 9,
       "to_symbol_id": "server/src/types/preflight.types.ts::__module__",
       "to_file": "server/src/types/preflight.types.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/tools/preflight/action-params-session.ts",
+      "from_line": 8,
+      "to_symbol_id": "server/src/tools/preflight/action-params-plan.ts::__module__",
+      "to_file": "server/src/tools/preflight/action-params-plan.ts",
       "reference_kind": "import"
     },
     {
@@ -18241,14 +18570,14 @@
     },
     {
       "from_file": "server/src/tools/workspace-context-manifest.ts",
-      "from_line": 115,
+      "from_line": 183,
       "to_symbol_id": "node:fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/workspace-context-manifest.ts",
-      "from_line": 116,
+      "from_line": 184,
       "to_symbol_id": "node:path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
@@ -18275,29 +18604,36 @@
       "reference_kind": "import"
     },
     {
+      "from_file": "server/src/tools/workspace-context.tools.ts",
+      "from_line": 15,
+      "to_symbol_id": "server/src/utils/workspace-context-seed.ts::__module__",
+      "to_file": "server/src/utils/workspace-context-seed.ts",
+      "reference_kind": "import"
+    },
+    {
       "from_file": "server/src/tools/workspace-db-sync.ts",
-      "from_line": 17,
+      "from_line": 20,
       "to_symbol_id": "node:fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/workspace-db-sync.ts",
-      "from_line": 18,
+      "from_line": 21,
       "to_symbol_id": "node:path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/workspace-db-sync.ts",
-      "from_line": 19,
+      "from_line": 22,
       "to_symbol_id": "server/src/db/agent-definition-db.ts::__module__",
       "to_file": "server/src/db/agent-definition-db.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/workspace-db-sync.ts",
-      "from_line": 20,
+      "from_line": 23,
       "to_symbol_id": "server/src/db/instruction-db.ts::__module__",
       "to_file": "server/src/db/instruction-db.ts",
       "reference_kind": "import"
@@ -18646,6 +18982,13 @@
       "reference_kind": "import"
     },
     {
+      "from_file": "server/src/types/db-ref.types.ts",
+      "from_line": 22,
+      "to_symbol_id": "zod::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
       "from_file": "server/src/types/deploy.types.ts",
       "from_line": 6,
       "to_symbol_id": "server/src/types/plan.types.ts::__module__",
@@ -18739,27 +19082,41 @@
     {
       "from_file": "server/src/types/index.ts",
       "from_line": 31,
+      "to_symbol_id": "server/src/types/sprint.types.ts::__module__",
+      "to_file": "server/src/types/sprint.types.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/types/index.ts",
+      "from_line": 32,
       "to_symbol_id": "server/src/types/workspace.types.ts::__module__",
       "to_file": "server/src/types/workspace.types.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/types/index.ts",
-      "from_line": 32,
+      "from_line": 33,
       "to_symbol_id": "server/src/types/preflight.types.ts::__module__",
       "to_file": "server/src/types/preflight.types.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/types/index.ts",
-      "from_line": 33,
+      "from_line": 34,
       "to_symbol_id": "server/src/types/common.types.ts::__module__",
       "to_file": "server/src/types/common.types.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/types/index.ts",
-      "from_line": 34,
+      "from_line": 35,
+      "to_symbol_id": "server/src/types/db-ref.types.ts::__module__",
+      "to_file": "server/src/types/db-ref.types.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/types/index.ts",
+      "from_line": 36,
       "to_symbol_id": "server/src/types/gui-forms.types.ts::__module__",
       "to_file": "server/src/types/gui-forms.types.ts",
       "reference_kind": "import"
@@ -18867,6 +19224,13 @@
       "from_line": 13,
       "to_symbol_id": "server/src/tools/knowledge.tools.ts::__module__",
       "to_file": "server/src/tools/knowledge.tools.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/utils/zod-error-formatter.ts",
+      "from_line": 17,
+      "to_symbol_id": "zod::__unresolved__",
+      "to_file": null,
       "reference_kind": "import"
     },
     {
@@ -47186,1813 +47550,1876 @@
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 1,
+      "from_line": 37,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/extension.js",
+      "from_line": 38,
+      "to_symbol_id": "path::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/extension.js",
+      "from_line": 41,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/extension.js",
+      "from_line": 44,
+      "to_symbol_id": "fs::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/extension.js",
+      "from_line": 45,
+      "to_symbol_id": "path::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/extension.js",
+      "from_line": 46,
       "to_symbol_id": "crypto::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 1,
-      "to_symbol_id": "fs::__unresolved__",
+      "from_line": 217,
+      "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 1,
+      "from_line": 220,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/extension.js",
+      "from_line": 273,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/extension.js",
+      "from_line": 4214,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/extension.js",
+      "from_line": 4215,
       "to_symbol_id": "path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 1,
+      "from_line": 4216,
+      "to_symbol_id": "fs::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/extension.js",
+      "from_line": 4219,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/extension.js",
+      "from_line": 4220,
       "to_symbol_id": "path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 1,
-      "to_symbol_id": "vscode::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/extension.js",
-      "from_line": 1,
-      "to_symbol_id": "vscode::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/extension.js",
-      "from_line": 1,
-      "to_symbol_id": "vscode::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/extension.js",
-      "from_line": 1,
-      "to_symbol_id": "vscode::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/extension.js",
-      "from_line": 1,
-      "to_symbol_id": "vscode::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3761,
+      "from_line": 4221,
       "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3761,
-      "to_symbol_id": "fs::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3761,
+      "from_line": 4270,
       "to_symbol_id": "node:fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3761,
+      "from_line": 4271,
       "to_symbol_id": "node:path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3761,
+      "from_line": 4700,
       "to_symbol_id": "path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3761,
-      "to_symbol_id": "path::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3761,
-      "to_symbol_id": "path::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3761,
+      "from_line": 4939,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3761,
-      "to_symbol_id": "vscode::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3762,
+      "from_line": 4940,
       "to_symbol_id": "http::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3762,
+      "from_line": 5305,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3770,
+      "from_line": 5516,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3770,
-      "to_symbol_id": "vscode::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3784,
+      "from_line": 5784,
       "to_symbol_id": "http::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3784,
+      "from_line": 5785,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3787,
+      "from_line": 5960,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/extension.js",
+      "from_line": 6110,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/extension.js",
+      "from_line": 6113,
       "to_symbol_id": "http::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3787,
+      "from_line": 6114,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3787,
+      "from_line": 6483,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3787,
-      "to_symbol_id": "vscode::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3796,
+      "from_line": 6484,
       "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3796,
+      "from_line": 6485,
       "to_symbol_id": "path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3796,
+      "from_line": 7060,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3796,
+      "from_line": 7358,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3797,
+      "from_line": 7361,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/extension.js",
+      "from_line": 7362,
+      "to_symbol_id": "path::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/extension.js",
+      "from_line": 7363,
+      "to_symbol_id": "fs::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/extension.js",
+      "from_line": 7797,
       "to_symbol_id": "http::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3797,
+      "from_line": 7798,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3800,
+      "from_line": 7931,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3800,
+      "from_line": 7934,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3891,
-      "to_symbol_id": "fs::__unresolved__",
+      "from_line": 8184,
+      "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3891,
+      "from_line": 8185,
       "to_symbol_id": "path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3891,
-      "to_symbol_id": "path::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3891,
-      "to_symbol_id": "vscode::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3891,
-      "to_symbol_id": "vscode::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3894,
+      "from_line": 8186,
       "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3894,
+      "from_line": 9008,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/extension.js",
+      "from_line": 9009,
+      "to_symbol_id": "path::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/extension.js",
+      "from_line": 9365,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/extension.js",
+      "from_line": 9377,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/extension.js",
+      "from_line": 9380,
       "to_symbol_id": "net::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3894,
-      "to_symbol_id": "path::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3894,
+      "from_line": 9381,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3894,
+      "from_line": 9459,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3894,
-      "to_symbol_id": "vscode::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3894,
-      "to_symbol_id": "vscode::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3894,
-      "to_symbol_id": "vscode::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3898,
+      "from_line": 9490,
       "to_symbol_id": "child_process::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3898,
+      "from_line": 9491,
       "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3898,
+      "from_line": 9492,
       "to_symbol_id": "path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3898,
+      "from_line": 9493,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3900,
+      "from_line": 9584,
       "to_symbol_id": "net::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3900,
+      "from_line": 9585,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3902,
+      "from_line": 9835,
       "to_symbol_id": "crypto::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3902,
+      "from_line": 9843,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3910,
+      "from_line": 10541,
       "to_symbol_id": "node:fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/extension.js",
-      "from_line": 3910,
+      "from_line": 10542,
       "to_symbol_id": "node:path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 1,
-      "to_symbol_id": "node:os::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 1,
+      "from_line": 2275,
       "to_symbol_id": "node:process::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 1,
+      "from_line": 2276,
+      "to_symbol_id": "node:os::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/runTest.js",
+      "from_line": 2277,
       "to_symbol_id": "node:tty::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 6,
+      "from_line": 2841,
       "to_symbol_id": "node:process::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 6,
+      "from_line": 2859,
       "to_symbol_id": "node:process::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 6,
+      "from_line": 4547,
       "to_symbol_id": "node:process::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 6,
+      "from_line": 4724,
       "to_symbol_id": "node:process::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 6,
+      "from_line": 4732,
       "to_symbol_id": "node:process::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 6,
+      "from_line": 4813,
       "to_symbol_id": "node:process::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 9,
+      "from_line": 5685,
       "to_symbol_id": "os::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 9,
+      "from_line": 5686,
       "to_symbol_id": "tty::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 9,
+      "from_line": 5786,
       "to_symbol_id": "tty::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 9,
+      "from_line": 5787,
       "to_symbol_id": "util::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 13,
+      "from_line": 6001,
       "to_symbol_id": "http::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 13,
+      "from_line": 6002,
+      "to_symbol_id": "https::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/runTest.js",
+      "from_line": 6074,
+      "to_symbol_id": "net::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/runTest.js",
+      "from_line": 6075,
       "to_symbol_id": "http::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 13,
+      "from_line": 6076,
       "to_symbol_id": "https::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 13,
-      "to_symbol_id": "https::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 13,
+      "from_line": 6230,
       "to_symbol_id": "net::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 14,
-      "to_symbol_id": "events::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 14,
-      "to_symbol_id": "net::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 14,
+      "from_line": 6231,
       "to_symbol_id": "tls::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 14,
+      "from_line": 6233,
+      "to_symbol_id": "events::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/runTest.js",
+      "from_line": 6235,
       "to_symbol_id": "url::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 19,
+      "from_line": 6456,
+      "to_symbol_id": "net::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/runTest.js",
+      "from_line": 6457,
+      "to_symbol_id": "tls::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/runTest.js",
+      "from_line": 6458,
       "to_symbol_id": "assert::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 19,
-      "to_symbol_id": "net::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 19,
-      "to_symbol_id": "tls::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 19,
+      "from_line": 6461,
       "to_symbol_id": "url::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 22,
+      "from_line": 6621,
       "to_symbol_id": "child_process::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 22,
+      "from_line": 6622,
       "to_symbol_id": "crypto::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 22,
+      "from_line": 6623,
       "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 22,
+      "from_line": 6626,
       "to_symbol_id": "path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 22,
+      "from_line": 6627,
       "to_symbol_id": "url::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 26,
-      "to_symbol_id": "buffer::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 26,
-      "to_symbol_id": "buffer::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 26,
-      "to_symbol_id": "events::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 26,
+      "from_line": 6961,
       "to_symbol_id": "https::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 26,
+      "from_line": 7091,
       "to_symbol_id": "stream::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 26,
+      "from_line": 7098,
+      "to_symbol_id": "buffer::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/runTest.js",
+      "from_line": 7215,
+      "to_symbol_id": "buffer::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/runTest.js",
+      "from_line": 7258,
+      "to_symbol_id": "util::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/runTest.js",
+      "from_line": 7278,
+      "to_symbol_id": "util::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/runTest.js",
+      "from_line": 7418,
+      "to_symbol_id": "util::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/runTest.js",
+      "from_line": 8186,
+      "to_symbol_id": "events::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/runTest.js",
+      "from_line": 8202,
+      "to_symbol_id": "util::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/runTest.js",
+      "from_line": 8985,
       "to_symbol_id": "stream::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 26,
-      "to_symbol_id": "util::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 26,
-      "to_symbol_id": "util::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 26,
-      "to_symbol_id": "util::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 26,
-      "to_symbol_id": "util::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 27,
+      "from_line": 16801,
       "to_symbol_id": "child_process::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 27,
-      "to_symbol_id": "child_process::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 27,
-      "to_symbol_id": "crypto::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 27,
+      "from_line": 16802,
       "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 27,
-      "to_symbol_id": "fs::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 27,
+      "from_line": 16803,
       "to_symbol_id": "os::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 27,
+      "from_line": 16804,
       "to_symbol_id": "path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 27,
-      "to_symbol_id": "path::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 27,
+      "from_line": 16806,
       "to_symbol_id": "stream::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/runTest.js",
-      "from_line": 27,
+      "from_line": 16807,
       "to_symbol_id": "util::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
-      "from_file": "vscode-extension/out/test/suite/ContainerHealthService.test.js",
-      "from_line": 1,
-      "to_symbol_id": "assert::__unresolved__",
+      "from_file": "vscode-extension/out/test/runTest.js",
+      "from_line": 17160,
+      "to_symbol_id": "child_process::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/runTest.js",
+      "from_line": 17315,
+      "to_symbol_id": "path::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/runTest.js",
+      "from_line": 17316,
+      "to_symbol_id": "fs::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/runTest.js",
+      "from_line": 17317,
+      "to_symbol_id": "crypto::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/ContainerHealthService.test.js",
-      "from_line": 1,
-      "to_symbol_id": "events::__unresolved__",
+      "from_line": 75,
+      "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/ContainerHealthService.test.js",
-      "from_line": 1,
+      "from_line": 189,
       "to_symbol_id": "http::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/ContainerHealthService.test.js",
-      "from_line": 1,
+      "from_line": 190,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/ContainerHealthService.test.js",
-      "from_line": 1,
-      "to_symbol_id": "vscode::__unresolved__",
+      "from_line": 204,
+      "to_symbol_id": "events::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
-      "from_file": "vscode-extension/out/test/suite/ContainerStatusBar.test.js",
-      "from_line": 1,
+      "from_file": "vscode-extension/out/test/suite/ContainerHealthService.test.js",
+      "from_line": 310,
       "to_symbol_id": "assert::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/ContainerStatusBar.test.js",
-      "from_line": 1,
+      "from_line": 26,
+      "to_symbol_id": "assert::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/ContainerStatusBar.test.js",
+      "from_line": 29,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/ContainerStatusBar.test.js",
-      "from_line": 2,
+      "from_line": 140,
       "to_symbol_id": "events::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/DefaultDeployer.test.js",
-      "from_line": 1,
+      "from_line": 26,
       "to_symbol_id": "assert::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/DefaultDeployer.test.js",
-      "from_line": 1,
+      "from_line": 27,
+      "to_symbol_id": "node:fs::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/DefaultDeployer.test.js",
+      "from_line": 28,
+      "to_symbol_id": "node:os::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/DefaultDeployer.test.js",
+      "from_line": 29,
+      "to_symbol_id": "node:path::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/DefaultDeployer.test.js",
+      "from_line": 32,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/DefaultDeployer.test.js",
+      "from_line": 33,
       "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/DefaultDeployer.test.js",
-      "from_line": 1,
-      "to_symbol_id": "node:fs::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/DefaultDeployer.test.js",
-      "from_line": 1,
-      "to_symbol_id": "node:os::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/DefaultDeployer.test.js",
-      "from_line": 1,
-      "to_symbol_id": "node:path::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/DefaultDeployer.test.js",
-      "from_line": 1,
+      "from_line": 34,
       "to_symbol_id": "path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
-      "from_file": "vscode-extension/out/test/suite/DefaultDeployer.test.js",
-      "from_line": 1,
+      "from_file": "vscode-extension/out/test/suite/DiagnosticsService.workspaceSync.test.js",
+      "from_line": 26,
+      "to_symbol_id": "assert::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/DiagnosticsService.workspaceSync.test.js",
+      "from_line": 29,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/NotificationService.lifecycle.test.js",
-      "from_line": 1,
+      "from_line": 26,
       "to_symbol_id": "assert::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/NotificationService.lifecycle.test.js",
-      "from_line": 1,
+      "from_line": 27,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/NotificationService.lifecycle.test.js",
-      "from_line": 1,
+      "from_line": 30,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/WorkspaceConfigWatcherService.test.js",
+      "from_line": 26,
+      "to_symbol_id": "assert::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/WorkspaceConfigWatcherService.test.js",
+      "from_line": 27,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/WorkspaceConfigWatcherService.test.js",
+      "from_line": 30,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/WorkspaceConfigWatcherService.test.js",
+      "from_line": 33,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/WorkspaceConfigWatcherService.test.js",
+      "from_line": 36,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/WorkspaceConfigWatcherService.test.js",
+      "from_line": 39,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/buildScriptCwd.test.js",
-      "from_line": 1,
+      "from_line": 26,
       "to_symbol_id": "assert::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/buildScriptCwd.test.js",
-      "from_line": 1,
+      "from_line": 27,
       "to_symbol_id": "node:fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/buildScriptCwd.test.js",
-      "from_line": 1,
-      "to_symbol_id": "node:fs::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/buildScriptCwd.test.js",
-      "from_line": 1,
+      "from_line": 28,
       "to_symbol_id": "node:os::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/buildScriptCwd.test.js",
-      "from_line": 1,
+      "from_line": 29,
       "to_symbol_id": "node:path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/buildScriptCwd.test.js",
-      "from_line": 1,
+      "from_line": 32,
+      "to_symbol_id": "node:fs::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/buildScriptCwd.test.js",
+      "from_line": 33,
       "to_symbol_id": "node:path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/dashboard-client-helpers.test.js",
-      "from_line": 1,
+      "from_line": 26,
       "to_symbol_id": "assert::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
-      "from_line": 1,
+      "from_line": 26,
       "to_symbol_id": "assert::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
-      "from_line": 1,
+      "from_line": 27,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
+      "from_line": 30,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
+      "from_line": 33,
+      "to_symbol_id": "fs::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
+      "from_line": 34,
+      "to_symbol_id": "path::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
+      "from_line": 35,
       "to_symbol_id": "crypto::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
-      "from_line": 1,
-      "to_symbol_id": "fs::__unresolved__",
+      "from_line": 203,
+      "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
-      "from_line": 1,
+      "from_line": 206,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
+      "from_line": 259,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
+      "from_line": 4174,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
+      "from_line": 4175,
       "to_symbol_id": "path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
-      "from_line": 1,
-      "to_symbol_id": "vscode::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
-      "from_line": 1,
-      "to_symbol_id": "vscode::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
-      "from_line": 1,
-      "to_symbol_id": "vscode::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
-      "from_line": 1,
-      "to_symbol_id": "vscode::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
-      "from_line": 1,
-      "to_symbol_id": "vscode::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
-      "from_line": 3761,
+      "from_line": 4176,
       "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
-      "from_line": 3761,
+      "from_line": 4179,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
+      "from_line": 4180,
+      "to_symbol_id": "path::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
+      "from_line": 4181,
       "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
-      "from_line": 3761,
+      "from_line": 4227,
       "to_symbol_id": "node:fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
-      "from_line": 3761,
+      "from_line": 4228,
       "to_symbol_id": "node:path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
-      "from_line": 3761,
+      "from_line": 4657,
       "to_symbol_id": "path::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
-      "from_line": 3761,
-      "to_symbol_id": "path::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
-      "from_line": 3761,
-      "to_symbol_id": "path::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
-      "from_line": 3761,
-      "to_symbol_id": "vscode::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
-      "from_line": 3761,
-      "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/dashboard-port.test.js",
-      "from_line": 1,
+      "from_line": 26,
       "to_symbol_id": "assert::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/dashboard-port.test.js",
-      "from_line": 1,
+      "from_line": 27,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/dashboard-port.test.js",
-      "from_line": 1,
+      "from_line": 30,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/dashboard-step-viewer-layout.test.js",
-      "from_line": 1,
+      "from_line": 26,
       "to_symbol_id": "assert::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/extension.test.js",
-      "from_line": 1,
+      "from_line": 26,
       "to_symbol_id": "assert::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/extension.test.js",
-      "from_line": 1,
+      "from_line": 27,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 20,
+      "from_line": 2272,
       "to_symbol_id": "node:path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 20,
+      "from_line": 2273,
       "to_symbol_id": "node:util::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 26,
+      "from_line": 2626,
       "to_symbol_id": "os::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 26,
+      "from_line": 2627,
+      "to_symbol_id": "tty::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/index.js",
+      "from_line": 3841,
       "to_symbol_id": "os::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 26,
+      "from_line": 3842,
       "to_symbol_id": "tty::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 26,
+      "from_line": 4667,
       "to_symbol_id": "tty::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 31,
-      "to_symbol_id": "tty::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 31,
+      "from_line": 4668,
       "to_symbol_id": "util::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 35,
-      "to_symbol_id": "node:events::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 35,
-      "to_symbol_id": "node:events::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 35,
-      "to_symbol_id": "node:events::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 35,
+      "from_line": 4959,
       "to_symbol_id": "node:util::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 67,
+      "from_line": 5158,
+      "to_symbol_id": "node:events::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/index.js",
+      "from_line": 5501,
+      "to_symbol_id": "node:events::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/index.js",
+      "from_line": 5895,
+      "to_symbol_id": "node:events::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/index.js",
+      "from_line": 7181,
       "to_symbol_id": "node:util::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 68,
+      "from_line": 7313,
       "to_symbol_id": "node:fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 68,
+      "from_line": 7314,
       "to_symbol_id": "node:path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 79,
+      "from_line": 7960,
       "to_symbol_id": "node:fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 79,
+      "from_line": 7961,
       "to_symbol_id": "node:path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 98,
+      "from_line": 8393,
       "to_symbol_id": "node:path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 98,
+      "from_line": 8394,
       "to_symbol_id": "node:url::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 98,
+      "from_line": 9480,
+      "to_symbol_id": "worker_threads::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/index.js",
+      "from_line": 9482,
       "to_symbol_id": "os::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 98,
+      "from_line": 9707,
       "to_symbol_id": "worker_threads::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 98,
+      "from_line": 9736,
       "to_symbol_id": "worker_threads::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 100,
+      "from_line": 9767,
       "to_symbol_id": "child_process::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 100,
+      "from_line": 9777,
       "to_symbol_id": "child_process::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 100,
+      "from_line": 10475,
       "to_symbol_id": "worker_threads::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 101,
+      "from_line": 11462,
+      "to_symbol_id": "node:path::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/index.js",
+      "from_line": 12035,
+      "to_symbol_id": "path::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/index.js",
+      "from_line": 13848,
+      "to_symbol_id": "node:url::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/index.js",
+      "from_line": 15274,
+      "to_symbol_id": "node:path::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/index.js",
+      "from_line": 15275,
+      "to_symbol_id": "node:url::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/index.js",
+      "from_line": 15276,
       "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 101,
-      "to_symbol_id": "node:events::__unresolved__",
+      "from_line": 15277,
+      "to_symbol_id": "node:fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 101,
+      "from_line": 15278,
       "to_symbol_id": "node:fs/promises::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 101,
-      "to_symbol_id": "node:fs::__unresolved__",
+      "from_line": 15281,
+      "to_symbol_id": "node:events::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 101,
-      "to_symbol_id": "node:path::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 101,
-      "to_symbol_id": "node:path::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 101,
+      "from_line": 15282,
       "to_symbol_id": "node:stream::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 101,
+      "from_line": 15283,
       "to_symbol_id": "node:string_decoder::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 101,
-      "to_symbol_id": "node:url::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 101,
-      "to_symbol_id": "node:url::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 101,
-      "to_symbol_id": "path::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 101,
+      "from_line": 18947,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
-      "from_file": "vscode-extension/out/test/suite/index.js",
-      "from_line": 101,
-      "to_symbol_id": "worker_threads::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
       "from_file": "vscode-extension/out/test/suite/integration/headless-activation-handshake.test.js",
-      "from_line": 1,
+      "from_line": 26,
       "to_symbol_id": "assert::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/integration/headless-activation-handshake.test.js",
-      "from_line": 1,
+      "from_line": 27,
       "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/integration/headless-activation-handshake.test.js",
-      "from_line": 1,
+      "from_line": 28,
       "to_symbol_id": "http::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/integration/headless-activation-handshake.test.js",
-      "from_line": 1,
+      "from_line": 29,
       "to_symbol_id": "path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/integration/headless-activation-handshake.test.js",
-      "from_line": 1,
+      "from_line": 30,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/notifications-settings.test.js",
-      "from_line": 1,
+      "from_line": 26,
       "to_symbol_id": "assert::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/notifications-settings.test.js",
-      "from_line": 1,
+      "from_line": 27,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/notifications-settings.test.js",
-      "from_line": 1,
+      "from_line": 30,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/replay-harness-core.test.js",
-      "from_line": 1,
+      "from_line": 26,
       "to_symbol_id": "assert::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/replay-harness-core.test.js",
-      "from_line": 1,
+      "from_line": 27,
       "to_symbol_id": "node:fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/replay-harness-core.test.js",
-      "from_line": 1,
+      "from_line": 28,
       "to_symbol_id": "node:os::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/replay-harness-core.test.js",
-      "from_line": 1,
+      "from_line": 29,
       "to_symbol_id": "node:path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/replay-harness-core.test.js",
-      "from_line": 2,
+      "from_line": 997,
       "to_symbol_id": "fs/promises::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/replay-harness-core.test.js",
-      "from_line": 2,
+      "from_line": 998,
+      "to_symbol_id": "path::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/replay-harness-core.test.js",
+      "from_line": 1211,
+      "to_symbol_id": "path::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/replay-harness-core.test.js",
+      "from_line": 1345,
       "to_symbol_id": "fs/promises::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/replay-harness-core.test.js",
-      "from_line": 2,
+      "from_line": 1346,
       "to_symbol_id": "path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/replay-harness-core.test.js",
-      "from_line": 2,
+      "from_line": 1382,
       "to_symbol_id": "path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/replay-harness-core.test.js",
-      "from_line": 2,
-      "to_symbol_id": "path::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/replay-harness-core.test.js",
-      "from_line": 2,
-      "to_symbol_id": "path::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/replay-harness-core.test.js",
-      "from_line": 5,
+      "from_line": 1718,
       "to_symbol_id": "fs/promises::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/replay-harness-core.test.js",
-      "from_line": 5,
+      "from_line": 1719,
       "to_symbol_id": "path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/replay-harness-core.test.js",
-      "from_line": 8,
+      "from_line": 1925,
       "to_symbol_id": "node:crypto::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/skillsSourceRoot.test.js",
-      "from_line": 1,
+      "from_line": 26,
       "to_symbol_id": "assert::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/skillsSourceRoot.test.js",
-      "from_line": 1,
+      "from_line": 27,
       "to_symbol_id": "node:fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/skillsSourceRoot.test.js",
-      "from_line": 1,
-      "to_symbol_id": "node:fs::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/skillsSourceRoot.test.js",
-      "from_line": 1,
+      "from_line": 28,
       "to_symbol_id": "node:os::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/skillsSourceRoot.test.js",
-      "from_line": 1,
+      "from_line": 29,
       "to_symbol_id": "node:path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/skillsSourceRoot.test.js",
-      "from_line": 1,
+      "from_line": 32,
+      "to_symbol_id": "node:fs::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/skillsSourceRoot.test.js",
+      "from_line": 33,
       "to_symbol_id": "node:path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/spawn-agent-tool.test.js",
-      "from_line": 1,
+      "from_line": 26,
       "to_symbol_id": "assert::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/spawn-agent-tool.test.js",
-      "from_line": 1,
+      "from_line": 27,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/spawn-agent-tool.test.js",
-      "from_line": 1,
+      "from_line": 30,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/store-chat-details-participant.test.js",
-      "from_line": 1,
+      "from_line": 26,
       "to_symbol_id": "assert::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/store-chat-details-participant.test.js",
-      "from_line": 1,
+      "from_line": 29,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/workspace-identity.test.js",
-      "from_line": 1,
+      "from_line": 26,
       "to_symbol_id": "assert::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/workspace-identity.test.js",
-      "from_line": 1,
+      "from_line": 27,
+      "to_symbol_id": "node:fs::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/workspace-identity.test.js",
+      "from_line": 28,
+      "to_symbol_id": "node:os::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/workspace-identity.test.js",
+      "from_line": 29,
+      "to_symbol_id": "node:path::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/suite/workspace-identity.test.js",
+      "from_line": 32,
       "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/suite/workspace-identity.test.js",
-      "from_line": 1,
-      "to_symbol_id": "node:fs::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/workspace-identity.test.js",
-      "from_line": 1,
-      "to_symbol_id": "node:os::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/workspace-identity.test.js",
-      "from_line": 1,
-      "to_symbol_id": "node:path::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/suite/workspace-identity.test.js",
-      "from_line": 1,
+      "from_line": 33,
       "to_symbol_id": "path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/supervisor/activation.test.js",
-      "from_line": 1,
-      "to_symbol_id": "assert::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/supervisor/activation.test.js",
-      "from_line": 1,
+      "from_line": 98,
       "to_symbol_id": "net::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/supervisor/activation.test.js",
-      "from_line": 1,
+      "from_line": 99,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/supervisor/activation.test.js",
-      "from_line": 1,
+      "from_line": 132,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/supervisor/activation.test.js",
-      "from_line": 1,
+      "from_line": 138,
+      "to_symbol_id": "assert::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/supervisor/activation.test.js",
+      "from_line": 139,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/supervisor/degraded.test.js",
-      "from_line": 5,
+      "from_line": 70,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/supervisor/degraded.test.js",
+      "from_line": 75,
       "to_symbol_id": "assert::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/supervisor/degraded.test.js",
-      "from_line": 5,
-      "to_symbol_id": "vscode::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/supervisor/degraded.test.js",
-      "from_line": 5,
+      "from_line": 76,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/supervisor/detect.test.js",
-      "from_line": 1,
+      "from_line": 98,
+      "to_symbol_id": "net::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/supervisor/detect.test.js",
+      "from_line": 99,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/supervisor/detect.test.js",
+      "from_line": 107,
       "to_symbol_id": "assert::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/supervisor/detect.test.js",
-      "from_line": 1,
+      "from_line": 108,
       "to_symbol_id": "events::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/supervisor/detect.test.js",
-      "from_line": 1,
+      "from_line": 109,
       "to_symbol_id": "net::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
-      "from_file": "vscode-extension/out/test/supervisor/detect.test.js",
-      "from_line": 1,
+      "from_file": "vscode-extension/out/test/supervisor/ready.test.js",
+      "from_line": 98,
       "to_symbol_id": "net::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
-      "from_file": "vscode-extension/out/test/supervisor/detect.test.js",
-      "from_line": 1,
+      "from_file": "vscode-extension/out/test/supervisor/ready.test.js",
+      "from_line": 99,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/supervisor/ready.test.js",
-      "from_line": 1,
-      "to_symbol_id": "assert::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/supervisor/ready.test.js",
-      "from_line": 1,
-      "to_symbol_id": "net::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/supervisor/ready.test.js",
-      "from_line": 1,
-      "to_symbol_id": "vscode::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/out/test/supervisor/settings.test.js",
-      "from_line": 1,
+      "from_line": 160,
       "to_symbol_id": "assert::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/supervisor/settings.test.js",
-      "from_line": 1,
+      "from_line": 51,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/supervisor/settings.test.js",
-      "from_line": 1,
+      "from_line": 56,
+      "to_symbol_id": "assert::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/out/test/supervisor/settings.test.js",
+      "from_line": 57,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/supervisor/window-id.test.js",
-      "from_line": 1,
+      "from_line": 26,
       "to_symbol_id": "assert::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/supervisor/window-id.test.js",
-      "from_line": 1,
+      "from_line": 29,
       "to_symbol_id": "crypto::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/ui/DashboardPanel.test.js",
-      "from_line": 1,
+      "from_line": 26,
       "to_symbol_id": "assert::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/ui/DashboardPanel.test.js",
-      "from_line": 1,
+      "from_line": 27,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/out/test/ui/DashboardPanel.test.js",
-      "from_line": 1,
+      "from_line": 30,
       "to_symbol_id": "vscode::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
@@ -49623,27 +50050,41 @@
     {
       "from_file": "vscode-extension/src/commands/deploy-commands.ts",
       "from_line": 10,
+      "to_symbol_id": "vscode-extension/src/server/ConnectionManager.ts::__module__",
+      "to_file": "vscode-extension/src/server/ConnectionManager.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/src/commands/deploy-commands.ts",
+      "from_line": 11,
+      "to_symbol_id": "vscode-extension/src/commands/workspace-commands.ts::__module__",
+      "to_file": "vscode-extension/src/commands/workspace-commands.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/src/commands/deploy-commands.ts",
+      "from_line": 12,
       "to_symbol_id": "vscode-extension/src/utils/helpers.ts::__module__",
       "to_file": "vscode-extension/src/utils/helpers.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/src/commands/deploy-commands.ts",
-      "from_line": 11,
+      "from_line": 13,
       "to_symbol_id": "vscode-extension/src/utils/defaults.ts::__module__",
       "to_file": "vscode-extension/src/utils/defaults.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/src/commands/deploy-commands.ts",
-      "from_line": 12,
+      "from_line": 14,
       "to_symbol_id": "vscode-extension/src/utils/skillsSourceRoot.ts::__module__",
       "to_file": "vscode-extension/src/utils/skillsSourceRoot.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/src/commands/deploy-commands.ts",
-      "from_line": 13,
+      "from_line": 15,
       "to_symbol_id": "vscode-extension/src/utils/dashboard-port.ts::__module__",
       "to_file": "vscode-extension/src/utils/dashboard-port.ts",
       "reference_kind": "import"
@@ -49917,111 +50358,118 @@
     {
       "from_file": "vscode-extension/src/extension.ts",
       "from_line": 28,
+      "to_symbol_id": "vscode-extension/src/services/WorkspaceConfigWatcherService.ts::__module__",
+      "to_file": "vscode-extension/src/services/WorkspaceConfigWatcherService.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/src/extension.ts",
+      "from_line": 29,
       "to_symbol_id": "vscode-extension/src/supervisor/SupervisorHeartbeat.ts::__module__",
       "to_file": "vscode-extension/src/supervisor/SupervisorHeartbeat.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/src/extension.ts",
-      "from_line": 29,
+      "from_line": 30,
       "to_symbol_id": "vscode-extension/src/utils/helpers.ts::__module__",
       "to_file": "vscode-extension/src/utils/helpers.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/src/extension.ts",
-      "from_line": 30,
+      "from_line": 31,
       "to_symbol_id": "vscode-extension/src/utils/defaults.ts::__module__",
       "to_file": "vscode-extension/src/utils/defaults.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/src/extension.ts",
-      "from_line": 31,
+      "from_line": 32,
       "to_symbol_id": "vscode-extension/src/utils/workspace-identity.ts::__module__",
       "to_file": "vscode-extension/src/utils/workspace-identity.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/src/extension.ts",
-      "from_line": 32,
+      "from_line": 33,
       "to_symbol_id": "vscode-extension/src/commands::__module__",
       "to_file": "vscode-extension/src/commands",
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/src/extension.ts",
-      "from_line": 33,
+      "from_line": 34,
       "to_symbol_id": "vscode-extension/src/tool-registry.ts::__module__",
       "to_file": "vscode-extension/src/tool-registry.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/src/extension.ts",
-      "from_line": 34,
+      "from_line": 35,
       "to_symbol_id": "vscode-extension/src/supervisor/settings.ts::__module__",
       "to_file": "vscode-extension/src/supervisor/settings.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/src/extension.ts",
-      "from_line": 35,
+      "from_line": 36,
       "to_symbol_id": "vscode-extension/src/supervisor/activation.ts::__module__",
       "to_file": "vscode-extension/src/supervisor/activation.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/src/extension.ts",
-      "from_line": 36,
+      "from_line": 37,
       "to_symbol_id": "vscode-extension/src/supervisor/degraded.ts::__module__",
       "to_file": "vscode-extension/src/supervisor/degraded.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/src/extension.ts",
-      "from_line": 37,
+      "from_line": 38,
       "to_symbol_id": "vscode-extension/src/supervisor/detect.ts::__module__",
       "to_file": "vscode-extension/src/supervisor/detect.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/src/extension.ts",
-      "from_line": 38,
+      "from_line": 39,
       "to_symbol_id": "vscode-extension/src/supervisor/launcher.ts::__module__",
       "to_file": "vscode-extension/src/supervisor/launcher.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/src/extension.ts",
-      "from_line": 39,
+      "from_line": 40,
       "to_symbol_id": "vscode-extension/src/supervisor/control-client.ts::__module__",
       "to_file": "vscode-extension/src/supervisor/control-client.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/src/extension.ts",
-      "from_line": 40,
+      "from_line": 41,
       "to_symbol_id": "vscode-extension/src/supervisor/window-id.ts::__module__",
       "to_file": "vscode-extension/src/supervisor/window-id.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/src/extension.ts",
-      "from_line": 41,
+      "from_line": 42,
       "to_symbol_id": "vscode-extension/src/chat/store-chat-details-participant.ts::__module__",
       "to_file": "vscode-extension/src/chat/store-chat-details-participant.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/src/extension.ts",
-      "from_line": 42,
+      "from_line": 43,
       "to_symbol_id": "vscode-extension/src/utils/dashboard-port.ts::__module__",
       "to_file": "vscode-extension/src/utils/dashboard-port.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/src/extension.ts",
-      "from_line": 43,
+      "from_line": 44,
       "to_symbol_id": "vscode-extension/src/utils/ports-manifest.ts::__module__",
       "to_file": "vscode-extension/src/utils/ports-manifest.ts",
       "reference_kind": "import"
@@ -50584,6 +51032,48 @@
       "from_line": 19,
       "to_symbol_id": "vscode-extension/src/services/EventSubscriptionService.ts::__module__",
       "to_file": "vscode-extension/src/services/EventSubscriptionService.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/src/services/NotificationService.ts",
+      "from_line": 20,
+      "to_symbol_id": "vscode-extension/src/server/ConnectionManager.ts::__module__",
+      "to_file": "vscode-extension/src/server/ConnectionManager.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/src/services/WorkspaceConfigWatcherService.ts",
+      "from_line": 1,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/src/services/WorkspaceConfigWatcherService.ts",
+      "from_line": 2,
+      "to_symbol_id": "vscode-extension/src/server/ConnectionManager.ts::__module__",
+      "to_file": "vscode-extension/src/server/ConnectionManager.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/src/services/WorkspaceConfigWatcherService.ts",
+      "from_line": 3,
+      "to_symbol_id": "vscode-extension/src/commands/workspace-commands.ts::__module__",
+      "to_file": "vscode-extension/src/commands/workspace-commands.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/src/services/WorkspaceConfigWatcherService.ts",
+      "from_line": 4,
+      "to_symbol_id": "vscode-extension/src/services/DiagnosticsService.ts::__module__",
+      "to_file": "vscode-extension/src/services/DiagnosticsService.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/src/services/WorkspaceConfigWatcherService.ts",
+      "from_line": 5,
+      "to_symbol_id": "vscode-extension/src/services/NotificationService.ts::__module__",
+      "to_file": "vscode-extension/src/services/NotificationService.ts",
       "reference_kind": "import"
     },
     {
@@ -51301,6 +51791,27 @@
       "reference_kind": "import"
     },
     {
+      "from_file": "vscode-extension/src/test/suite/DiagnosticsService.workspaceSync.test.ts",
+      "from_line": 1,
+      "to_symbol_id": "assert::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/src/test/suite/DiagnosticsService.workspaceSync.test.ts",
+      "from_line": 2,
+      "to_symbol_id": "vscode-extension/src/services/DiagnosticsService.ts::__module__",
+      "to_file": "vscode-extension/src/services/DiagnosticsService.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/src/test/suite/DiagnosticsService.workspaceSync.test.ts",
+      "from_line": 3,
+      "to_symbol_id": "vscode-extension/src/server/ConnectionManager.ts::__module__",
+      "to_file": "vscode-extension/src/server/ConnectionManager.ts",
+      "reference_kind": "import"
+    },
+    {
       "from_file": "vscode-extension/src/test/suite/NotificationService.lifecycle.test.ts",
       "from_line": 1,
       "to_symbol_id": "assert::__unresolved__",
@@ -51326,6 +51837,62 @@
       "from_line": 4,
       "to_symbol_id": "vscode-extension/src/services/EventSubscriptionService.ts::__module__",
       "to_file": "vscode-extension/src/services/EventSubscriptionService.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/src/test/suite/NotificationService.lifecycle.test.ts",
+      "from_line": 5,
+      "to_symbol_id": "vscode-extension/src/server/ConnectionManager.ts::__module__",
+      "to_file": "vscode-extension/src/server/ConnectionManager.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/src/test/suite/WorkspaceConfigWatcherService.test.ts",
+      "from_line": 1,
+      "to_symbol_id": "assert::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/src/test/suite/WorkspaceConfigWatcherService.test.ts",
+      "from_line": 2,
+      "to_symbol_id": "vscode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/src/test/suite/WorkspaceConfigWatcherService.test.ts",
+      "from_line": 3,
+      "to_symbol_id": "vscode-extension/src/services/WorkspaceConfigWatcherService.ts::__module__",
+      "to_file": "vscode-extension/src/services/WorkspaceConfigWatcherService.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/src/test/suite/WorkspaceConfigWatcherService.test.ts",
+      "from_line": 4,
+      "to_symbol_id": "vscode-extension/src/server/ConnectionManager.ts::__module__",
+      "to_file": "vscode-extension/src/server/ConnectionManager.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/src/test/suite/WorkspaceConfigWatcherService.test.ts",
+      "from_line": 5,
+      "to_symbol_id": "vscode-extension/src/server/ConnectionManager.ts::__module__",
+      "to_file": "vscode-extension/src/server/ConnectionManager.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/src/test/suite/WorkspaceConfigWatcherService.test.ts",
+      "from_line": 6,
+      "to_symbol_id": "vscode-extension/src/services/DiagnosticsService.ts::__module__",
+      "to_file": "vscode-extension/src/services/DiagnosticsService.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/src/test/suite/WorkspaceConfigWatcherService.test.ts",
+      "from_line": 7,
+      "to_symbol_id": "vscode-extension/src/services/NotificationService.ts::__module__",
+      "to_file": "vscode-extension/src/services/NotificationService.ts",
       "reference_kind": "import"
     },
     {
