@@ -31,7 +31,8 @@ import { SupervisorHeartbeat } from './supervisor/SupervisorHeartbeat';
 import { notify } from './utils/helpers';
 import { getDefaultAgentsRoot, getDefaultInstructionsRoot, getDefaultSkillsRoot } from './utils/defaults';
 import { clearIdentityCache } from './utils/workspace-identity';
-import { registerServerCommands, registerDeployCommands, registerPlanCommands, registerWorkspaceCommands } from './commands';
+import { registerServerCommands, registerDeployCommands, registerPlanCommands, registerWorkspaceCommands, registerLibraryCommands } from './commands';
+import { LibraryTreeProvider } from './providers/LibraryTreeProvider';
 import { ToolRegistry } from './tool-registry';
 import { readSupervisorSettings } from './supervisor/settings';
 import { runSupervisorActivation } from './supervisor/activation';
@@ -53,6 +54,7 @@ let diagnosticsService: DiagnosticsService;
 let planTreeProvider: WorkspacePlanTreeProvider;
 let sprintTreeProvider: SprintTreeProvider;
 let diagnosticsTreeProvider: DiagnosticsTreeProvider;
+let libraryTreeProvider: LibraryTreeProvider;
 let eventSubscriptionService: EventSubscriptionService;
 let notificationService: NotificationService;
 let workspaceConfigWatcherService: WorkspaceConfigWatcherService;
@@ -163,6 +165,14 @@ export function activate(context: vscode.ExtensionContext) {
             sprintTreeProvider.toggleArchived();
         }),
     );
+
+    // --- Register Library TreeView ---
+    libraryTreeProvider = new LibraryTreeProvider(dashboardPort);
+    context.subscriptions.push(libraryTreeProvider);
+    context.subscriptions.push(
+        vscode.window.registerTreeDataProvider('projectMemory.libraryView', libraryTreeProvider),
+    );
+    registerLibraryCommands(context, libraryTreeProvider, dashboardProvider);
 
     // --- Register plan-related commands ---
     context.subscriptions.push(

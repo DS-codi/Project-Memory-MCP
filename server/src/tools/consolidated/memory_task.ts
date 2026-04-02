@@ -90,6 +90,8 @@ interface GetCurrentResult {
   plan_id: string;
   total_done: number;
   total_steps: number;
+  /** Inline instruction: what to call when the current step is finished. */
+  next_required_call: string | null;
 }
 
 interface MarkDoneResult {
@@ -208,15 +210,21 @@ async function handleGetCurrent(
 
   const doneCnt = steps.filter(s => s.status === 'done').length;
 
+  const slimCurrent = currentStep ? toSlimStep(currentStep) : null;
+  const nextRequiredCall = slimCurrent
+    ? `memory_task(action: "mark_done", workspace_id: "${workspace_id}", plan_id: "${resolvedPlanId}", step_index: ${slimCurrent.index}) — REQUIRED when step is complete`
+    : null;
+
   return {
     success: true,
-    step: currentStep ? toSlimStep(currentStep) : null,
+    step: slimCurrent,
     next_steps: nextSteps,
     goals: plan.goals ?? [],
     success_criteria: plan.success_criteria ?? [],
     plan_id: resolvedPlanId,
     total_done: doneCnt,
     total_steps: steps.length,
+    next_required_call: nextRequiredCall,
   };
 }
 

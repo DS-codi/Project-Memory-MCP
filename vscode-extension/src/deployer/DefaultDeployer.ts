@@ -580,9 +580,11 @@ export class DefaultDeployer {
             }
 
             const relativePath = this.normalizeRelativePath(entry.relative_path);
+            // Use original casing for filesystem deletion; only the lookup key is lowercased.
+            const originalCasedRelPath = entry.relative_path.replace(/\\/g, '/').replace(/^\.github\//i, '');
             targets.set(relativePath, {
                 kind: entry.kind,
-                path: path.join(workspacePath, '.github', ...relativePath.split('/')),
+                path: path.join(workspacePath, '.github', ...originalCasedRelPath.split('/')),
                 name: entry.kind === 'agent' ? entry.canonical_name : toInstructionBaseName(entry.canonical_filename),
                 relativePath: entry.relative_path,
                 status: entry.status,

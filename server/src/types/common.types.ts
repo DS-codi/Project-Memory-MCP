@@ -273,17 +273,10 @@ export interface InitialiseAgentResult {
   workspace_context_summary?: WorkspaceContextSummary;  // Opt-in via include_workspace_context=true
   context_size_bytes?: number;  // Total payload size for monitoring (plan_state + workspace_context + matched_skills + tool_contracts)
   /**
-   * Slim response offload manifest — present when deploy_and_prep ran before this init.
-   * Agents should read large static context via memory_filesystem using these paths.
-   * Null when init called without prior deploy_and_prep (fallback to inline content).
+   * Present when large init context has been stored to the DB.
+   * Retrieve via memory_context(action: get, type: 'agent_init_context', parent_type: 'plan', parent_id: plan_id).
    */
-  context_file_paths?: {
-    agent_dir: string;
-    instruction_file_paths: string[];
-    context_bundle_path: string;
-    skills_dir: string | null;
-    init_context_path: string;
-  } | null;
+  context_stored?: boolean;
   /**
    * Present when init falls back to inline content (no prior deploy_and_prep).
    * Indicates large fields are inline and agents should call deploy_and_prep for slim responses.

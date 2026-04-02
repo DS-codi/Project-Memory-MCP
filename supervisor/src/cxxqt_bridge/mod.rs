@@ -54,6 +54,7 @@ pub mod ffi {
         #[qproperty(QString, cli_mcp_status, cxx_name = "cliMcpStatus")]
         #[qproperty(QString, dashboard_url, cxx_name = "dashboardUrl")]
         #[qproperty(QString, terminal_url, cxx_name = "terminalUrl")]
+        #[qproperty(QString, monitor_url, cxx_name = "monitorUrl")]
         #[qproperty(i32, total_mcp_connections, cxx_name = "totalMcpConnections")]
         #[qproperty(i32, active_mcp_instances, cxx_name = "activeMcpInstances")]
         #[qproperty(QString, mcp_instance_distribution, cxx_name = "mcpInstanceDistribution")]
@@ -214,6 +215,7 @@ pub struct SupervisorGuiBridgeRust {
     /// URLs pushed from main.rs after config loads.
     pub dashboard_url: QString,
     pub terminal_url: QString,
+    pub monitor_url: QString,
     /// MCP proxy-monitoring counters/summary pushed from runtime.
     pub total_mcp_connections: i32,
     pub active_mcp_instances: i32,
@@ -273,6 +275,7 @@ impl Default for SupervisorGuiBridgeRust {
             cli_mcp_status: QString::from("Starting\u{2026}"),
             dashboard_url: QString::default(),
             terminal_url: QString::default(),
+            monitor_url: QString::from("http://127.0.0.1:5173/monitor"),
             total_mcp_connections: 0,
             active_mcp_instances: 0,
             mcp_instance_distribution: QString::default(),

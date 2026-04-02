@@ -15,7 +15,7 @@
 export function getClientHelpers(): string {
     return `
         function normalizeTopLevelTab(tab) {
-            return (tab === 'plans' || tab === 'operations') ? tab : 'dashboard';
+            return (tab === 'plans' || tab === 'operations' || tab === 'sprints') ? tab : 'dashboard';
         }
 
         function normalizePlanSort(sort) {
@@ -36,6 +36,8 @@ export function getClientHelpers(): string {
                 selectedPlanId: selectedPlanId || '',
                 selectedPlanWorkspaceId: selectedPlanWorkspaceId || '',
                 alwaysProvidedNotes: typeof alwaysProvidedNotes === 'string' ? alwaysProvidedNotes : '',
+                currentSprintTab: (currentSprintTab === 'completed' || currentSprintTab === 'archived') ? currentSprintTab : 'active',
+                selectedSprintId: selectedSprintId || '',
             });
         }
 
@@ -95,6 +97,7 @@ export function getClientHelpers(): string {
             const panes = [
                 { id: 'dashboardPaneDashboard', value: 'dashboard' },
                 { id: 'dashboardPanePlans', value: 'plans' },
+                { id: 'dashboardPaneSprints', value: 'sprints' },
                 { id: 'dashboardPaneOperations', value: 'operations' },
             ];
             for (let index = 0; index < panes.length; index += 1) {
@@ -114,8 +117,180 @@ export function getClientHelpers(): string {
             setTopLevelTab(topLevelTab, { persist: false });
             setPlanSort(planSortBy, { persist: false, update: false });
             setPlanTab(currentPlanTab, { persist: false });
+            setSprintTab(currentSprintTab, { persist: false });
             setAlwaysProvidedNotes(alwaysProvidedNotes, { persist: false });
             updateActionAvailability();
+        }
+
+        // ── Sprint helpers ────────────────────────────────────────────────────
+
+        function setSprintTab(tab, options) {
+            currentSprintTab = (tab === 'completed' || tab === 'archived') ? tab : 'active';
+            const persist = !(options && options.persist === false);
+            const activeTab = document.getElementById('sprintsTabActive');
+            const completedTab = document.getElementById('sprintsTabCompleted');
+            const archivedTab = document.getElementById('sprintsTabArchived');
+            const activePane = document.getElementById('sprintsPaneActive');
+            const completedPane = document.getElementById('sprintsPaneCompleted');
+            const archivedPane = document.getElementById('sprintsPaneArchived');
+            if (activeTab) activeTab.classList.toggle('active', currentSprintTab === 'active');
+            if (completedTab) completedTab.classList.toggle('active', currentSprintTab === 'completed');
+            if (archivedTab) archivedTab.classList.toggle('active', currentSprintTab === 'archived');
+            if (activePane) activePane.classList.toggle('active', currentSprintTab === 'active');
+            if (completedPane) completedPane.classList.toggle('active', currentSprintTab === 'completed');
+            if (archivedPane) archivedPane.classList.toggle('active', currentSprintTab === 'archived');
+            if (persist) {
+                saveDashboardState();
+            }
+        }
+
+        function setSelectedSprint(sprintId) {
+            if (selectedSprintId === sprintId) {
+                selectedSprintId = '';
+            } else {
+                selectedSprintId = sprintId;
+            }
+            updateSprintLists();
+            saveDashboardState();
+        }
+
+        function renderGoalList(goals) {
+            if (!Array.isArray(goals) || goals.length === 0) {
+                return '<div class="empty-state">No goals defined for this sprint.</div>';
+            }
+            return '<div class="step-viewer-list">' + goals.map(function(goal) {
+                const desc = escapeHtml(goal.description || '(untitled goal)');
+                const done = goal.completed === true;
+                const statusClass = done ? 'done' : 'pending';
+                const statusIcon = done ? '&#10003;' : '&#9675;';
+                return (
+                    '<div class="step-viewer-item">' +
+                        '<div class="step-viewer-line">' +
+                            '<span class="step-viewer-status ' + statusClass + '" style="width:1.4em;text-align:center">' + statusIcon + '</span>' +
+                            '<span class="step-viewer-task">' + desc + '</span>' +
+                        '</div>' +
+                    '</div>'
+                );
+            }).join('') + '</div>';
+        }
+
+        function renderSprintInlineDetail(sprint) {
+            const goals = Array.isArray(sprint.goals) ? sprint.goals : [];
+            const pct = typeof sprint.completion_percentage === 'number' ? Math.round(sprint.completion_percentage) : 0;
+            const done = sprint.completed_goal_count || 0;
+            const total = sprint.goal_count || 0;
+            const progressText = total > 0 ? (pct + '% (' + done + '/' + total + ')') : 'No goals';
+            return (
+                '<div class="plan-inline-panel">' +
+                    '<div class="selected-plan-header">' +
+                        '<h4>' + escapeHtml(sprint.title || 'Sprint') + '</h4>' +
+                        '<span class="selected-plan-meta">' + escapeHtml(progressText) + '</span>' +
+                    '</div>' +
+                    '<div class="selected-plan-body">' + renderGoalList(goals) + '</div>' +
+                '</div>'
+            );
+        }
+
+        function renderSprintList(sprints, type) {
+            if (!Array.isArray(sprints) || sprints.length === 0) {
+                return '<div class="empty-state">No ' + escapeHtml(type) + ' sprints</div>';
+            }
+            return sprints.map(function(sprint) {
+                const sprintId = escapeHtml(sprint.sprint_id || 'unknown');
+                const title = escapeHtml(sprint.title || '(untitled)');
+                const pct = typeof sprint.completion_percentage === 'number' ? Math.round(sprint.completion_percentage) : 0;
+                const done = sprint.completed_goal_count || 0;
+                const total = sprint.goal_count || 0;
+                const progress = total > 0 ? (pct + '% (' + done + '/' + total + ')') : 'No goals';
+                const isSelected = selectedSprintId === (sprint.sprint_id || '');
+                const attachedPlan = sprint.attached_plan_id
+                    ? '<span>Plan: ' + escapeHtml(String(sprint.attached_plan_id).slice(-8)) + '</span>'
+                    : '';
+                const inlineDetails = isSelected ? renderSprintInlineDetail(sprint) : '';
+                return (
+                    '<div class="plan-item sprint-item' + (isSelected ? ' selected' : '') + '" data-sprint-id="' + sprintId + '" tabindex="0" role="button" title="View sprint">' +
+                        '<div class="plan-primary-row">' +
+                            '<div class="plan-info">' +
+                                '<div class="plan-title">' + title + '</div>' +
+                                '<div class="plan-meta">' +
+                                    '<span class="entity-badge sprint">' + escapeHtml(sprint.status || 'active') + '</span>' +
+                                    '<span>' + progress + '</span>' +
+                                    attachedPlan +
+                                '</div>' +
+                            '</div>' +
+                            '<div class="plan-actions">' +
+                                '<button class="btn btn-small btn-secondary" data-action="copy" data-copy="' + sprintId + '" title="Copy sprint ID">&#128203;</button>' +
+                            '</div>' +
+                        '</div>' +
+                        (inlineDetails ? '<div class="plan-details-row">' + inlineDetails + '</div>' : '') +
+                    '</div>'
+                );
+            }).join('');
+        }
+
+        function updateSprintLists() {
+            const activeList = document.getElementById('sprintsListActive');
+            const completedList = document.getElementById('sprintsListCompleted');
+            const archivedList = document.getElementById('sprintsListArchived');
+            const activeCountEl = document.getElementById('activeSprintsCount');
+            const completedCountEl = document.getElementById('completedSprintsCount');
+            const archivedCountEl = document.getElementById('archivedSprintsCount');
+            if (activeList) activeList.innerHTML = renderSprintList(activeSprints, 'active');
+            if (completedList) completedList.innerHTML = renderSprintList(completedSprints, 'completed');
+            if (archivedList) archivedList.innerHTML = renderSprintList(archivedSprints, 'archived');
+            if (activeCountEl) activeCountEl.textContent = activeSprints.length;
+            if (completedCountEl) completedCountEl.textContent = completedSprints.length;
+            if (archivedCountEl) archivedCountEl.textContent = archivedSprints.length;
+            updateSelectedSprintPanel();
+        }
+
+        function updateSelectedSprintPanel() {
+            const titleEl = document.getElementById('selectedSprintTitle');
+            const metaEl = document.getElementById('selectedSprintMeta');
+            const bodyEl = document.getElementById('selectedSprintBody');
+            if (!titleEl || !bodyEl) {
+                return;
+            }
+            if (!selectedSprintId) {
+                titleEl.textContent = 'No sprint selected';
+                if (metaEl) metaEl.textContent = '';
+                bodyEl.innerHTML = '<div class="empty-state">Select a sprint to view goals and progress.</div>';
+                return;
+            }
+            const allSprints = [].concat(activeSprints || [], completedSprints || [], archivedSprints || []);
+            const sprint = allSprints.find(function(s) { return s.sprint_id === selectedSprintId; });
+            if (!sprint) {
+                titleEl.textContent = 'Sprint not found';
+                if (metaEl) metaEl.textContent = '';
+                bodyEl.innerHTML = '<div class="empty-state">Sprint data not available.</div>';
+                return;
+            }
+            const pct = typeof sprint.completion_percentage === 'number' ? Math.round(sprint.completion_percentage) : 0;
+            const done = sprint.completed_goal_count || 0;
+            const total = sprint.goal_count || 0;
+            titleEl.textContent = sprint.title || 'Sprint';
+            if (metaEl) metaEl.textContent = sprint.status + ' \u2022 ' + pct + '% complete (' + done + '/' + total + ' goals)';
+            bodyEl.innerHTML = renderGoalList(Array.isArray(sprint.goals) ? sprint.goals : []);
+        }
+
+        async function fetchSprints() {
+            if (!workspaceId) {
+                return;
+            }
+            try {
+                const response = await fetch('http://localhost:' + apiPort + '/api/sprints/workspace/' + workspaceId + '?includeArchived=true');
+                if (!response.ok) {
+                    return;
+                }
+                const data = await response.json();
+                const allSprints = Array.isArray(data.sprints) ? data.sprints : (Array.isArray(data) ? data : []);
+                activeSprints = allSprints.filter(function(s) { return s.status === 'active'; });
+                completedSprints = allSprints.filter(function(s) { return s.status === 'completed'; });
+                archivedSprints = allSprints.filter(function(s) { return s.status === 'archived'; });
+                updateSprintLists();
+            } catch (err) {
+                console.log('Failed to fetch sprints:', err);
+            }
         }
 
         function escapeHtml(value) {

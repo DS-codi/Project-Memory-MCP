@@ -42,6 +42,7 @@ fn main() {
             "qml/SettingsPanel.qml",
             "qml/ChatbotPanel.qml",
             "qml/PlansPanel.qml",
+            "qml/SprintsPanel.qml",
             "qml/PairingDialog.qml",
         ]),
     )

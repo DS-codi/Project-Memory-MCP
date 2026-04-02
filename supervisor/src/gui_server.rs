@@ -47,6 +47,9 @@ pub struct GuiServerState {
     pub mcp_base_url: String,
     /// Live per-request tool-call logs: request_id → growing list of tool names.
     pub chat_live_logs: Arc<RwLock<HashMap<String, Arc<StdMutex<Vec<String>>>>>>,
+    /// Extra filesystem paths the monitor file browser may expose (from config).
+    /// Workspace paths from the MCP database are merged in at request time.
+    pub monitor_allowed_paths: Arc<Vec<String>>,
 }
 
 // ---------------------------------------------------------------------------
@@ -250,6 +253,115 @@ async fn runtime_capture_set_handler(
 }
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// File browser handlers
+// ---------------------------------------------------------------------------
+
+/// Merge config-supplied paths with workspace paths from MCP server.
+async fn resolve_allowed_roots(state: &GuiServerState) -> Vec<std::path::PathBuf> {
+    let mut roots: Vec<std::path::PathBuf> = state
+        .monitor_allowed_paths
+        .iter()
+        .filter_map(|p| std::path::Path::new(p).canonicalize().ok())
+        .collect();
+
+    // Fetch workspace paths from MCP server (best-effort; ignore failures).
+    let ws_url = format!("{}/admin/workspaces", state.mcp_base_url);
+    if let Ok(resp) = reqwest::get(&ws_url).await {
+        if let Ok(json) = resp.json::<serde_json::Value>().await {
+            if let Some(workspaces) = json.get("workspaces").and_then(|v| v.as_array()) {
+                for ws in workspaces {
+                    if let Some(path_str) = ws.get("path").and_then(|p| p.as_str()) {
+                        if let Ok(canonical) = std::path::Path::new(path_str).canonicalize() {
+                            if !roots.contains(&canonical) {
+                                roots.push(canonical);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    roots
+}
+
+async fn files_roots_handler(
+    State(state): State<GuiServerState>,
+) -> Json<serde_json::Value> {
+    let roots = resolve_allowed_roots(&state).await;
+    let paths: Vec<String> = roots
+        .iter()
+        .map(|p| p.to_string_lossy().into_owned())
+        .collect();
+    Json(json!({ "roots": paths }))
+}
+
+#[derive(Debug, Deserialize)]
+struct BrowseQuery {
+    path: String,
+}
+
+async fn files_browse_handler(
+    State(state): State<GuiServerState>,
+    Query(query): Query<BrowseQuery>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Canonicalize the requested path (resolves symlinks and `..` segments).
+    let canonical = std::path::Path::new(&query.path)
+        .canonicalize()
+        .map_err(|_| StatusCode::NOT_FOUND)?;
+
+    // Verify it sits inside an allowed root.
+    let allowed = resolve_allowed_roots(&state).await;
+    if !allowed.iter().any(|root| canonical.starts_with(root)) {
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    // Read directory entries.
+    let mut read_dir = tokio::fs::read_dir(&canonical)
+        .await
+        .map_err(|_| StatusCode::NOT_FOUND)?;
+
+    let mut entries: Vec<serde_json::Value> = Vec::new();
+    while let Ok(Some(entry)) = read_dir.next_entry().await {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with('.') {
+            continue; // skip hidden files/dirs
+        }
+        let Ok(metadata) = entry.metadata().await else { continue };
+        let is_dir = metadata.is_dir();
+        let entry_path = canonical.join(&name);
+        entries.push(json!({
+            "name": name,
+            "type": if is_dir { "directory" } else { "file" },
+            "size": metadata.len(),
+            "path": entry_path.to_string_lossy().into_owned(),
+        }));
+    }
+
+    // Directories first, then alphabetically within each group.
+    entries.sort_by(|a, b| {
+        let a_dir = a["type"].as_str() == Some("directory");
+        let b_dir = b["type"].as_str() == Some("directory");
+        match (a_dir, b_dir) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => {
+                let an = a["name"].as_str().unwrap_or("");
+                let bn = b["name"].as_str().unwrap_or("");
+                an.to_lowercase().cmp(&bn.to_lowercase())
+            }
+        }
+    });
+
+    Ok(Json(json!({
+        "path": canonical.to_string_lossy().into_owned(),
+        "parent": canonical.parent().map(|p| p.to_string_lossy().into_owned()),
+        "entries": entries,
+    })))
+}
+
+// ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
 
@@ -266,6 +378,8 @@ pub fn build_router(state: GuiServerState, api_key: Option<String>) -> Router {
         .route("/chatbot/chat", post(chatbot_chat_handler))
         .route("/chatbot/config", get(chatbot_config_get_handler).post(chatbot_config_set_handler))
         .route("/chatbot/status/:id", get(chatbot_status_handler))
+        .route("/gui/files/roots", get(files_roots_handler))
+        .route("/gui/files/browse", get(files_browse_handler))
         .layer(axum::middleware::from_fn_with_state(
             key_state,
             crate::auth_middleware::require_api_key,
@@ -298,6 +412,7 @@ pub async fn start(
     chatbot_config: Arc<RwLock<ChatbotSection>>,
     chatbot_state_path: std::path::PathBuf,
     mcp_base_url: String,
+    monitor_allowed_paths: Vec<String>,
     api_key: Option<String>,
 ) -> anyhow::Result<()> {
     let addr = format!("{bind_address}:{port}");
@@ -308,6 +423,7 @@ pub async fn start(
         chatbot_config,
         chatbot_state_path,
         mcp_base_url,
+        monitor_allowed_paths: Arc::new(monitor_allowed_paths),
         chat_live_logs: Arc::new(RwLock::new(HashMap::new())),
     };
     axum::serve(listener, build_router(state, api_key)).await?;
@@ -549,6 +665,7 @@ mod tests {
             chatbot_config: Arc::new(RwLock::new(crate::config::ChatbotSection::default())),
             chatbot_state_path: std::path::PathBuf::from(std::env::temp_dir()).join("chatbot_state_test.json"),
             mcp_base_url: "http://127.0.0.1:3000".to_string(),
+            monitor_allowed_paths: Arc::new(Vec::new()),
             chat_live_logs: Arc::new(RwLock::new(HashMap::new())),
         }
     }

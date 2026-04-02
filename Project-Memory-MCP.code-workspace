@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "D:/2026/ProjectMemory-NewGoo"
+		}
+	],
+	"settings": {
+		"projectMemory.serverPort": 3459,
+		"projectMemory.mcpPort": 3457,
+		"chat.tools.terminal.autoApprove": {
+			"Test-Path": true
+		}
+	}
+}
