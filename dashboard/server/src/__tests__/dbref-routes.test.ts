@@ -195,7 +195,7 @@ describe('AgentScanner DbRef guard', () => {
 
   it('processes workspace meta with file ref type', () => {
     const meta = {
-      _ref: { ref_type: 'file' as const, path: '/agents/exec.md', artifact_kind: 'agent_file' as const, display_name: 'Agent' },
+      _ref: { ref_type: 'file', path: '/agents/exec.md', artifact_kind: 'agent_file' as const, display_name: 'Agent' },
       path: '/test/workspace',
       name: 'File Ref WS',
     };

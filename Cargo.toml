@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["supervisor", "pm-gui-forms", "pm-brainstorm-gui", "pm-approval-gui", "pm-install-gui", "interactive-terminal/pty-host", "crates/cartographer-core", "pm-cli"]
+members = ["supervisor", "supervisor-iced", "pm-gui-forms", "pm-brainstorm-gui", "pm-approval-gui", "pm-install-gui", "interactive-terminal/pty-host", "crates/cartographer-core", "pm-cli"]
 exclude = ["interactive-terminal"]
 
 [workspace.dependencies]

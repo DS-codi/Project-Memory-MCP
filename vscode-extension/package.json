@@ -235,6 +235,36 @@
         "command": "projectMemory.manifestHealthCheck",
         "title": "Project Memory: Context Manifest Health Check",
         "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.library.refresh",
+        "title": "Refresh Library",
+        "icon": "$(refresh)",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.library.openInDashboard",
+        "title": "Open in Dashboard",
+        "icon": "$(globe)",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.library.openInEditor",
+        "title": "Open in Editor",
+        "icon": "$(edit)",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.library.save",
+        "title": "Save to DB",
+        "icon": "$(save)",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.library.copyReference",
+        "title": "Copy Reference",
+        "icon": "$(clippy)",
+        "category": "Project Memory"
       }
     ],
     "chatParticipants": [
@@ -277,6 +307,16 @@
           "type": "tree",
           "id": "projectMemory.diagnosticsView",
           "name": "Diagnostics"
+        },
+        {
+          "type": "tree",
+          "id": "projectMemory.sprints",
+          "name": "Sessions"
+        },
+        {
+          "type": "tree",
+          "id": "projectMemory.libraryView",
+          "name": "Library"
         }
       ]
     },
@@ -526,6 +566,11 @@
           "command": "projectMemory.runFullDiagnostic",
           "when": "view == projectMemory.diagnosticsView",
           "group": "navigation"
+        },
+        {
+          "command": "projectMemory.library.refresh",
+          "when": "view == projectMemory.libraryView",
+          "group": "navigation"
         }
       ],
       "view/item/context": [
@@ -543,6 +588,26 @@
           "command": "projectMemory.goToStepFile",
           "when": "viewItem =~ /hasFileRef/",
           "group": "inline"
+        },
+        {
+          "command": "projectMemory.library.openInDashboard",
+          "when": "viewItem =~ /^libraryItem/",
+          "group": "inline@1"
+        },
+        {
+          "command": "projectMemory.library.openInEditor",
+          "when": "viewItem =~ /^libraryItem/",
+          "group": "inline@2"
+        },
+        {
+          "command": "projectMemory.library.save",
+          "when": "viewItem == libraryItemDirty",
+          "group": "inline@3"
+        },
+        {
+          "command": "projectMemory.library.copyReference",
+          "when": "viewItem =~ /^libraryItem/",
+          "group": "inline@4"
         }
       ],
       "explorer/context": [

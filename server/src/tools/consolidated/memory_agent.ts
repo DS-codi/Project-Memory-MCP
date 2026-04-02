@@ -33,7 +33,6 @@ import type {
   DeployTelemetryContext,
   BundleScope,
 } from '../../types/index.js';
-import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import * as handoffTools from '../handoff.tools.js';
 import * as agentTools from '../agent.tools.js';
@@ -70,12 +69,7 @@ import { resolveCategoryWorkflow } from '../orchestration/category-workflow-reso
 import { buildLegacyDeprecationWorkflowReport } from '../orchestration/hub-deprecation-workflow.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
 import { getPlanState, getWorkspace } from '../../storage/db-store.js';
-import {
-  getAgentDeployDir,
-  getContextBundlePath,
-  getInitContextPath,
-  getManifestPath,
-} from '../../storage/db-store.js';
+import { storeContext } from '../../db/context-db.js';
 import { preflightValidate, buildPreflightFailure } from '../preflight/index.js';
 import { incrementStat } from '../session-stats.js';
 import { events } from '../../events/event-emitter.js';
@@ -482,9 +476,9 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
         }
       }
 
-      // Slim init payload by offloading bulky context to init-context.json
-      const offload = await offloadInitContextAndBuildPointers(params, initData);
-      if (offload.context_file_paths) {
+      // Slim init payload by offloading bulky context to DB
+      const offload = await offloadInitContextToDb(params, initData);
+      if (offload.stored) {
         const slimPlanState = buildSlimPlanStateSummary(params.plan_id, initData.plan_state);
         const slimWorkspaceStatus = {
           ...initData.workspace_status,
@@ -494,7 +488,7 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
 
         const slimInitData = {
           session: initData.session,
-          plan_state: slimPlanState,
+          plan_state: slimPlanState as InitialiseAgentResult['plan_state'],
           workspace_status: slimWorkspaceStatus,
           role_boundaries: initData.role_boundaries,
           validation: initData.validation,
@@ -503,14 +497,10 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
             plan_state: slimPlanState,
             workspace_status: slimWorkspaceStatus,
             role_boundaries: initData.role_boundaries,
-            validation: initData.validation,
-            context_file_paths: offload.context_file_paths
+            validation: initData.validation
           }),
-          context_file_paths: offload.context_file_paths,
-          fallback_notice: offload.fallback_notice
-        } as InitialiseAgentResult & { context_file_path?: string };
-
-        slimInitData.context_file_path = offload.context_file_paths.init_context_path;
+          context_stored: true
+        };
 
         return {
           success: validationError ? false : result.success,
@@ -520,7 +510,7 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
       }
 
       initData.fallback_notice = offload.fallback_notice ??
-        'init response could not be slimmed; returning inline context fields.';
+        'init context could not be stored to DB; returning inline context fields.';
 
       return {
         success: validationError ? false : result.success,
@@ -1706,59 +1696,22 @@ function buildSlimPlanStateSummary(planId: string | undefined, planState: unknow
   };
 }
 
-async function offloadInitContextAndBuildPointers(
+async function offloadInitContextToDb(
   params: MemoryAgentParams,
   initData: InitialiseAgentResult
-): Promise<{
-  context_file_paths: InitialiseAgentResult['context_file_paths'];
-  fallback_notice?: string;
-}> {
+): Promise<{ stored: boolean; fallback_notice?: string }> {
   if (!params.workspace_id || !params.plan_id || !params.agent_type) {
     return {
-      context_file_paths: null,
+      stored: false,
       fallback_notice: 'init offload unavailable: missing workspace_id, plan_id, or agent_type.'
     };
-  }
-
-  const workspace = await getWorkspace(params.workspace_id);
-  if (!workspace) {
-    return {
-      context_file_paths: null,
-      fallback_notice: `init offload unavailable: workspace not found (${params.workspace_id}).`
-    };
-  }
-
-  const workspacePath = workspace.workspace_path || workspace.path;
-  if (!workspacePath) {
-    return {
-      context_file_paths: null,
-      fallback_notice: 'init offload unavailable: workspace path is missing.'
-    };
-  }
-
-  const agentName = params.agent_type.toLowerCase();
-  const agentDir = getAgentDeployDir(workspacePath, agentName);
-  const initContextPath = getInitContextPath(workspacePath, agentName);
-  const contextBundlePath = getContextBundlePath(workspacePath, agentName);
-  const manifestPath = getManifestPath(workspacePath, agentName);
-  const skillsDirPath = path.join(workspacePath, '.github', 'skills');
-
-  let contextBundlePathFromManifest = contextBundlePath;
-  try {
-    const manifestRaw = await fs.readFile(manifestPath, 'utf-8');
-    const manifest = JSON.parse(manifestRaw) as { context_bundle_path?: string };
-    if (manifest.context_bundle_path) {
-      contextBundlePathFromManifest = manifest.context_bundle_path;
-    }
-  } catch {
-    // Non-fatal: manifest may not exist when init is called directly
   }
 
   const fullPlanState = await getPlanState(params.workspace_id, params.plan_id);
 
   const offloadedPayload = {
-    schema_version: '1.1',
-    written_at: new Date().toISOString(),
+    schema_version: '1.2',
+    stored_at: new Date().toISOString(),
     workspace_id: params.workspace_id,
     plan_id: params.plan_id,
     agent_type: params.agent_type,
@@ -1772,38 +1725,14 @@ async function offloadInitContextAndBuildPointers(
   };
 
   try {
-    await fs.mkdir(agentDir, { recursive: true });
-    await fs.writeFile(initContextPath, JSON.stringify(offloadedPayload, null, 2), 'utf-8');
+    storeContext('plan', params.plan_id, 'agent_init_context', offloadedPayload);
+    return { stored: true };
   } catch {
     return {
-      context_file_paths: null,
-      fallback_notice: 'init offload unavailable: failed to write init-context.json; returning inline context fields.'
+      stored: false,
+      fallback_notice: 'init context could not be stored to DB; returning inline context fields.'
     };
   }
-
-  let skillsDir: string | null = null;
-  try {
-    const stat = await fs.stat(skillsDirPath);
-    if (stat.isDirectory()) {
-      skillsDir = skillsDirPath;
-    }
-  } catch {
-    skillsDir = null;
-  }
-
-  const instructionPaths = (initData.instruction_files ?? [])
-    .map(file => file.full_path)
-    .filter((v): v is string => typeof v === 'string' && v.length > 0);
-
-  return {
-    context_file_paths: {
-      agent_dir: agentDir,
-      instruction_file_paths: instructionPaths,
-      context_bundle_path: contextBundlePathFromManifest,
-      skills_dir: skillsDir,
-      init_context_path: initContextPath
-    }
-  };
 }
 
 /**

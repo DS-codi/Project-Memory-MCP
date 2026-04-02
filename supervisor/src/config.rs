@@ -879,6 +879,20 @@ pub struct GuiServerSection {
     /// containers via `host.containers.internal`.  Set to `"127.0.0.1"` to
     /// restrict to loopback only.
     pub bind_address: String,
+    /// Extra filesystem paths the virtual monitor's file browser is allowed to
+    /// read.  Workspace paths registered in the MCP database are always included.
+    /// Defaults to empty (only workspace paths are exposed).
+    #[serde(default)]
+    pub monitor_allowed_paths: Vec<String>,
+    /// URL opened in the system browser when the "Virtual Monitor" button is
+    /// clicked in the supervisor GUI.
+    /// Defaults to the mobile Vite dev server at http://127.0.0.1:5173/monitor.
+    #[serde(default = "default_monitor_url")]
+    pub monitor_url: String,
+}
+
+fn default_monitor_url() -> String {
+    "http://127.0.0.1:5173/monitor".to_string()
 }
 
 impl Default for GuiServerSection {
@@ -887,6 +901,8 @@ impl Default for GuiServerSection {
             enabled: true,
             port: 3464,
             bind_address: "0.0.0.0".to_string(),
+            monitor_allowed_paths: Vec::new(),
+            monitor_url: default_monitor_url(),
         }
     }
 }

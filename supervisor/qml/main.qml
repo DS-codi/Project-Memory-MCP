@@ -659,6 +659,15 @@ ApplicationWindow {
             Layout.alignment: Qt.AlignRight
 
             Button {
+                text: "\u2b1c  Virtual Monitor"
+                Material.background: "#1a2a3a"
+                Material.foreground: root.textAccent
+                onClicked: Qt.openUrlExternally(supervisorGuiBridge.monitorUrl)
+                ToolTip.visible: hovered
+                ToolTip.text: supervisorGuiBridge.monitorUrl
+                ToolTip.delay: 600
+            }
+            Button {
                 text: "\u2699  Settings"
                 onClicked: settingsOverlay.visible = true
             }

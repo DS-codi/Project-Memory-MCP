@@ -114,15 +114,15 @@ export interface MemoryContextParams {
   prompt_slug?: string;
 }
 
-type ContextResult = 
-  | { action: 'store'; data: { path: string; security_warnings?: string[]; _ref?: DbRef } }
+type ContextResult =
+  | { action: 'store'; data: { security_warnings?: string[]; _ref: DbRef } }
   | { action: 'get'; data: Record<string, unknown> }
-  | { action: 'store_initial'; data: { path: string; context_summary: string; _ref?: DbRef } }
+  | { action: 'store_initial'; data: { context_summary: string; _ref: DbRef } }
   | { action: 'list'; data: string[] }
   | { action: 'list_research'; data: string[] }
-  | { action: 'append_research'; data: { path: string; sanitized: boolean; injection_attempts: string[]; warnings: string[] } }
+  | { action: 'append_research'; data: { sanitized: boolean; injection_attempts: string[]; warnings: string[] } }
   | { action: 'generate_instructions'; data: { instruction_file: AgentInstructionFile; content: string; written_to: string } }
-  | { action: 'batch_store'; data: { stored: Array<{ type: string; path: string }>; failed: Array<{ type: string; error: string }> } }
+  | { action: 'batch_store'; data: { stored: Array<{ type: string; _ref: DbRef }>; failed: Array<{ type: string; error: string }> } }
   | { action: 'workspace_get'; data: { context: WorkspaceContext; path: string } }
   | { action: 'workspace_set'; data: { context: WorkspaceContext; path: string } }
   | { action: 'workspace_update'; data: { context: WorkspaceContext; path: string } }
@@ -377,9 +377,9 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
         };
       }
       
-      const stored: Array<{ type: string; path: string }> = [];
+      const stored: Array<{ type: string; _ref: DbRef }> = [];
       const failed: Array<{ type: string; error: string }> = [];
-      
+
       for (const item of params.items) {
         const result = await contextTools.storeContext({
           workspace_id: resolvedWorkspaceId,
@@ -388,7 +388,7 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
           data: item.data
         });
         if (result.success && result.data) {
-          stored.push({ type: item.type, path: result.data.path });
+          stored.push({ type: item.type, _ref: result.data._ref });
         } else {
           failed.push({ type: item.type, error: result.error || 'Unknown error' });
         }

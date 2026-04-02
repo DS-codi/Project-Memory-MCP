@@ -1,0 +1,241 @@
+/* ── Monitor Screen ─────────────────────────────────────────────────────── */
+
+.monitor-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  width: 100vw;
+  background: #0a0d12;
+  color: #c9d1d9;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* Slim header */
+.monitor-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  background: #0f1319;
+  border-bottom: 1px solid #21262d;
+  flex-shrink: 0;
+  min-height: 36px;
+}
+
+.monitor-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: #8b949e;
+  flex: 1;
+}
+
+.monitor-restore-btn {
+  background: none;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  color: #58a6ff;
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.monitor-restore-btn:hover { background: #1c2128; }
+
+/* ── 2×2 grid ────────────────────────────────────────────────────────────── */
+
+.monitor-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 3px;
+  background: #21262d;   /* gap colour */
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* When a panel is focused, the grid holds only it (1×1). */
+.monitor-grid.has-focus {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+
+/* Portrait phone: stack into 1 column with smaller tiles */
+@media (max-width: 600px) {
+  .monitor-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(4, calc(50dvh - 18px));
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .monitor-grid.has-focus {
+    grid-template-rows: 1fr;
+    overflow-y: hidden;
+  }
+}
+
+/* Narrow landscape (phones in landscape): 2 cols, 2 rows */
+@media (max-width: 900px) and (orientation: landscape) {
+  .monitor-grid {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+}
+
+/* ── Individual panel ────────────────────────────────────────────────────── */
+
+.monitor-panel {
+  display: flex;
+  flex-direction: column;
+  background: #0d1117;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.monitor-panel.focused {
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+}
+
+/* Panel header with tabs */
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  background: #161b22;
+  border-bottom: 1px solid #21262d;
+  flex-shrink: 0;
+  min-height: 32px;
+  overflow: hidden;
+}
+
+.panel-icon {
+  font-size: 13px;
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+.panel-tabs {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+  align-items: center;
+}
+.panel-tabs::-webkit-scrollbar { display: none; }
+
+.panel-tab {
+  padding: 3px 8px;
+  font-size: 11px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #8b949e;
+  cursor: pointer;
+  white-space: nowrap;
+  border-radius: 3px 3px 0 0;
+}
+.panel-tab:hover { color: #c9d1d9; background: #1c2128; }
+.panel-tab.active {
+  color: #c9d1d9;
+  border-bottom-color: #58a6ff;
+}
+
+.panel-tab-add {
+  background: none;
+  border: 1px solid #30363d;
+  border-radius: 3px;
+  color: #8b949e;
+  width: 22px;
+  height: 22px;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.panel-tab-add:hover { color: #58a6ff; border-color: #58a6ff; }
+
+.panel-focus-btn {
+  background: none;
+  border: none;
+  color: #8b949e;
+  font-size: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 2px 4px;
+  border-radius: 3px;
+  line-height: 1;
+}
+.panel-focus-btn:hover { color: #c9d1d9; background: #1c2128; }
+
+/* Panel content fills remaining space */
+.panel-content {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  min-height: 0;
+}
+
+/* ── Terminal within panel ───────────────────────────────────────────────── */
+
+.terminal-panel-wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+}
+
+.terminal-panel-wrap .terminal-view {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Compact overlay for connecting/error state */
+.terminal-overlay-mini {
+  position: absolute;
+  inset: 0;
+  background: rgba(13, 17, 23, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #8b949e;
+}
+.terminal-overlay-mini button {
+  background: #1c2128;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  color: #58a6ff;
+  padding: 3px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+/* Spinner */
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #30363d;
+  border-top-color: #58a6ff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Iframe panel ────────────────────────────────────────────────────────── */
+
+.panel-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #fff;
+  display: block;
+}

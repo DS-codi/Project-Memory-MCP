@@ -629,6 +629,16 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
       if (!result.success) {
         return { success: false, error: result.error };
       }
+      if (Array.isArray(params.depends_on_plans) && params.depends_on_plans.length > 0) {
+        const depResult = await planTools.setPlanDependencies({
+          workspace_id: params.workspace_id,
+          plan_id: result.data!.id,
+          depends_on_plans: params.depends_on_plans
+        });
+        if (!depResult.success) {
+          return { success: false, error: `Plan created but failed to set dependencies: ${depResult.error}` };
+        }
+      }
       return {
         success: true,
         data: { action: 'create', data: result.data! }

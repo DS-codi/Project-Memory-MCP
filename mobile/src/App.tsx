@@ -8,6 +8,7 @@ const PairingScreen   = lazy(() => import("./screens/PairingScreen"));
 const DashboardScreen = lazy(() => import("./screens/DashboardScreen"));
 const ChatScreen      = lazy(() => import("./screens/ChatScreen"));
 const TerminalScreen  = lazy(() => import("./screens/TerminalScreen"));
+const MonitorScreen   = lazy(() => import("./screens/MonitorScreen"));
 
 const Loading = () => <div class="screen"><p>Loading…</p></div>;
 
@@ -26,6 +27,7 @@ export default function App() {
         <Route path="/dashboard" component={() => <AppShell><DashboardScreen /></AppShell>} />
         <Route path="/chat"      component={() => <AppShell><ChatScreen /></AppShell>} />
         <Route path="/terminal/:id" component={() => <AppShell><TerminalScreen /></AppShell>} />
+        <Route path="/monitor"      component={() => <MonitorScreen />} />
       </Suspense>
     </Router>
   );

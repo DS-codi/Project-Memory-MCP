@@ -32,7 +32,7 @@ import {
 import { getFocusedWorkspacesDir, getFocusedWorkspacePath } from '../../storage/db-store.js';
 import { events } from '../../events/event-emitter.js';
 
-export type WorkspaceAction = 'register' | 'list' | 'info' | 'reindex' | 'merge' | 'scan_ghosts' | 'migrate' | 'link' | 'set_display_name' | 'export_pending' | 'generate_focused_workspace' | 'list_focused_workspaces' | 'check_context_sync' | 'import_context_file';
+export type WorkspaceAction = 'register' | 'list' | 'info' | 'reindex' | 'merge' | 'scan_ghosts' | 'migrate' | 'link' | 'set_display_name' | 'export_pending' | 'generate_focused_workspace' | 'list_focused_workspaces' | 'check_context_sync' | 'import_context_file' | 'inject_cli_mcp';
 
 export interface MemoryWorkspaceParams {
   action: WorkspaceAction;
@@ -55,6 +55,8 @@ export interface MemoryWorkspaceParams {
   relative_path?: string;            // for import_context_file (.github-relative path)
   confirm?: boolean;                 // for import_context_file (explicit write gate)
   expected_kind?: 'agent' | 'instruction'; // for import_context_file safety check
+  all_workspaces?: boolean;          // for inject_cli_mcp: inject into all registered workspaces
+  cli_mcp_port?: number;             // for inject_cli_mcp: port override (default: PM_CLI_MCP_PORT or 3466)
 }
 
 interface ImportContextFileResult {
@@ -103,7 +105,8 @@ type WorkspaceResult =
   | { action: 'generate_focused_workspace'; data: { file_path: string; files_in_scope: string[] } }
   | { action: 'list_focused_workspaces'; data: { workspaces: Array<{ plan_id: string; file_path: string; filename: string }> } }
   | { action: 'check_context_sync'; data: WorkspaceContextSyncReport }
-  | { action: 'import_context_file'; data: ImportContextFileResult };
+  | { action: 'import_context_file'; data: ImportContextFileResult }
+  | { action: 'inject_cli_mcp'; data: { injected: Array<{ workspace_id: string; workspace_path: string; status: 'written' | 'updated' | 'skipped' | 'error'; detail?: string }>; total: number; written: number; skipped: number; errors: number } };
 
 function extractYamlFrontmatter(content: string): string | null {
   const match = content.match(/^---\s*\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
@@ -394,6 +397,141 @@ async function handleListFocusedWorkspaces(
   };
 }
 
+// ---------------------------------------------------------------------------
+// CLI MCP config injection helpers
+// ---------------------------------------------------------------------------
+
+const CLI_MCP_ENTRY_KEY = 'project-memory-cli';
+
+/**
+ * Resolve the CLI MCP port from params, env var, or default.
+ */
+function resolveCliMcpPort(override?: number): number {
+  if (override && override > 0 && override < 65536) return override;
+  const fromEnv = parseInt(process.env.PM_CLI_MCP_PORT ?? '', 10);
+  if (!isNaN(fromEnv) && fromEnv > 0 && fromEnv < 65536) return fromEnv;
+  return 3466;
+}
+
+/**
+ * Write or update `.mcp.json` at the workspace root so that Claude Code
+ * agents running inside that workspace automatically discover the CLI MCP
+ * server.  Existing entries in the file are preserved — only the
+ * `project-memory-cli` key is touched.
+ *
+ * @returns `'written'` (new file), `'updated'` (key added/port changed),
+ *          or `'skipped'` (entry already correct).
+ */
+async function injectCliMcpConfig(
+  workspacePath: string,
+  port: number,
+): Promise<'written' | 'updated' | 'skipped'> {
+  const mcpJsonPath = path.join(workspacePath, '.mcp.json');
+  const targetUrl = `http://127.0.0.1:${port}/mcp`;
+
+  let existing: Record<string, unknown> = {};
+  let fileExisted = false;
+
+  try {
+    const raw = await fs.promises.readFile(mcpJsonPath, 'utf-8');
+    existing = JSON.parse(raw) as Record<string, unknown>;
+    fileExisted = true;
+  } catch {
+    // File absent or malformed — treat as empty
+  }
+
+  const servers = (existing.mcpServers ?? {}) as Record<string, unknown>;
+  const entry = servers[CLI_MCP_ENTRY_KEY] as { url?: string } | undefined;
+
+  if (entry?.url === targetUrl) {
+    return 'skipped'; // Already correct
+  }
+
+  servers[CLI_MCP_ENTRY_KEY] = { type: 'http', url: targetUrl };
+  existing.mcpServers = servers;
+
+  await fs.promises.mkdir(workspacePath, { recursive: true });
+  await fs.promises.writeFile(mcpJsonPath, JSON.stringify(existing, null, 2) + '\n', 'utf-8');
+
+  return fileExisted ? 'updated' : 'written';
+}
+
+/**
+ * Handle the `inject_cli_mcp` action.
+ */
+async function handleInjectCliMcp(
+  params: MemoryWorkspaceParams,
+): Promise<ToolResponse<WorkspaceResult>> {
+  const port = resolveCliMcpPort(params.cli_mcp_port);
+
+  type InjectionEntry = { workspace_id: string; workspace_path: string; status: 'written' | 'updated' | 'skipped' | 'error'; detail?: string };
+  const results: InjectionEntry[] = [];
+
+  // Collect target workspaces
+  let targetWorkspaces: Array<{ id: string; path: string }> = [];
+
+  if (params.all_workspaces) {
+    const listResult = await workspaceTools.listWorkspaces();
+    if (!listResult.success) {
+      return { success: false, error: `Failed to list workspaces: ${listResult.error}` };
+    }
+    for (const ws of listResult.data ?? []) {
+      const wsPath = ws.workspace_path || (ws as unknown as { path?: string }).path;
+      if (wsPath) targetWorkspaces.push({ id: ws.workspace_id, path: wsPath });
+    }
+  } else {
+    // Single workspace — resolve via workspace_id or workspace_path
+    let wsId = params.workspace_id;
+    let wsPath = params.workspace_path;
+    if (wsId) {
+      const validated = await validateAndResolveWorkspaceId(wsId);
+      if (!validated.success) {
+        return validated.error_response as ToolResponse<WorkspaceResult>;
+      }
+      wsId = validated.workspace_id;
+      const ws = await store.getWorkspace(wsId);
+      wsPath = ws?.workspace_path || (ws as unknown as { path?: string })?.path || wsPath;
+    } else if (!wsPath) {
+      return { success: false, error: 'workspace_id or workspace_path is required for inject_cli_mcp' };
+    }
+    if (!wsPath) {
+      return { success: false, error: 'Workspace has no filesystem path' };
+    }
+    targetWorkspaces = [{ id: wsId ?? 'unknown', path: wsPath }];
+  }
+
+  if (targetWorkspaces.length === 0) {
+    return { success: false, error: 'No workspaces found to inject CLI MCP config into' };
+  }
+
+  for (const { id, path: wsPath } of targetWorkspaces) {
+    try {
+      const status = await injectCliMcpConfig(wsPath, port);
+      results.push({ workspace_id: id, workspace_path: wsPath, status });
+    } catch (err) {
+      results.push({
+        workspace_id: id,
+        workspace_path: wsPath,
+        status: 'error',
+        detail: (err as Error).message,
+      });
+    }
+  }
+
+  const written = results.filter(r => r.status === 'written').length;
+  const updated = results.filter(r => r.status === 'updated').length;
+  const skipped = results.filter(r => r.status === 'skipped').length;
+  const errors  = results.filter(r => r.status === 'error').length;
+
+  return {
+    success: true,
+    data: {
+      action: 'inject_cli_mcp',
+      data: { injected: results, total: results.length, written: written + updated, skipped, errors },
+    },
+  };
+}
+
 export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<ToolResponse<WorkspaceResult>> {
   const { action } = params;
 
@@ -423,6 +561,13 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
       const result = await workspaceTools.registerWorkspace({ workspace_path: params.workspace_path, force: params.force });
       if (!result.success) {
         return { success: false, error: result.error };
+      }
+      // Auto-inject CLI MCP config into the workspace so Claude Code agents
+      // running inside it automatically discover the CLI MCP server.
+      try {
+        await injectCliMcpConfig(params.workspace_path, resolveCliMcpPort());
+      } catch {
+        // Non-fatal — workspace may be read-only or container-mounted
       }
       const context_health = checkWorkspaceContextHealth(params.workspace_path);
       return {
@@ -967,10 +1112,13 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
       const report = checkWorkspaceDbSync(wsPath, validated.workspace_id);
       return { success: true, data: { action: 'check_context_sync', data: report } };
     }
+    case 'inject_cli_mcp':
+      return await handleInjectCliMcp(params);
+
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: register, list, info, reindex, merge, scan_ghosts, migrate, link, set_display_name, export_pending, generate_focused_workspace, list_focused_workspaces, check_context_sync, import_context_file`
+        error: `Unknown action: ${action}. Valid actions: register, list, info, reindex, merge, scan_ghosts, migrate, link, set_display_name, export_pending, generate_focused_workspace, list_focused_workspaces, check_context_sync, import_context_file, inject_cli_mcp`
       };
   }
 }

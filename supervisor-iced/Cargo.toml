@@ -1,0 +1,49 @@
+[workspace]
+
+[package]
+name = "supervisor-iced"
+version = "0.1.0"
+edition = "2021"
+description = "Project Memory Supervisor — iced UI (QML→iced port)"
+
+[[bin]]
+name = "supervisor-iced"
+path = "src/main.rs"
+
+[dependencies]
+iced = { version = "0.13", features = ["tokio", "image", "svg", "canvas"] }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+anyhow = "1"
+async-trait = "0.1"
+sysinfo = "0.29"
+clap = { version = "4", features = ["derive"] }
+reqwest = { version = "0.12", features = ["json"] }
+axum = "0.8"
+hyper-util = "0.1"
+bytes = "1"
+futures-util = { version = "0.3", default-features = false, features = ["alloc"] }
+rand = "0.8"
+uuid = { version = "1", features = ["v4"] }
+open = "5"
+mdns-sd = "0.13"
+qrcode = { version = "0.14", default-features = false, features = ["svg"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tray-icon = "0.19"
+notify-rust = "4"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_Console",
+    "Win32_Graphics_Gdi",
+    "Win32_System_Threading",
+    "Win32_System_JobObjects",
+    "Win32_Security",
+    "Win32_System_IO",
+] }

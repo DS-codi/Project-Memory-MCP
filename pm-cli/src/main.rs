@@ -1,3 +1,9 @@
+mod command_registry;
+mod fallback;
+
+use command_registry::CommandRegistry;
+use fallback::powershell::PowerShellFallback;
+
 use crossterm::{
     cursor,
     event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
@@ -102,6 +108,7 @@ const MENU_ITEMS: &[&str] = &[
 const COMPONENT_NAMES: &[&str] = &[
     "All",
     "Supervisor",
+    "SupervisorIced",
     "GuiForms",
     "InteractiveTerminal",
     "Server",
@@ -111,6 +118,7 @@ const COMPONENT_NAMES: &[&str] = &[
     "Cartographer",
     "Mobile",
     "Container",
+    "GlobalClaude",
 ];
 
 // ─── Terminal cleanup guard ───────────────────────────────────────────────────
@@ -126,6 +134,16 @@ impl Drop for TerminalGuard {
 // ─── Entry point ─────────────────────────────────────────────────────────────
 
 fn main() -> io::Result<()> {
+    // CLI dispatch mode — entered when pm-cli is invoked with arguments.
+    // run_native_streaming re-invokes this binary with a subcommand so the TUI can stream
+    // output through run_build_phase without launching the interactive UI.
+    let cli_args: Vec<String> = std::env::args().skip(1).collect();
+    if !cli_args.is_empty() {
+        let code = CommandRegistry::dispatch(&cli_args[0], &cli_args[1..]);
+        std::process::exit(code);
+    }
+
+    // TUI launcher mode
     terminal::enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, terminal::EnterAlternateScreen, cursor::Hide)?;
@@ -308,25 +326,27 @@ fn handle_action(
 ) -> io::Result<()> {
     match action {
         0 => show_install_submenu(terminal, anim_style)?,
-        1 => run_streaming_command(
-            terminal,
-            "Run Tests",
-            &["pwsh", "-NoProfile", "-File", "scripts/test.ps1"],
-            anim_style,
-        )?,
+        1 => {
+            // Test Components — PowerShell fallback (not yet ported to native)
+            let args = PowerShellFallback::build_args("scripts/test.ps1", &[]);
+            let refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+            run_streaming_command(terminal, "Run Tests", &refs, anim_style)?;
+        }
         2 => show_launch_submenu(terminal, anim_style)?,
-        3 => run_streaming_command(
-            terminal,
-            "QML Lint",
-            &["pwsh", "-NoProfile", "-File", "scripts/qmllint.ps1"],
-            anim_style,
-        )?,
-        4 => run_streaming_command(
-            terminal,
-            "Stream Output",
-            &["pwsh", "-NoProfile", "-Command", "echo 'Enter command manually in a shell'"],
-            anim_style,
-        )?,
+        3 => {
+            // Lint QML Files — PowerShell fallback (not yet ported to native)
+            let args = PowerShellFallback::build_args("scripts/qmllint.ps1", &[]);
+            let refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+            run_streaming_command(terminal, "QML Lint", &refs, anim_style)?;
+        }
+        4 => {
+            // Stream Command Output — demonstrates run_native_streaming.
+            // Once a command has a native handler in CommandRegistry, wire it here
+            // using: run_native_streaming(terminal, "label", "cmd", &[args], anim_style)
+            let args = PowerShellFallback::build_args("scripts/cli-qmllint.ps1", &["-Component", "all"]);
+            let refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+            run_streaming_command(terminal, "QML Lint (all)", &refs, anim_style)?;
+        }
         _ => {}
     }
     Ok(())
@@ -412,54 +432,6 @@ struct PhaseResult {
     err_count:  usize,
 }
 
-/// Map a component name to its ordered build phases: (phase_label, pwsh_args).
-/// Qt/Rust components get a QML lint phase then a cargo build phase.
-/// npm components get a single build phase.
-fn component_build_plan(component: &str) -> Vec<(String, Vec<String>)> {
-    fn ps(script: &str, extra: &[&str]) -> Vec<String> {
-        let mut v = vec![
-            "pwsh".to_string(),
-            "-NoProfile".to_string(),
-            "-File".to_string(),
-            script.to_string(),
-        ];
-        v.extend(extra.iter().map(|s| s.to_string()));
-        v
-    }
-    match component {
-        "Supervisor" => vec![
-            ("QML Lint".to_string(),  ps("scripts/cli-qmllint.ps1",                   &["-Component", "supervisor"])),
-            ("Rust Build".to_string(), ps("scripts/cli-build-supervisor.ps1",          &[])),
-        ],
-        "GuiForms" => vec![
-            ("QML Lint".to_string(),  ps("scripts/cli-qmllint.ps1",                   &["-Component", "guiforms"])),
-            ("Rust Build".to_string(), ps("scripts/cli-build-guiforms.ps1",            &[])),
-        ],
-        "InteractiveTerminal" => vec![
-            ("QML Lint".to_string(),  ps("scripts/cli-qmllint.ps1",                   &["-Component", "interactive-terminal"])),
-            ("Build".to_string(),     ps("scripts/cli-build-interactive-terminal.ps1", &["-NoWebEnginePlugin"])),
-        ],
-        "Server" | "FallbackServer" => vec![
-            ("Build".to_string(), ps("scripts/cli-build-server.ps1",    &[])),
-        ],
-        "Dashboard" => vec![
-            ("Build".to_string(), ps("scripts/cli-build-dashboard.ps1", &[])),
-        ],
-        "Extension" => vec![
-            ("Build".to_string(), ps("scripts/cli-build-extension.ps1", &[])),
-        ],
-        "Mobile" => vec![
-            ("Build".to_string(), ps("scripts/cli-build-mobile.ps1",    &[])),
-        ],
-        "Container" => vec![
-            ("Build".to_string(), ps("scripts/cli-build-container.ps1", &[])),
-        ],
-        "Cartographer" => vec![
-            ("Rust Build".to_string(), ps("scripts/cli-build-cartographer.ps1", &[])),
-        ],
-        _ => vec![],
-    }
-}
 
 // ─── Build / install a component ─────────────────────────────────────────────
 
@@ -472,7 +444,7 @@ fn run_build_component(
     let _ = std::fs::write("build_warnings.log", "");
 
     let sub_components: Vec<&str> = if component == "All" {
-        vec!["Supervisor", "GuiForms", "InteractiveTerminal", "Server", "Dashboard", "Extension", "Cartographer"]
+        vec!["Supervisor", "SupervisorIced", "GuiForms", "InteractiveTerminal", "Server", "Dashboard", "Extension", "Cartographer"]
     } else {
         vec![component]
     };
@@ -480,7 +452,7 @@ fn run_build_component(
     let mut results: Vec<PhaseResult> = Vec::new();
 
     for comp in &sub_components {
-        let phases = component_build_plan(comp);
+        let phases = CommandRegistry::build_phases(comp);
         for (phase_label, args) in &phases {
             let section_header = format!("{} - {}", comp, phase_label);
             let (warns, errs) = run_build_phase(terminal, &section_header, args, anim_style)?;
@@ -743,6 +715,29 @@ fn run_build_phase(
     }
     std::thread::sleep(Duration::from_millis(400));
     Ok((warn_count, err_count))
+}
+
+// ─── Native streaming helper ─────────────────────────────────────────────────
+//
+// Re-invokes this binary as a CLI command so the TUI can stream its output through
+// run_build_phase. Use this once a command has a native handler in CommandRegistry —
+// it routes through the registry instead of calling a PowerShell script directly.
+//
+// Usage (Phase 2+, after porting a command):
+//   run_native_streaming(terminal, "Supervisor — Rust Build", "install", &["supervisor"], style)
+//
+#[allow(dead_code)]
+fn run_native_streaming(
+    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    section_header: &str,
+    cmd: &str,
+    extra_args: &[&str],
+    anim_style: AnimStyle,
+) -> io::Result<(usize, usize)> {
+    let exe = std::env::current_exe()?;
+    let mut args = vec![exe.to_string_lossy().to_string(), cmd.to_string()];
+    args.extend(extra_args.iter().map(|s| s.to_string()));
+    run_build_phase(terminal, section_header, &args, anim_style)
 }
 
 // ─── Warning summary screen ───────────────────────────────────────────────────
@@ -1037,7 +1032,10 @@ fn show_launch_submenu(
                     }
                     KeyCode::Esc | KeyCode::Char('q') => return Ok(()),
                     KeyCode::Enter => match selected {
-                        0 => { run_detached(&["pwsh", "-NoProfile", "-File", "scripts/launch.ps1"]); return Ok(()); }
+                        0 => {
+                            run_detached(&PowerShellFallback::build_args("scripts/launch.ps1", &[]));
+                            return Ok(());
+                        }
                         _ => return Ok(()),
                     },
                     _ => {}
@@ -1050,8 +1048,9 @@ fn show_launch_submenu(
 
 // ─── Detached process launcher ────────────────────────────────────────────────
 
-fn run_detached(args: &[&str]) {
-    let _ = Command::new(args[0])
+fn run_detached(args: &[String]) {
+    if args.is_empty() { return; }
+    let _ = Command::new(&args[0])
         .args(&args[1..])
         .current_dir(".")
         .stdin(Stdio::null())

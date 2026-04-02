@@ -464,6 +464,97 @@ function Ensure-WorkspaceIdentityFile {
     }
 }
 
+function Check-CliMcpConfig {
+    <#
+    .SYNOPSIS
+        Ensures .mcp.json at the workspace root contains the project-memory-cli
+        entry so Claude Code agents running in that workspace automatically
+        connect to the CLI MCP server.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$WorkspaceId,
+        [Parameter(Mandatory)][string]$WorkspacePath,
+        [Parameter(Mandatory)][bool]$ApplyFixes
+    )
+
+    $cliMcpPort = if ($env:PM_CLI_MCP_PORT -and [int]::TryParse($env:PM_CLI_MCP_PORT, [ref]$null)) {
+        [int]$env:PM_CLI_MCP_PORT
+    } else { 3466 }
+
+    $mcpJsonPath = Join-Path $WorkspacePath '.mcp.json'
+    $targetUrl   = "http://127.0.0.1:${cliMcpPort}/mcp"
+    $entryKey    = 'project-memory-cli'
+
+    $script:ScannedFileCount++
+
+    # Read existing file (if any)
+    $existing = $null
+    $fileExists = Test-Path $mcpJsonPath
+    if ($fileExists) {
+        try {
+            $existing = Get-Content -Raw -Path $mcpJsonPath | ConvertFrom-Json
+        } catch {
+            Add-Finding -Type 'cli-mcp-json-invalid' -WorkspaceId $WorkspaceId -WorkspacePath $WorkspacePath `
+                -FilePath $mcpJsonPath -Message ".mcp.json exists but could not be parsed: $($_.Exception.Message)"
+            return
+        }
+    }
+
+    # Check if the entry is already correct
+    $currentUrl = $null
+    if ($existing -and $existing.PSObject.Properties['mcpServers'] -and
+        $existing.mcpServers.PSObject.Properties[$entryKey]) {
+        $currentUrl = [string]$existing.mcpServers.$entryKey.url
+    }
+
+    if ($currentUrl -eq $targetUrl) {
+        return  # Already correct — no finding needed
+    }
+
+    $action = if (-not $fileExists) { 'missing' } elseif (-not $currentUrl) { 'entry-missing' } else { 'url-stale' }
+    $msg = switch ($action) {
+        'missing'      { ".mcp.json not found. project-memory-cli entry will be missing from Claude Code's MCP server list." }
+        'entry-missing'{ ".mcp.json exists but lacks a project-memory-cli entry." }
+        'url-stale'    { ".mcp.json has project-memory-cli pointing to '$currentUrl' instead of '$targetUrl'." }
+    }
+
+    if (-not $ApplyFixes) {
+        Add-Finding -Type "cli-mcp-config-$action" -WorkspaceId $WorkspaceId -WorkspacePath $WorkspacePath `
+            -FilePath $mcpJsonPath -Message "$msg Run with -Apply to fix."
+        return
+    }
+
+    # Build the new/updated structure
+    if ($null -eq $existing) {
+        $existing = [ordered]@{}
+    }
+    if (-not $existing.PSObject.Properties['mcpServers']) {
+        $existing | Add-Member -NotePropertyName 'mcpServers' -NotePropertyValue ([ordered]@{})
+    }
+    if (-not ($existing.mcpServers -is [System.Collections.IDictionary])) {
+        # ConvertFrom-Json gives PSCustomObject; convert to ordered hashtable so we can assign keys
+        $ht = [ordered]@{}
+        foreach ($prop in $existing.mcpServers.PSObject.Properties) {
+            $ht[$prop.Name] = $prop.Value
+        }
+        $existing.mcpServers = $ht
+    }
+    $existing.mcpServers[$entryKey] = [ordered]@{ type = 'http'; url = $targetUrl }
+
+    try {
+        $json = $existing | ConvertTo-Json -Depth 10
+        Set-Content -Path $mcpJsonPath -Value $json -Encoding UTF8 -NoNewline
+        # Append newline for POSIX compliance
+        Add-Content -Path $mcpJsonPath -Value "`n" -NoNewline -Encoding UTF8
+        Add-Finding -Type "cli-mcp-config-$action" -WorkspaceId $WorkspaceId -WorkspacePath $WorkspacePath `
+            -FilePath $mcpJsonPath -Message "$msg Fixed: wrote '$targetUrl' to $mcpJsonPath" -Severity 'info' -Fixed $true
+        $script:AppliedFixCount++
+    } catch {
+        Add-Finding -Type 'cli-mcp-config-write-error' -WorkspaceId $WorkspaceId -WorkspacePath $WorkspacePath `
+            -FilePath $mcpJsonPath -Message "Failed to write .mcp.json: $($_.Exception.Message)"
+    }
+}
+
 function Scan-Workspace {
     param(
         [Parameter(Mandatory)][pscustomobject]$Workspace,
@@ -486,6 +577,8 @@ function Scan-Workspace {
     }
 
     Ensure-WorkspaceIdentityFile -WorkspaceId $workspaceId -WorkspacePath $workspacePath -ResolvedDataRoot $ResolvedDataRoot -ApplyFixes:$ApplyFixes
+
+    Check-CliMcpConfig -WorkspaceId $workspaceId -WorkspacePath $workspacePath -ApplyFixes:$ApplyFixes
 
     $settingsPath = Join-Path $workspacePath '.vscode\settings.json'
     Update-FileContentIfNeeded -FilePath $settingsPath -WorkspaceId $workspaceId -WorkspacePath $workspacePath -ApplyFixes:$ApplyFixes -CanonicalPorts $CanonicalPorts

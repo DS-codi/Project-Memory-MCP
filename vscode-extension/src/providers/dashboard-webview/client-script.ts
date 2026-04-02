@@ -48,7 +48,7 @@ export function getClientScript(params: ClientScriptParams): string {
         let workspaceId = '${workspaceId}';
         const workspaceName = '${workspaceName}';
         const icons = ${iconsJson};
-        let topLevelTab = (persistedState.topLevelTab === 'plans' || persistedState.topLevelTab === 'operations')
+        let topLevelTab = (persistedState.topLevelTab === 'plans' || persistedState.topLevelTab === 'operations' || persistedState.topLevelTab === 'sprints')
             ? persistedState.topLevelTab
             : 'dashboard';
         let alwaysProvidedNotes = typeof persistedState.alwaysProvidedNotes === 'string'
@@ -61,6 +61,13 @@ export function getClientScript(params: ClientScriptParams): string {
         let currentPlanTab = (persistedState.currentPlanTab === 'archived' || persistedState.currentPlanTab === 'programs')
             ? persistedState.currentPlanTab
             : 'active';
+        let activeSprints = [];
+        let completedSprints = [];
+        let archivedSprints = [];
+        let currentSprintTab = (persistedState.currentSprintTab === 'completed' || persistedState.currentSprintTab === 'archived')
+            ? persistedState.currentSprintTab
+            : 'active';
+        let selectedSprintId = typeof persistedState.selectedSprintId === 'string' ? persistedState.selectedSprintId : '';
         let planSortBy = (
             persistedState.planSortBy === 'recent' ||
             persistedState.planSortBy === 'title' ||
@@ -115,10 +122,12 @@ export function getClientScript(params: ClientScriptParams): string {
                     selectedPlanId = '';
                     selectedPlanWorkspaceId = '';
                     lastPlanSignature = '';
+                    selectedSprintId = '';
                     saveDashboardState();
                     if (hasRenderedDashboard) {
                         updateActionAvailability();
                         fetchPlans();
+                        fetchSprints();
                     }
                 }
             } else if (message.type === 'alwaysProvidedNotes') {
@@ -126,6 +135,11 @@ export function getClientScript(params: ClientScriptParams): string {
             } else if (message.type === 'alwaysProvidedNotesSaved') {
                 setAlwaysProvidedNotes(message.data && message.data.notes ? message.data.notes : '', { persist: true });
                 showToast('\u2714 Always-provided notes saved', 'success');
+            } else if (message.type === 'sprintCreated') {
+                showToast('\u2714 Sprint created', 'success');
+                fetchSprints();
+            } else if (message.type === 'sprintCreateError') {
+                showToast('\u274C ' + (message.data && message.data.error ? message.data.error : 'Failed to create sprint'), 'error');
             }
         });
         
@@ -149,12 +163,19 @@ export function getClientScript(params: ClientScriptParams): string {
             var target = e.target;
             var button = target.closest('button');
             if (!button) {
-                var planItem = target.closest('.plan-item');
+                var planItem = target.closest('.plan-item:not(.sprint-item)');
                 if (planItem) {
                     var clickedPlanId = planItem.getAttribute('data-plan-id');
                     var clickedWorkspaceId = planItem.getAttribute('data-workspace-id') || workspaceId;
                     if (clickedPlanId) {
                         setSelectedPlan(clickedPlanId, clickedWorkspaceId);
+                    }
+                }
+                var sprintItem = target.closest('.sprint-item');
+                if (sprintItem) {
+                    var clickedSprintId = sprintItem.getAttribute('data-sprint-id');
+                    if (clickedSprintId) {
+                        setSelectedSprint(clickedSprintId);
                     }
                 }
                 return;
@@ -169,6 +190,9 @@ export function getClientScript(params: ClientScriptParams): string {
 
             var tab = button.getAttribute('data-tab');
             if (tab) { setPlanTab(tab); return; }
+
+            var sprintTab = button.getAttribute('data-sprint-tab');
+            if (sprintTab) { setSprintTab(sprintTab); return; }
             
             var action = button.getAttribute('data-action');
             var command = button.getAttribute('data-command');
@@ -278,6 +302,10 @@ export function getClientScript(params: ClientScriptParams): string {
                         workspaceId: target ? target.workspaceId : undefined,
                     }
                 });
+            } else if (action === 'create-sprint') {
+                vscode.postMessage({ type: 'createSprint', data: { workspaceId: workspaceId } });
+            } else if (action === 'refresh-sprints') {
+                fetchSprints();
             } else if (action === 'refresh') {
                 var statusDot = document.getElementById('statusDot');
                 statusDot.className = 'status-dot loading';
@@ -330,12 +358,20 @@ export function getClientScript(params: ClientScriptParams): string {
             if (target && target.classList && target.classList.contains('search-input') && e.key === 'Enter') {
                 openSearch(target.value.trim());
             }
-            if ((e.key === 'Enter' || e.key === ' ') && target && target.classList && target.classList.contains('plan-item')) {
-                e.preventDefault();
-                var keyPlanId = target.getAttribute('data-plan-id');
-                var keyWorkspaceId = target.getAttribute('data-workspace-id') || workspaceId;
-                if (keyPlanId) {
-                    setSelectedPlan(keyPlanId, keyWorkspaceId);
+            if ((e.key === 'Enter' || e.key === ' ') && target && target.classList) {
+                if (target.classList.contains('plan-item') && !target.classList.contains('sprint-item')) {
+                    e.preventDefault();
+                    var keyPlanId = target.getAttribute('data-plan-id');
+                    var keyWorkspaceId = target.getAttribute('data-workspace-id') || workspaceId;
+                    if (keyPlanId) {
+                        setSelectedPlan(keyPlanId, keyWorkspaceId);
+                    }
+                } else if (target.classList.contains('sprint-item')) {
+                    e.preventDefault();
+                    var keySprintId = target.getAttribute('data-sprint-id');
+                    if (keySprintId) {
+                        setSelectedSprint(keySprintId);
+                    }
                 }
             }
         });
@@ -382,6 +418,7 @@ export function getClientScript(params: ClientScriptParams): string {
                     }
                     updateStatusCards(data);
                     fetchPlans();
+                    fetchSprints();
                     fetchEvents();
                     requestSkillsList();
                     requestInstructionsList();

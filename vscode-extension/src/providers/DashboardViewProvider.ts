@@ -301,6 +301,38 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                     handleDeployInstruction(this, message.data as { instructionName: string });
                     break;
 
+                case 'createSprint': {
+                    const { workspaceId: sprintWsId } = (message.data || {}) as { workspaceId?: string };
+                    const resolvedWsId = sprintWsId || this.resolveWorkspaceContext()?.workspaceId;
+                    if (!resolvedWsId) {
+                        this.postMessage({ type: 'sprintCreateError', data: { error: 'No workspace resolved.' } });
+                        break;
+                    }
+                    const sprintTitle = await vscode.window.showInputBox({
+                        prompt: 'Sprint title',
+                        placeHolder: 'Sprint 1 — e.g. MVP features',
+                        validateInput: v => v.trim() ? null : 'Title is required',
+                    });
+                    if (!sprintTitle) break;
+                    try {
+                        const port = this.getApiPort();
+                        const res = await fetch(`http://localhost:${port}/api/sprints`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ workspace_id: resolvedWsId, title: sprintTitle.trim() }),
+                        });
+                        if (res.ok) {
+                            this.postMessage({ type: 'sprintCreated' });
+                        } else {
+                            const errText = await res.text();
+                            this.postMessage({ type: 'sprintCreateError', data: { error: errText } });
+                        }
+                    } catch (err) {
+                        this.postMessage({ type: 'sprintCreateError', data: { error: String(err) } });
+                    }
+                    break;
+                }
+
                 case 'openWorkspaceFolder': {
                     const folderUri = vscode.workspace.workspaceFolders?.[0]?.uri;
                     if (folderUri) {

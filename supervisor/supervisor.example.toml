@@ -214,6 +214,26 @@ buffer_size        = 256    # tokio broadcast channel capacity
 heartbeat_interval = 30     # seconds between keep-alive pings to SSE clients
 replay_buffer_size = 100    # number of past events held for Last-Event-Id replay
 
+# ── GUI server / Virtual Monitor ─────────────────────────────────────────────
+# The supervisor GUI HTTP server (default port 3464) also hosts the file-browser
+# API used by the Virtual Monitor.  Click "Virtual Monitor" in the supervisor
+# footer to open the monitor in your default browser.
+
+[gui_server]
+# port         = 3464           # default
+# bind_address = "0.0.0.0"     # use "127.0.0.1" to restrict to loopback
+
+# URL opened when the "Virtual Monitor" button is clicked.
+# Defaults to the mobile Vite dev server.
+# monitor_url = "http://127.0.0.1:5173/monitor"
+
+# Extra filesystem paths the file browser is permitted to read.
+# Workspace paths registered in the MCP database are always included.
+# monitor_allowed_paths = [
+#   "C:\\Users\\User\\Documents",
+#   "C:\\Users\\User\\Projects",
+# ]
+
 # ── API-key authentication ────────────────────────────────────────────────────
 # The supervisor GUI HTTP server requires an API key in the X-PM-API-Key header
 # for all requests except GET /gui/ping.

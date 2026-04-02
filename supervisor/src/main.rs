@@ -908,11 +908,13 @@ async fn supervisor_main() {
                 let restart_tx_for_qt = restart_tx.clone();
                 let dashboard_url = format!("http://127.0.0.1:{}", cfg.dashboard.port);
                 let terminal_url = format!("http://127.0.0.1:{}", cfg.interactive_terminal.port);
+                let monitor_url_for_qt = cfg.gui_server.monitor_url.clone();
                 let resolved_config_path = config_path.to_string_lossy().into_owned();
                 let gui_auth_key_for_qt = cfg.auth.api_key.clone().unwrap_or_default();
                 let _ = qt.queue(move |mut obj| {
                     obj.as_mut().set_dashboard_url(cxx_qt_lib::QString::from(&dashboard_url));
                     obj.as_mut().set_terminal_url(cxx_qt_lib::QString::from(&terminal_url));
+                    obj.as_mut().set_monitor_url(cxx_qt_lib::QString::from(&monitor_url_for_qt));
                     obj.as_mut().set_gui_auth_key(cxx_qt_lib::QString::from(&gui_auth_key_for_qt));
                     obj.as_mut().rust_mut().restart_tx = Some(restart_tx_for_qt.clone());
                     obj.as_mut().rust_mut().config_path = Some(resolved_config_path.clone());
@@ -1020,8 +1022,9 @@ async fn supervisor_main() {
                 let chatbot_cfg = Arc::new(RwLock::new(chatbot_section));
                 let mcp_url = format!("http://127.0.0.1:{}", cfg.mcp.port);
                 let gui_api_key = cfg.auth.api_key.clone();
+                let monitor_allowed_paths = cfg.gui_server.monitor_allowed_paths.clone();
                 tokio::spawn(async move {
-                    if let Err(e) = supervisor::gui_server::start(&gui_bind, gui_port, fa_for_gui, chatbot_cfg, chatbot_sidecar, mcp_url, gui_api_key).await {
+                    if let Err(e) = supervisor::gui_server::start(&gui_bind, gui_port, fa_for_gui, chatbot_cfg, chatbot_sidecar, mcp_url, monitor_allowed_paths, gui_api_key).await {
                         eprintln!("[supervisor] GUI HTTP server error: {e}");
                     }
                 });
