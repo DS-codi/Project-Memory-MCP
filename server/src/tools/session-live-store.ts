@@ -39,6 +39,15 @@ const liveStore = new Map<string, LiveSessionEntry>();
 const prepToServer = new Map<string, string>();
 
 // ---------------------------------------------------------------------------
+// Instruction surfacing state (Phase 2 — Workspace-First Instructions)
+// ---------------------------------------------------------------------------
+// Tracks which (sessionId, workspaceId) pairs have already had their
+// auto_surface instructions injected in the current server process lifetime.
+// Key format: "sessionId:workspaceId"
+// In-memory only — intentionally resets on server restart (sessions are ephemeral).
+const surfacedInstructions = new Set<string>();
+
+// ---------------------------------------------------------------------------
 // Mutation helpers
 // ---------------------------------------------------------------------------
 
@@ -152,4 +161,25 @@ export function getAllLiveSessions(): Record<string, LiveSessionEntry> {
  */
 export function getLiveSessionCount(): number {
   return liveStore.size;
+}
+
+// ---------------------------------------------------------------------------
+// Instruction surfacing helpers (Phase 2 — Workspace-First Instructions)
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns true if auto_surface instructions for the given workspace have
+ * already been injected into this session's responses.
+ */
+export function hasInstructionsSurfaced(sessionId: string, workspaceId: string): boolean {
+  return surfacedInstructions.has(`${sessionId}:${workspaceId}`);
+}
+
+/**
+ * Mark that auto_surface instructions for the given workspace have been
+ * delivered to this session.  Subsequent calls to hasInstructionsSurfaced()
+ * for the same pair will return true, preventing duplicate injection.
+ */
+export function markInstructionsSurfaced(sessionId: string, workspaceId: string): void {
+  surfacedInstructions.add(`${sessionId}:${workspaceId}`);
 }

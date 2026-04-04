@@ -7,6 +7,7 @@
 
 pub mod backoff;
 pub mod job_object;
+pub mod node_runner;
 pub mod state_machine;
 
 use async_trait::async_trait;

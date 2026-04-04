@@ -63,8 +63,13 @@ $AgentsDir    = Join-Path $ClaudeDir 'agents'
 $SettingsPath = Join-Path $ClaudeDir 'settings.json'
 $SourceAgentsDir = Join-Path $Root 'agents'
 
+# CLI MCP server (supervisor-iced, port 3466) — primary for Claude Code CLI
 $McpServerName = 'project-memory-cli'
 $McpServerUrl  = 'http://127.0.0.1:3466/mcp'
+
+# Main MCP server (supervisor-iced main port 3457) — mirrors VS Code config
+$McpServerNameMain = 'project-memory'
+$McpServerUrlMain  = 'http://127.0.0.1:3457/mcp'
 
 $AllowlistTools = @(
     'mcp__project-memory-cli__memory_agent',
@@ -79,7 +84,20 @@ $AllowlistTools = @(
     'mcp__project-memory-cli__memory_instructions',
     'mcp__project-memory-cli__memory_sprint',
     'mcp__project-memory-cli__memory_terminal',
-    'mcp__project-memory-cli__memory_task'
+    'mcp__project-memory-cli__memory_task',
+    'mcp__project-memory__memory_agent',
+    'mcp__project-memory__memory_plan',
+    'mcp__project-memory__memory_session',
+    'mcp__project-memory__memory_filesystem',
+    'mcp__project-memory__memory_steps',
+    'mcp__project-memory__memory_workspace',
+    'mcp__project-memory__memory_context',
+    'mcp__project-memory__memory_cartographer',
+    'mcp__project-memory__memory_brainstorm',
+    'mcp__project-memory__memory_instructions',
+    'mcp__project-memory__memory_sprint',
+    'mcp__project-memory__memory_terminal',
+    'mcp__project-memory__memory_task'
 )
 
 $AgentFiles = @(
@@ -159,15 +177,24 @@ if (-not ($settings.PSObject.Properties.Name -contains 'mcpServers')) {
     $settings | Add-Member -NotePropertyName 'mcpServers' -NotePropertyValue ([PSCustomObject]@{})
 }
 
-$existing = $settings.mcpServers.PSObject.Properties[$McpServerName]
-if ($existing -and $existing.Value.url -eq $McpServerUrl) {
-    Write-Skip "$McpServerName already registered at $McpServerUrl"
-} else {
-    $serverEntry = [PSCustomObject]@{ type = 'http'; url = $McpServerUrl }
-    $settings.mcpServers | Add-Member -NotePropertyName $McpServerName -NotePropertyValue $serverEntry -Force
-    Write-JsonFile $SettingsPath $settings
-    Write-Ok "Registered $McpServerName -> $McpServerUrl"
+$serversToRegister = @(
+    [PSCustomObject]@{ Name = $McpServerName;     Url = $McpServerUrl }
+    [PSCustomObject]@{ Name = $McpServerNameMain; Url = $McpServerUrlMain }
+)
+
+$anyWritten = $false
+foreach ($srv in $serversToRegister) {
+    $ex = $settings.mcpServers.PSObject.Properties[$srv.Name]
+    if ($ex -and $ex.Value.url -eq $srv.Url) {
+        Write-Skip "$($srv.Name) already registered at $($srv.Url)"
+    } else {
+        $entry = [PSCustomObject]@{ type = 'http'; url = $srv.Url }
+        $settings.mcpServers | Add-Member -NotePropertyName $srv.Name -NotePropertyValue $entry -Force
+        Write-Ok "Registered $($srv.Name) -> $($srv.Url)"
+        $anyWritten = $true
+    }
 }
+if ($anyWritten) { Write-JsonFile $SettingsPath $settings }
 
 # ── Step 3: Add MCP tool permissions to allowlist ----------------------------
 

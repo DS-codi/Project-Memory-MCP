@@ -37,6 +37,9 @@ data/
 /target/
 interactive-terminal/target/
 
+# Compiled binaries
+*.exe
+
 # Playwright
 e2e-report/
 playwright-report/

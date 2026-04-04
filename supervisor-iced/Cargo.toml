@@ -1,5 +1,3 @@
-[workspace]
-
 [package]
 name = "supervisor-iced"
 version = "0.1.0"

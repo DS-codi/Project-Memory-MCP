@@ -10,6 +10,28 @@ use crate::app_state::AppState;
 use super::{theme, sprints_panel};
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Shared tab button style
+// ─────────────────────────────────────────────────────────────────────────────
+fn tab_btn_style(active: bool) -> impl Fn(&iced::Theme, iced::widget::button::Status) -> iced::widget::button::Style {
+    move |_theme, _status| {
+        iced::widget::button::Style {
+            background: Some(Background::Color(if active {
+                Color::from_rgb8(0x1c, 0x21, 0x28)
+            } else {
+                Color::TRANSPARENT
+            })),
+            text_color: if active { theme::TEXT_PRIMARY } else { theme::TEXT_SECONDARY },
+            border: Border {
+                color: if active { theme::CLR_BLUE } else { Color::TRANSPARENT },
+                width: 0.0,
+                radius: 4.0.into(),
+            },
+            ..Default::default()
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Public API
 // ─────────────────────────────────────────────────────────────────────────────
 #[allow(clippy::too_many_arguments)]
@@ -101,25 +123,6 @@ where
     .width(Length::Fill);
 
     // ── Main tab bar: Plans / Sprints ─────────────────────────────────────────
-    fn tab_btn_style(active: bool) -> impl Fn(&iced::Theme, iced::widget::button::Status) -> iced::widget::button::Style {
-        move |_theme, _status| {
-            iced::widget::button::Style {
-                background: Some(Background::Color(if active {
-                    Color::from_rgb8(0x1c, 0x21, 0x28)
-                } else {
-                    Color::TRANSPARENT
-                })),
-                text_color: if active { theme::TEXT_PRIMARY } else { theme::TEXT_SECONDARY },
-                border: Border {
-                    color: if active { theme::CLR_BLUE } else { Color::TRANSPARENT },
-                    width: if active { 0.0 } else { 0.0 },
-                    radius: 4.0.into(),
-                },
-                ..Default::default()
-            }
-        }
-    }
-
     let main_tabs = row![
         button(text("Plans").size(11))
             .on_press(on_main_tab_plans)
@@ -225,9 +228,11 @@ where
     let tabs = row![
         button(text("Active").size(11))
             .on_press(on_tab_active)
+            .style(tab_btn_style(state.plans_tab == 0))
             .padding(Padding::from([3, 8])),
         button(text("All Plans").size(11))
             .on_press(on_tab_all)
+            .style(tab_btn_style(state.plans_tab == 1))
             .padding(Padding::from([3, 8])),
     ]
     .spacing(0)

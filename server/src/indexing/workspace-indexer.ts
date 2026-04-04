@@ -10,8 +10,9 @@
  * - Coding conventions detection
  */
 
-import { readdir, stat, readFile } from 'fs/promises';
-import { join, extname, basename } from 'path';
+import { readdir, stat, readFile, access } from 'fs/promises';
+import { join, extname, basename, relative } from 'path';
+import { storeAgent } from '../db/agent-definition-db.js';
 import type { 
   WorkspaceProfile, 
   LanguageInfo, 
@@ -326,6 +327,58 @@ export async function indexWorkspace(workspacePath: string): Promise<WorkspacePr
     total_files: totalFiles,
     total_lines: totalLines
   };
+}
+
+// =============================================================================
+// Agent File Scanner
+// =============================================================================
+
+/**
+ * Scans known agent file locations relative to the workspace root and stores
+ * each discovered `.agent.md` file via storeAgent().
+ *
+ * Scanned directories:
+ *   1. {workspacePath}/.github/*.agent.md
+ *   2. {workspacePath}/agents/*.agent.md
+ *   3. {workspacePath}/.github/agents/*.agent.md
+ */
+export async function scanAgentFiles(workspacePath: string): Promise<void> {
+  const agentDirs = [
+    join(workspacePath, '.github'),
+    join(workspacePath, 'agents'),
+    join(workspacePath, '.github', 'agents'),
+  ];
+
+  for (const dir of agentDirs) {
+    try {
+      await access(dir);
+    } catch {
+      // Directory does not exist — skip
+      continue;
+    }
+
+    let entries: string[];
+    try {
+      entries = await readdir(dir);
+    } catch {
+      continue;
+    }
+
+    for (const entry of entries) {
+      if (!entry.endsWith('.agent.md')) continue;
+
+      const fullPath = join(dir, entry);
+      const relativePath = relative(workspacePath, fullPath).replace(/\\/g, '/');
+
+      try {
+        const content = await readFile(fullPath, 'utf-8');
+        // Use the relative path as the agent name so it is unique and traceable
+        storeAgent(relativePath, content);
+      } catch {
+        // Unreadable file — skip silently
+      }
+    }
+  }
 }
 
 /**

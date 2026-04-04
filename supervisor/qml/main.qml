@@ -601,6 +601,18 @@ ApplicationWindow {
                     }
                 }
 
+                // ── MY SESSIONS ────────────────────────────────────────────────
+                Label {
+                    text: "MY SESSIONS"
+                    font.pixelSize: 10; font.letterSpacing: 1.0
+                    color: root.textSecondary
+                }
+
+                SessionsDashboardPanel {
+                    mcpBaseUrl: root.mcpBaseUrl
+                    mcpPort:    supervisorGuiBridge.mcpPort
+                }
+
                 // ── WORKSPACE CARTOGRAPHER + MCP PROXY + EVENTS ──────────────
                 RowLayout {
                     Layout.fillWidth: true

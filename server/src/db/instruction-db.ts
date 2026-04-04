@@ -212,3 +212,60 @@ export function getWorkspaceInstructionsWithContent(
     [workspaceId]
   );
 }
+
+// ---------------------------------------------------------------------------
+// Priority / auto-surface (added by Phase 2 migration 013-instruction-priority)
+// ---------------------------------------------------------------------------
+
+/**
+ * Return all instructions assigned to `workspaceId` that have auto_surface = 1
+ * on either the workspace assignment row or the instruction file itself.
+ * Includes full content — these are injected into the first tool response per session.
+ */
+export function getAutoSurfaceInstructions(workspaceId: string): Array<{
+  filename: string;
+  content: string;
+  priority: string;
+}> {
+  return queryAll<{ filename: string; content: string; priority: string }>(
+    `SELECT i.filename, i.content,
+            COALESCE(a.priority, i.priority, 'normal') AS priority
+       FROM instruction_files i
+       JOIN workspace_instruction_assignments a ON i.filename = a.filename
+      WHERE a.workspace_id = ?
+        AND (a.auto_surface = 1 OR i.auto_surface = 1)
+      ORDER BY i.filename`,
+    [workspaceId]
+  );
+}
+
+/**
+ * Update the priority and auto_surface flags for an instruction.
+ *
+ * If `workspaceId` is provided, updates the workspace_instruction_assignments row
+ * for that specific (workspaceId, filename) pair.
+ * Otherwise updates the instruction_files row directly (global default).
+ */
+export function setInstructionAutoSurface(
+  filename: string,
+  priority: 'normal' | 'critical',
+  autoSurface: boolean,
+  workspaceId?: string
+): void {
+  const autoSurfaceInt = autoSurface ? 1 : 0;
+  if (workspaceId) {
+    run(
+      `UPDATE workspace_instruction_assignments
+          SET priority = ?, auto_surface = ?
+        WHERE workspace_id = ? AND filename = ?`,
+      [priority, autoSurfaceInt, workspaceId, filename]
+    );
+  } else {
+    run(
+      `UPDATE instruction_files
+          SET priority = ?, auto_surface = ?
+        WHERE LOWER(filename) = ?`,
+      [priority, autoSurfaceInt, filename.toLowerCase()]
+    );
+  }
+}

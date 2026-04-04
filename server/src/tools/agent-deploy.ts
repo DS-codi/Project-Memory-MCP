@@ -197,8 +197,11 @@ export async function buildContextBundle(
     && params.allow_legacy_always_on === true
     && compatFallbackAllowed;
 
+  // allow_ambient_instruction_scan=true is sufficient on its own — the caller
+  // has explicitly opted in, so compat mode is not required.  The compat path
+  // (legacyAlwaysOnAllowed / compatFallbackAllowed) remains as an alternative.
   const ambientInstructionFallbackAllowed = legacyAlwaysOnAllowed
-    || (params.allow_ambient_instruction_scan === true && compatFallbackAllowed);
+    || params.allow_ambient_instruction_scan === true;
 
   const ambientSkillFallbackAllowed = legacyAlwaysOnAllowed
     || (params.allow_include_skills_all === true && compatFallbackAllowed);

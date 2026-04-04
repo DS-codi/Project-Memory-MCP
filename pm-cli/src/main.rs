@@ -1,5 +1,8 @@
+mod builds;
 mod command_registry;
 mod fallback;
+mod global_claude;
+mod install_config;
 
 use command_registry::CommandRegistry;
 use fallback::powershell::PowerShellFallback;
@@ -12,7 +15,7 @@ use crossterm::{
 };
 use ratatui::{
     backend::CrosstermBackend,
-    layout::{Constraint, Rect},
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Cell, Clear, Gauge, Paragraph, Row, Table},
@@ -144,6 +147,8 @@ fn main() -> io::Result<()> {
     }
 
     // TUI launcher mode
+    let _config = install_config::load_or_prompt();
+
     terminal::enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, terminal::EnterAlternateScreen, cursor::Hide)?;
@@ -223,7 +228,7 @@ fn render_banner_with_palette(
         })
         .collect();
 
-    let area = f.size();
+    let area = f.area();
     let banner_area = Rect::new(0, 0, area.width, area.height.min(BANNER.len() as u16));
     f.render_widget(Paragraph::new(banner_lines), banner_area);
 }
@@ -244,9 +249,9 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<
     loop {
         let style = anim_style;
         terminal.draw(|f| {
-            f.render_widget(Clear, f.size());
+            f.render_widget(Clear, f.area());
             render_animated_banner(f, tick, style);
-            let area = f.size();
+            let area = f.area();
 
             // Menu items
             if area.height > MENU_Y {
@@ -362,13 +367,15 @@ fn show_install_submenu(
     let mut tick: f64 = 0.0;
     let tick_rate = Duration::from_millis(40);
     let mut last_tick = Instant::now();
+    let mut install_cfg = install_config::load_or_default();
 
     loop {
         let style = anim_style;
+        let dir_str = install_cfg.install_dir.display().to_string();
         terminal.draw(|f| {
-            f.render_widget(Clear, f.size());
+            f.render_widget(Clear, f.area());
             render_banner_with_palette(f, tick, &PALETTE_DEFAULT, style);
-            let area = f.size();
+            let area = f.area();
 
             if area.height > MENU_Y {
                 let items: Vec<Line> = COMPONENT_NAMES
@@ -377,11 +384,11 @@ fn show_install_submenu(
                     .map(|(i, &name)| {
                         if i == selected {
                             Line::from(Span::styled(
-                                format!("> Install: {}", name),
+                                format!("> Build & Install: {}", name),
                                 Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
                             ))
                         } else {
-                            Line::from(format!("  Install: {}", name))
+                            Line::from(format!("  Build & Install: {}", name))
                         }
                     })
                     .collect();
@@ -390,11 +397,19 @@ fn show_install_submenu(
                     Rect::new(2, MENU_Y, area.width.saturating_sub(4), COMPONENT_NAMES.len() as u16),
                 );
             }
-            if area.height > STATUS_Y + 2 {
+            if area.height > STATUS_Y + 1 {
                 f.render_widget(
-                    Paragraph::new("  Arrows / Enter to install · Esc to go back")
-                        .style(Style::default().fg(Color::DarkGray)),
-                    Rect::new(0, STATUS_Y, area.width, 1),
+                    Paragraph::new(vec![
+                        Line::from(Span::styled(
+                            format!("  Install dir: {}", dir_str),
+                            Style::default().fg(Color::Cyan),
+                        )),
+                        Line::from(Span::styled(
+                            "  Enter build · D change dir · Esc back",
+                            Style::default().fg(Color::DarkGray),
+                        )),
+                    ]),
+                    Rect::new(0, STATUS_Y, area.width, 2),
                 );
             }
         })?;
@@ -411,15 +426,104 @@ fn show_install_submenu(
                         selected = (selected + 1) % COMPONENT_NAMES.len();
                     }
                     KeyCode::Esc | KeyCode::Char('q') => return Ok(()),
+                    KeyCode::Char('d') | KeyCode::Char('D') => {
+                        // Leave TUI, open the directory picker, re-enter TUI.
+                        let _ = terminal::disable_raw_mode();
+                        let _ = execute!(io::stdout(), terminal::LeaveAlternateScreen, cursor::Show);
+                        if let Some(new_dir) = install_config::prompt_install_dir(&install_cfg.install_dir) {
+                            install_cfg.install_dir = new_dir;
+                            let _ = install_config::save_config(&install_cfg);
+                        }
+                        let _ = terminal::enable_raw_mode();
+                        let _ = execute!(io::stdout(), terminal::EnterAlternateScreen, cursor::Hide);
+                        let _ = terminal.clear();
+                    }
                     KeyCode::Enter => {
                         let component = COMPONENT_NAMES[selected];
                         run_build_component(terminal, component, anim_style)?;
+                        // After build completes, offer deploy to install_dir.
+                        run_deploy_after_build(terminal, component, &install_cfg, anim_style)?;
+                        let _ = terminal.clear();
                     }
                     _ => {}
                 }
             }
         }
         if last_tick.elapsed() >= tick_rate { last_tick = Instant::now(); }
+    }
+}
+
+// ─── Deploy confirmation after build ─────────────────────────────────────────
+
+fn run_deploy_after_build(
+    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    component: &str,
+    config: &install_config::InstallConfig,
+    anim_style: AnimStyle,
+) -> io::Result<()> {
+    let dir = config.install_dir.display().to_string();
+    let mut tick: f64 = 0.0;
+    let tick_rate = Duration::from_millis(40);
+    let mut last_tick = Instant::now();
+
+    loop {
+        let style = anim_style;
+        let comp = component.to_string();
+        let d = dir.clone();
+        terminal.draw(|f| {
+            f.render_widget(Clear, f.area());
+            render_banner_with_palette(f, tick, &PALETTE_SUCCESS, style);
+            let area = f.area();
+            let start_y = BANNER.len() as u16 + 1;
+            if area.height > start_y + 3 {
+                f.render_widget(
+                    Paragraph::new(vec![
+                        Line::from(Span::styled(
+                            format!("  Deploy {} to install directory?", comp),
+                            Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
+                        )),
+                        Line::from(Span::styled(
+                            format!("  → {}", d),
+                            Style::default().fg(Color::Cyan),
+                        )),
+                        Line::from(""),
+                        Line::from(Span::styled(
+                            "  Y deploy   N skip   Esc skip",
+                            Style::default().fg(Color::DarkGray),
+                        )),
+                    ]),
+                    Rect::new(0, start_y, area.width, area.height.saturating_sub(start_y)),
+                );
+            }
+        })?;
+
+        tick += 1.0;
+        if last_tick.elapsed() >= tick_rate { last_tick = Instant::now(); }
+
+        if event::poll(Duration::from_millis(5))? {
+            if let Event::Key(KeyEvent { code, kind: KeyEventKind::Press, .. }) = event::read()? {
+                match code {
+                    KeyCode::Char('y') | KeyCode::Char('Y') | KeyCode::Enter => {
+                        // Leave TUI to print deploy output, then re-enter.
+                        let _ = terminal::disable_raw_mode();
+                        let _ = execute!(io::stdout(), terminal::LeaveAlternateScreen, cursor::Show);
+                        println!("\nDeploying {} to {} ...", component, config.install_dir.display());
+                        match install_config::deploy(component, Some(&config.install_dir)) {
+                            Ok(()) => println!("\n  Deploy complete."),
+                            Err(e) => println!("\n  Deploy failed: {e}"),
+                        }
+                        println!("\n  Press Enter to return...");
+                        let _ = io::stdout().flush();
+                        let _ = io::stdin().read_line(&mut String::new());
+                        let _ = terminal::enable_raw_mode();
+                        let _ = execute!(io::stdout(), terminal::EnterAlternateScreen, cursor::Hide);
+                        return Ok(());
+                    }
+                    KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => return Ok(()),
+                    _ => {}
+                }
+            }
+        }
     }
 }
 
@@ -560,10 +664,15 @@ fn run_build_phase(
                 let is_fp = tl.contains("no warning")
                     || tl.contains("0 warning")
                     || tl.contains("no error");
+                // Count diagnostics (header lines only).
                 if is_diag && !is_fp {
                     if tl.starts_with("error") || is_tsc_err { err_count += 1; }
                     else if tl.starts_with("warning") || is_tsc_warn { warn_count += 1; }
-                    let _ = writeln!(log_file, "{}", line.trim());
+                }
+                // Write ALL non-empty output to the log so multi-line context
+                // (code snippets, | lines, = note: annotations) is fully captured.
+                if !line.trim().is_empty() {
+                    let _ = writeln!(log_file, "{}", line);
                 }
 
                 // Live output ring-buffer (6 lines)
@@ -603,9 +712,9 @@ fn run_build_phase(
         let hdr = format!("  \u{25b6} {}   \u{23f1} {}", section_header, elapsed_str);
 
         terminal.draw(|f| {
-            f.render_widget(Clear, f.size());
+            f.render_widget(Clear, f.area());
             render_banner_with_palette(f, tick, &PALETTE_DEFAULT, style);
-            let area = f.size();
+            let area = f.area();
             let start_y = BANNER.len() as u16 + 1;
 
             // ── Header ──────────────────────────────────────────────
@@ -763,10 +872,20 @@ fn show_warning_summary(
         let style = anim_style;
 
         terminal.draw(|f| {
-            f.render_widget(Clear, f.size());
+            f.render_widget(Clear, f.area());
             render_banner_with_palette(f, tick, p, style);
-            let area = f.size();
-            let start_y = BANNER.len() as u16 + 1;
+            let area = f.area();
+
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .margin(0)
+                .constraints([
+                    Constraint::Length(BANNER.len() as u16 + 1), // Banner + spacing
+                    Constraint::Length(1),                       // Header
+                    Constraint::Min(5),                          // Table
+                    Constraint::Length(1),                       // Footer
+                ])
+                .split(area);
 
             let header_text = if has_error {
                 "  Build finished with ERRORS"
@@ -779,58 +898,51 @@ fn show_warning_summary(
                               else if total > 0 { Color::Yellow }
                               else { Color::LightGreen };
 
-            if area.height > start_y {
-                f.render_widget(
-                    Paragraph::new(header_text)
-                        .style(Style::default().fg(header_col).add_modifier(Modifier::BOLD)),
-                    Rect::new(0, start_y, area.width, 1),
-                );
-            }
+            f.render_widget(
+                Paragraph::new(header_text)
+                    .style(Style::default().fg(header_col).add_modifier(Modifier::BOLD)),
+                chunks[1],
+            );
 
             // 4-column table: Component | Phase | Warns | Errors
-            let table_y = start_y + 2;
-            if area.height > table_y + 2 {
-                let header_row = Row::new(vec![
-                    Cell::from("Component").style(Style::default().add_modifier(Modifier::BOLD)),
-                    Cell::from("Phase").style(Style::default().add_modifier(Modifier::BOLD)),
-                    Cell::from("Warns").style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-                    Cell::from("Errors").style(Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
-                ]).height(1);
+            let header_row = Row::new(vec![
+                Cell::from("Component").style(Style::default().add_modifier(Modifier::BOLD)),
+                Cell::from("Phase").style(Style::default().add_modifier(Modifier::BOLD)),
+                Cell::from("Warns").style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                Cell::from("Errors").style(Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
+            ]).height(1);
 
-                let rows: Vec<Row> = results.iter().map(|r| {
-                    let ws = if r.warn_count > 0 { Style::default().fg(Color::Yellow) }
-                             else { Style::default().fg(Color::DarkGray) };
-                    let es = if r.err_count > 0 { Style::default().fg(Color::LightRed) }
-                             else { Style::default().fg(Color::DarkGray) };
-                    Row::new(vec![
-                        Cell::from(r.component.clone()),
-                        Cell::from(r.phase.clone()),
-                        Cell::from(r.warn_count.to_string()).style(ws),
-                        Cell::from(r.err_count.to_string()).style(es),
-                    ])
-                }).collect();
+            let rows: Vec<Row> = results.iter().map(|r| {
+                let ws = if r.warn_count > 0 { Style::default().fg(Color::Yellow) }
+                         else { Style::default().fg(Color::DarkGray) };
+                let es = if r.err_count > 0 { Style::default().fg(Color::LightRed) }
+                         else { Style::default().fg(Color::DarkGray) };
+                Row::new(vec![
+                    Cell::from(r.component.clone()),
+                    Cell::from(r.phase.clone()),
+                    Cell::from(r.warn_count.to_string()).style(ws),
+                    Cell::from(r.err_count.to_string()).style(es),
+                ])
+            }).collect();
 
-                let table_h = (results.len() as u16 + 3).min(area.height.saturating_sub(table_y + 3));
-                let table = Table::new(
-                    rows,
-                    [
-                        Constraint::Percentage(32),
-                        Constraint::Percentage(30),
-                        Constraint::Percentage(18),
-                        Constraint::Percentage(20),
-                    ],
-                )
-                .header(header_row)
-                .block(Block::default().title(" Build Summary ").borders(Borders::ALL));
+            let table = Table::new(
+                rows,
+                [
+                    Constraint::Percentage(32),
+                    Constraint::Percentage(30),
+                    Constraint::Percentage(18),
+                    Constraint::Percentage(20),
+                ],
+            )
+            .header(header_row)
+            .block(Block::default().title(" Build Summary ").borders(Borders::ALL));
 
-                f.render_widget(table, Rect::new(0, table_y, area.width, table_h));
-            }
+            f.render_widget(table, chunks[2]);
 
-            let footer_y = area.height.saturating_sub(1);
             f.render_widget(
-                Paragraph::new("  C copy diagnostic log  .  Esc / Enter return")
+                Paragraph::new("  C copy to clipboard  S save to file  Esc / Enter return")
                     .style(Style::default().fg(Color::DarkGray)),
-                Rect::new(0, footer_y, area.width, 1),
+                chunks[3],
             );
         })?;
 
@@ -842,6 +954,25 @@ fn show_warning_summary(
                 match code {
                     KeyCode::Char('c') | KeyCode::Char('C') => {
                         let _ = copy_to_clipboard(&warning_log);
+                    }
+                    KeyCode::Char('s') | KeyCode::Char('S') => {
+                        // Leave TUI, ask for a path, save, re-enter.
+                        let _ = terminal::disable_raw_mode();
+                        let _ = execute!(io::stdout(), terminal::LeaveAlternateScreen, cursor::Show);
+                        print!("Save log to [build_errors.log]: ");
+                        let _ = io::stdout().flush();
+                        let mut path_buf = String::new();
+                        let _ = io::stdin().read_line(&mut path_buf);
+                        let save_path = path_buf.trim();
+                        let save_path = if save_path.is_empty() { "build_errors.log" } else { save_path };
+                        match std::fs::write(save_path, &warning_log) {
+                            Ok(())  => println!("Saved {} bytes to {}", warning_log.len(), save_path),
+                            Err(e)  => println!("Error saving log: {e}"),
+                        }
+                        std::thread::sleep(Duration::from_millis(1500));
+                        let _ = terminal::enable_raw_mode();
+                        let _ = execute!(io::stdout(), terminal::EnterAlternateScreen, cursor::Hide);
+                        let _ = terminal.clear();
                     }
                     KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q') => return Ok(()),
                     _ => {}
@@ -889,8 +1020,8 @@ fn run_streaming_command(
         let bt = box_title.clone();
         let style = anim_style;
         terminal.draw(|f| {
-            f.render_widget(Clear, f.size());
-            let area = f.size();
+            f.render_widget(Clear, f.area());
+            let area = f.area();
             // Mini 4-row banner at top
             let mini_rows = 4u16.min(area.height);
             let mini_lines: Vec<Line> = BANNER[..mini_rows as usize]
@@ -994,9 +1125,9 @@ fn show_launch_submenu(
     loop {
         let style = anim_style;
         terminal.draw(|f| {
-            f.render_widget(Clear, f.size());
+            f.render_widget(Clear, f.area());
             render_animated_banner(f, tick, style);
-            let area = f.size();
+            let area = f.area();
             if area.height > MENU_Y {
                 let items: Vec<Line> = LAUNCH_ITEMS
                     .iter()

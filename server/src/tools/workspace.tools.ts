@@ -25,7 +25,7 @@ import type {
   WorkspaceOverlapInfo
 } from '../types/index.js';
 import * as store from '../storage/db-store.js';
-import { indexWorkspace, needsIndexing } from '../indexing/workspace-indexer.js';
+import { indexWorkspace, needsIndexing, scanAgentFiles } from '../indexing/workspace-indexer.js';
 import type { WorkspaceMigrationReport } from '../storage/db-store.js';
 import { buildWorkspaceContextSectionsFromProfile } from '../utils/workspace-context-seed.js';
 
@@ -114,6 +114,13 @@ export async function registerWorkspace(
     // Auto-populate workspace context on first registration when we have a profile
     if (isFirstTime && profile) {
       await seedWorkspaceContext(meta.workspace_id, workspace_path, meta.name, profile);
+    }
+
+    // Scan and store agent definition files from known agent directories
+    try {
+      await scanAgentFiles(workspace_path);
+    } catch {
+      // Non-fatal — agent scanning failure should not block workspace registration
     }
 
     // Keep workspace-registry.json in sync so the interactive terminal can
@@ -295,16 +302,23 @@ export async function reindexWorkspace(
     workspace.last_accessed = store.nowISO();
     await store.saveWorkspace(workspace);
     
+    // Scan and store agent definition files from known agent directories
+    try {
+      await scanAgentFiles(workspace.path);
+    } catch {
+      // Non-fatal — agent scanning failure should not block reindex
+    }
+
     // Calculate changes
     const changes = {
-      languages_changed: JSON.stringify(previousProfile?.languages?.map(l => l.name).sort()) !== 
+      languages_changed: JSON.stringify(previousProfile?.languages?.map(l => l.name).sort()) !==
                          JSON.stringify(newProfile.languages.map(l => l.name).sort()),
-      frameworks_changed: JSON.stringify(previousProfile?.frameworks?.sort()) !== 
+      frameworks_changed: JSON.stringify(previousProfile?.frameworks?.sort()) !==
                           JSON.stringify(newProfile.frameworks.sort()),
       files_delta: newProfile.total_files - (previousProfile?.total_files ?? 0),
       lines_delta: newProfile.total_lines - (previousProfile?.total_lines ?? 0)
     };
-    
+
     return {
       success: true,
       data: {

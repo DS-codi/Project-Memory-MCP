@@ -1,0 +1,179 @@
+
+=== Supervisor - QML Lint ===
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\supervisor\qml\main.qml:677:69: Member "monitorUrl" not found on type "SupervisorGuiBridge" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\supervisor\qml\main.qml:679:51: Member "monitorUrl" not found on type "SupervisorGuiBridge" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\supervisor\qml\SessionsDashboardPanel.qml:731:48: Detected width on an item that is managed by a layout. This is undefined behavior; use implicitWidth or Layout.preferredWidth instead. [Quick.layout-positioning]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\supervisor\qml\SessionsDashboardPanel.qml:731:59: Detected height on an item that is managed by a layout. This is undefined behavior; use implictHeight or Layout.preferredHeight instead. [Quick.layout-positioning]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\supervisor\qml\SessionsDashboardPanel.qml:446:44: Detected width on an item that is managed by a layout. This is undefined behavior; use implicitWidth or Layout.preferredWidth instead. [Quick.layout-positioning]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\supervisor\qml\SessionsDashboardPanel.qml:446:56: Detected height on an item that is managed by a layout. This is undefined behavior; use implictHeight or Layout.preferredHeight instead. [Quick.layout-positioning]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\supervisor\qml\SessionsDashboardPanel.qml:373:28: Detected width on an item that is managed by a layout. This is undefined behavior; use implicitWidth or Layout.preferredWidth instead. [Quick.layout-positioning]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\supervisor\qml\SessionsDashboardPanel.qml:373:40: Detected height on an item that is managed by a layout. This is undefined behavior; use implictHeight or Layout.preferredHeight instead. [Quick.layout-positioning]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\supervisor\qml\SessionsDashboardPanel.qml:271:49: Detected height on an item that is managed by a layout. This is undefined behavior; use implictHeight or Layout.preferredHeight instead. [Quick.layout-positioning]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\supervisor\qml\SessionsDashboardPanel.qml:254:49: Detected height on an item that is managed by a layout. This is undefined behavior; use implictHeight or Layout.preferredHeight instead. [Quick.layout-positioning]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\supervisor\qml\SessionsDashboardPanel.qml:237:49: Detected height on an item that is managed by a layout. This is undefined behavior; use implictHeight or Layout.preferredHeight instead. [Quick.layout-positioning]
+  qmllint result: 11 warning(s), 0 errors
+
+=== Supervisor - Rust Build ===
+   Compiling thiserror v1.0.69
+   Compiling thiserror-impl v1.0.69
+   Compiling serde_path_to_error v0.1.20
+
+=== SupervisorIced - Rust Build ===
+   Compiling thiserror-impl v1.0.69
+   Compiling thiserror v1.0.69
+   Compiling thiserror v2.0.18
+   Compiling thiserror-impl v2.0.18
+   Compiling error-code v3.3.2
+   Compiling serde_path_to_error v0.1.20
+warning: multiple fields are never read
+warning: fields `restart_policy` and `pool` are never read
+warning: field `restart_policy` is never read
+warning: field `restart_policy` is never read
+warning: field `restart_policy` is never read
+warning: field `restart_policy` is never read
+warning: enum `CommandDiagnosticStatus` is never used
+warning: struct `CommandDiagnostic` is never constructed
+warning: enum `FormAppSummonabilityStatus` is never used
+warning: struct `FormAppSummonabilityDiagnostic` is never constructed
+warning: method `is_launchable` is never used
+warning: function `diagnose_form_app_summonability` is never used
+warning: function `diagnose_command` is never used
+warning: function `resolve_command_path` is never used
+warning: function `explicit_command_candidate` is never used
+warning: function `resolve_command_on_path` is never used
+warning: function `canonical_existing_file` is never used
+warning: function `looks_like_explicit_path` is never used
+warning: function `windows_pathexts` is never used
+warning: fields `monitor_allowed_paths` and `monitor_url` are never read
+warning: multiple fields are never read
+warning: enum `ConfigError` is never used
+1020 | pub enum ConfigError {
+warning: function `get_config_path` is never used
+warning: function `load` is never used
+1092 | pub fn load(path: &PathBuf) -> Result<SupervisorConfig, ConfigError> {
+warning: function `chatbot_state_path` is never used
+warning: function `load_chatbot_state` is never used
+warning: function `save_chatbot_state` is never used
+warning: field `data` is never read
+warning: methods `path`, `data_arc`, and `snapshot` are never used
+warning: struct `HeartbeatHandle` is never constructed
+warning: associated items `spawn` and `stop` are never used
+warning: function `acquire` is never used
+warning: constant `SECRET_FIELDS` is never used
+warning: constant `BEARER_PREFIX` is never used
+warning: function `redact_secrets` is never used
+warning: function `redact_field_values` is never used
+warning: function `redact_bearer_tokens` is never used
+warning: struct `RedactingWriter` is never constructed
+warning: struct `RedactingMakeWriter` is never constructed
+warning: function `init_tracing` is never used
+warning: enum `ServiceStatus` is never used
+warning: enum `HealthStatus` is never used
+warning: trait `ServiceRunner` is never used
+warning: struct `BackoffConfig` is never constructed
+warning: struct `BackoffState` is never constructed
+warning: associated items `new`, `from_config`, `next_delay_ms`, `reset`, and `attempts` are never used
+warning: function `init` is never used
+warning: function `adopt` is never used
+warning: static `JOB` is never used
+warning: function `init_windows` is never used
+warning: function `adopt_windows` is never used
+warning: enum `FailureDomain` is never used
+warning: enum `ConnectionState` is never used
+warning: struct `ServiceStateMachine` is never constructed
+warning: multiple associated items are never used
+warning: struct `RuntimeOutputSection` is never constructed
+warning: struct `RuntimeOutputEvent` is never constructed
+warning: struct `StoreInner` is never constructed
+warning: associated items `new`, `push`, and `get_recent` are never used
+warning: struct `RuntimeOutputStore` is never constructed
+warning: multiple associated items are never used
+warning: function `now_ms` is never used
+warning: `supervisor-iced` (bin "supervisor-iced") generated 62 warnings
+
+=== GuiForms - QML Lint ===
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:5:1: Warnings occurred while importing module "com.projectmemory.approval": [import]
+Warning: 5:1: Failed to import com.projectmemory.approval. Are your import paths set up properly? [import]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:19:5: ApprovalApp was not found. Did you add all imports and dependencies? [import]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:11:56: Member "multipleChoiceMode" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:12:24: Member "title" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:28:31: Member "choiceOptionsJson" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:251:27: Member "decisionQuestionId" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:259:21: Member "setNotes" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:260:21: Member "submitSelection" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:297:30: Member "formSubmitted" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:298:29: Member "pauseTimer" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:303:30: Member "formSubmitted" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:304:29: Member "resumeTimer" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:316:43: Member "remainingSeconds" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:317:39: Member "totalSeconds" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:318:33: Member "timerPaused" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:340:49: Member "urgency" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:350:47: Member "urgency" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:358:43: Member "title" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:368:39: Member "planTitle" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:377:39: Member "phase" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:396:46: Member "stepIndex" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:396:82: Member "stepTask" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:412:60: Member "multipleChoiceMode" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:422:39: Member "decisionLabel" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:432:39: Member "decisionDescription" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:705:92: Member "allowNotes" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:706:103: Member "notesPlaceholder" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:710:35: Member "formSubmitted" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:718:33: Member "setNotes" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:746:39: Member "rejectLabel" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:749:43: Member "formSubmitted" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:751:69: Member "multipleChoiceMode" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:753:44: Member "reject" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:763:39: Member "rejectLabel" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:766:43: Member "formSubmitted" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:768:68: Member "multipleChoiceMode" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:770:44: Member "reject" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:780:39: Member "approveLabel" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:783:43: Member "formSubmitted" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:784:42: Member "multipleChoiceMode" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:784:76: Member "selectedOptionId" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:790:41: Member "multipleChoiceMode" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:791:41: Member "submitSelection" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:793:41: Member "approve" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:808:43: Member "formSubmitted" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:812:44: Member "reject" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:825:68: Member "formSubmitted" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui\qml\main.qml:841:68: Member "formSubmitted" not found on type "ApprovalApp" [missing-property]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-brainstorm-gui\qml\main.qml:4:1: Warnings occurred while importing module "com.projectmemory.brainstorm": [import]
+Warning: 4:1: Failed to import com.projectmemory.brainstorm. Are your import paths set up properly? [import]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-brainstorm-gui\qml\main.qml:17:5: FormApp was not found. Did you add all imports and dependencies? [import]
+Warning: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-brainstorm-gui\qml\main.qml:11:20: Member "title" not found on type "FormApp" [missing-property]
+  qmllint result: 53 warning(s), 0 errors
+
+=== GuiForms - Rust Build ===
+   Compiling thiserror-impl v1.0.69
+   Compiling thiserror-impl v2.0.18
+   Compiling thiserror v2.0.18
+   Compiling thiserror v1.0.69
+
+=== InteractiveTerminal - QML Lint ===
+
+=== InteractiveTerminal - Build ===
+cargo build in progress... warnings so far: 0
+cargo build in progress... warnings so far: 0
+cargo build in progress... warnings so far: 0
+cargo build in progress... warnings so far: 0
+cargo build in progress... warnings so far: 0
+cargo build in progress... warnings so far: 0
+cargo build in progress... warnings so far: 0
+cargo build in progress... warnings so far: 0
+cargo build in progress... warnings so far: 0
+cargo build in progress... warnings so far: 0
+cargo build in progress... warnings so far: 0
+
+=== Server - Build ===
+
+=== Dashboard - Build ===
+
+=== Extension - Build ===
+
+=== Cartographer - Rust Build ===
+
+=== GlobalClaude - Install ===

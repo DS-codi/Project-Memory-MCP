@@ -416,6 +416,12 @@ impl ServiceStateMachine {
     pub fn should_give_up(&self) -> bool {
         self.max_attempts > 0 && self.attempt_count >= self.max_attempts
     }
+
+    /// Number of back-off delay steps computed since construction or the last
+    /// successful connection reset.
+    pub fn backoff_attempts(&self) -> u32 {
+        self.backoff.attempts()
+    }
 }
 
 // ---------------------------------------------------------------------------

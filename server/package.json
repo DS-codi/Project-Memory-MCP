@@ -9,6 +9,7 @@
     "start": "node dist/index.js",
     "start:fallback-rest": "node dist/fallback-rest-main.js",
     "start:cli": "node dist/index-cli.js",
+    "start:claude": "node dist/index-claude.js",
     "dev": "tsc --watch",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -191,6 +191,13 @@ pub fn copy_binaries(config: &InstallConfig, component: &str) -> std::io::Result
                 copy_binaries(config, sub)?;
             }
         }
+        // Non-Rust-binary components — their artifacts are handled by dedicated
+        // copy functions (copy_node_artifacts, copy_extension_artifact,
+        // copy_mobile_artifacts) or install to a different target (GlobalClaude).
+        // Container builds a registry image with no file artifact to copy.
+        "Server" | "FallbackServer" | "Dashboard" | "Extension"
+        | "Mobile" | "Container" | "GlobalClaude" => {}
+
         other => {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
@@ -251,6 +258,66 @@ pub fn copy_node_artifacts(config: &InstallConfig) -> std::io::Result<()> {
         );
     }
 
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// copy_extension_artifact
+// ---------------------------------------------------------------------------
+
+/// Copies the most recently packaged `.vsix` from `vscode-extension/` into
+/// `config.install_dir`.
+pub fn copy_extension_artifact(config: &InstallConfig) -> std::io::Result<()> {
+    std::fs::create_dir_all(&config.install_dir)?;
+
+    let ext_dir = Path::new("vscode-extension");
+    if !ext_dir.exists() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "vscode-extension/ directory not found",
+        ));
+    }
+
+    let vsix = std::fs::read_dir(ext_dir)?
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().and_then(|s| s.to_str()) == Some("vsix"))
+        .max_by_key(|e| e.metadata().and_then(|m| m.modified()).ok());
+
+    match vsix {
+        None => Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "no .vsix file found in vscode-extension/ — run build first",
+        )),
+        Some(entry) => {
+            let src = entry.path();
+            let dst = config.install_dir.join(entry.file_name());
+            std::fs::copy(&src, &dst)?;
+            println!("Copied: {} → {}", src.display(), dst.display());
+            Ok(())
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// copy_mobile_artifacts
+// ---------------------------------------------------------------------------
+
+/// Copies the mobile web build output from `mobile/dist/` into a `mobile/dist/`
+/// sibling of `config.install_dir`.
+///
+/// Non-fatal when `mobile/dist/` does not exist (component may be skipped on
+/// this machine).
+pub fn copy_mobile_artifacts(config: &InstallConfig) -> std::io::Result<()> {
+    let src = Path::new("mobile/dist");
+    if !src.exists() {
+        return Ok(());
+    }
+
+    let base = config.install_dir.parent().unwrap_or(&config.install_dir);
+    let dst = base.join("mobile").join("dist");
+    std::fs::create_dir_all(&dst)?;
+    copy_dir_all(src, &dst)?;
+    println!("Copied: {} → {}", src.display(), dst.display());
     Ok(())
 }
 
@@ -324,75 +391,104 @@ pub fn copy_qt_dependencies(config: &InstallConfig, component: &str) -> std::io:
 }
 
 // ---------------------------------------------------------------------------
-// TUI install-directory prompt
+// TUI install-directory prompt (Ratatui-Explorer)
 // ---------------------------------------------------------------------------
 
-/// Prompt the user for an install directory via a simple terminal input.
+/// Prompt the user for an install directory via a TUI file explorer.
 /// Pre-fills with the current/default install_dir.
 /// Returns the chosen path, or None if the user pressed Esc.
 pub fn prompt_install_dir(current: &std::path::Path) -> Option<std::path::PathBuf> {
-    use crossterm::{
-        cursor,
-        event::{self, Event, KeyCode, KeyEventKind},
-        execute,
-        terminal,
+    use ratatui::{
+        backend::CrosstermBackend,
+        crossterm::{
+            event::{self, Event, KeyCode, KeyEventKind},
+            execute,
+            terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
+        },
+        layout::{Constraint, Direction, Layout},
+        style::{Color, Modifier, Style},
+        text::Line,
+        widgets::{Block, Borders, Clear, Paragraph, WidgetRef},
+        Terminal,
     };
-    use std::io::Write;
+    use ratatui_explorer::{FileExplorerBuilder, Theme};
+    use std::io;
 
     let _ = terminal::enable_raw_mode();
-    let mut stdout = std::io::stdout();
+    let mut stdout = io::stdout();
+    let _ = execute!(stdout, EnterAlternateScreen);
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend).ok()?;
 
-    let mut input = current.to_string_lossy().to_string();
-    let mut cursor_pos = input.len();
+    let theme = Theme::default()
+        .with_highlight_item_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .with_highlight_symbol("> ".into());
+    
+    let mut explorer = FileExplorerBuilder::default()
+        .theme(theme)
+        .build()
+        .ok()?;
 
-    print!("\r\n  Install directory: ");
-    print!("{}", input);
-    let _ = stdout.flush();
+    // Try to start at the current directory if it exists
+    if current.exists() {
+        let _ = explorer.set_cwd(current);
+    }
+
+    let mut result = None;
 
     loop {
+        let _ = terminal.draw(|f| {
+            f.render_widget(Clear, f.area());
+            
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Length(3),
+                    Constraint::Min(0),
+                    Constraint::Length(3),
+                ])
+                .split(f.area());
+
+            // Header
+            let header = Paragraph::new(vec![
+                Line::from("  Select Installation Directory"),
+                Line::from(format!("  Current: {}", explorer.cwd().display())),
+            ])
+            .block(Block::default().borders(Borders::BOTTOM));
+            f.render_widget(header, chunks[0]);
+
+            // Explorer
+            explorer.widget().render_ref(chunks[1], f.buffer_mut());
+
+            // Footer
+            let footer = Paragraph::new("  Enter to choose · Esc to cancel · Arrows to navigate")
+                .block(Block::default().borders(Borders::TOP))
+                .style(Style::default().fg(Color::DarkGray));
+            f.render_widget(footer, chunks[2]);
+        });
+
         if let Ok(Event::Key(key)) = event::read() {
             if key.kind != KeyEventKind::Press {
                 continue;
             }
             match key.code {
+                KeyCode::Esc => break,
                 KeyCode::Enter => {
-                    let _ = terminal::disable_raw_mode();
-                    println!();
-                    if input.trim().is_empty() {
-                        return Some(current.to_path_buf());
-                    }
-                    return Some(std::path::PathBuf::from(input.trim()));
+                    // Choose the current directory shown in the explorer
+                    result = Some(explorer.cwd().to_path_buf());
+                    break;
                 }
-                KeyCode::Esc => {
-                    let _ = terminal::disable_raw_mode();
-                    println!();
-                    return None;
+                _ => {
+                    let _ = explorer.handle(&Event::Key(key));
                 }
-                KeyCode::Backspace => {
-                    if cursor_pos > 0 {
-                        input.remove(cursor_pos - 1);
-                        cursor_pos -= 1;
-                        // Redraw
-                        let _ = execute!(stdout, cursor::MoveToColumn(0));
-                        print!("\r  Install directory: {:<width$}", input, width = input.len() + 5);
-                        let col = (22 + cursor_pos) as u16;
-                        let _ = execute!(stdout, cursor::MoveToColumn(col));
-                        let _ = stdout.flush();
-                    }
-                }
-                KeyCode::Char(c) => {
-                    input.insert(cursor_pos, c);
-                    cursor_pos += 1;
-                    let _ = execute!(stdout, cursor::MoveToColumn(0));
-                    print!("\r  Install directory: {}", input);
-                    let col = (22 + cursor_pos) as u16;
-                    let _ = execute!(stdout, cursor::MoveToColumn(col));
-                    let _ = stdout.flush();
-                }
-                _ => {}
             }
         }
     }
+
+    let _ = terminal::disable_raw_mode();
+    let _ = execute!(io::stdout(), LeaveAlternateScreen);
+
+    result
 }
 
 /// Loads a saved config, or interactively prompts for the install directory.
@@ -431,7 +527,14 @@ pub fn deploy(
     component: &str,
     install_dir_override: Option<&Path>,
 ) -> std::io::Result<()> {
-    let mut config = load_or_default();
+    // If an explicit --dir was given, load (or default) and override.
+    // Otherwise, prompt the user with the TUI directory picker so they can
+    // choose (or confirm) the install location on every first-time deploy.
+    let mut config = if install_dir_override.is_some() {
+        load_or_default()
+    } else {
+        load_or_prompt()
+    };
 
     if let Some(override_path) = install_dir_override {
         config.install_dir = override_path.to_path_buf();
@@ -443,6 +546,18 @@ pub fn deploy(
         copy_qt_dependencies(&config, component)?;
     }
 
+    if matches!(component, "Server" | "FallbackServer" | "Dashboard" | "All") {
+        copy_node_artifacts(&config)?;
+    }
+
+    if matches!(component, "Extension" | "All") {
+        copy_extension_artifact(&config)?;
+    }
+
+    if matches!(component, "Mobile" | "All") {
+        copy_mobile_artifacts(&config)?;
+    }
+
     println!(
         "Deployed {} to {}",
         component,
@@ -450,4 +565,98 @@ pub fn deploy(
     );
 
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// create_shortcut
+// ---------------------------------------------------------------------------
+
+/// Creates `.lnk` shortcuts for `component` at one or both standard locations.
+///
+/// * `desktop`    — user's Desktop (`~/Desktop/`)
+/// * `start_menu` — Start Menu Programs (`%APPDATA%/Microsoft/Windows/Start Menu/Programs/`)
+///
+/// When neither flag is set, both locations are used.
+/// Returns an error if the target binary is absent from `install_dir` — deploy first.
+#[cfg(windows)]
+pub fn create_shortcut(
+    config: &InstallConfig,
+    component: &str,
+    desktop: bool,
+    start_menu: bool,
+) -> std::io::Result<()> {
+    let (binary_name, friendly_name) = match component {
+        "Supervisor"     => ("supervisor.exe",      "Project Memory Supervisor"),
+        "SupervisorIced" => ("supervisor-iced.exe", "Project Memory"),
+        _ => return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!("Shortcuts are only supported for Supervisor and SupervisorIced, not '{component}'"),
+        )),
+    };
+
+    let target_exe = config.install_dir.join(binary_name);
+    if !target_exe.exists() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            format!(
+                "{binary_name} not found at {} — run `pm-cli deploy {component}` first",
+                config.install_dir.display()
+            ),
+        ));
+    }
+
+    let lnk_name = format!("{friendly_name}.lnk");
+
+    let mut link = mslnk::ShellLink::new(&target_exe)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+    link.set_working_dir(Some(config.install_dir.to_string_lossy().into_owned()));
+    link.set_name(Some(friendly_name.to_string()));
+
+    // Default: both locations when neither flag is explicitly set
+    let do_desktop    = desktop    || !start_menu;
+    let do_start_menu = start_menu || !desktop;
+
+    let mut written = 0usize;
+
+    if do_desktop {
+        if let Some(dir) = dirs::desktop_dir() {
+            let path = dir.join(&lnk_name);
+            link.create_lnk(&path)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+            println!("   [ok] Desktop shortcut: {}", path.display());
+            written += 1;
+        }
+    }
+
+    if do_start_menu {
+        if let Some(data) = dirs::data_dir() {
+            let programs = data.join("Microsoft/Windows/Start Menu/Programs");
+            if programs.exists() {
+                let path = programs.join(&lnk_name);
+                link.create_lnk(&path)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+                println!("   [ok] Start Menu shortcut: {}", path.display());
+                written += 1;
+            }
+        }
+    }
+
+    if written == 0 {
+        println!("   [!] No shortcut locations resolved — check user profile directories");
+    }
+
+    Ok(())
+}
+
+#[cfg(not(windows))]
+pub fn create_shortcut(
+    _config: &InstallConfig,
+    _component: &str,
+    _desktop: bool,
+    _start_menu: bool,
+) -> std::io::Result<()> {
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "Shortcut creation is only supported on Windows",
+    ))
 }

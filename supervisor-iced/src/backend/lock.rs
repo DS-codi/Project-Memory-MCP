@@ -177,8 +177,10 @@ impl HeartbeatHandle {
 
 // ─── Path helper ────────────────────────────────────────────────────────────
 
-/// Default lock-file path: `%APPDATA%\ProjectMemory\supervisor.lock` on Windows,
-/// `$XDG_RUNTIME_DIR/project-memory/supervisor.lock` (or `$HOME`) elsewhere.
+/// Default lock-file path: `%APPDATA%\ProjectMemory\supervisor-iced.lock` on Windows.
+///
+/// Uses a distinct filename from the QML supervisor (`supervisor.lock`) so the two
+/// binaries can coexist without one blocking the other's startup via stale locks.
 pub fn default_lock_path() -> PathBuf {
     #[cfg(windows)]
     let base = PathBuf::from(
@@ -192,7 +194,7 @@ pub fn default_lock_path() -> PathBuf {
             .unwrap_or_else(|| std::ffi::OsString::from("/tmp")),
     );
 
-    base.join("ProjectMemory").join("supervisor.lock")
+    base.join("ProjectMemory").join("supervisor-iced.lock")
 }
 
 // ─── PID liveness ───────────────────────────────────────────────────────────

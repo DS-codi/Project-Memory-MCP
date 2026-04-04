@@ -1244,10 +1244,12 @@ function buildPlanState(planId: string): PlanState | null {
 
 function rowToPlanMeta(row: WorkspaceRow, wsId: string): WorkspaceMeta {
   const meta = rowToWorkspaceMeta(row);
-  // Populate active_plans and archived_plans from the plans table
+  // Populate active_plans, archived_plans, and archived_plan_count from plans table
   const allPlans = getPlansByWorkspace(wsId);
-  meta.active_plans   = allPlans.filter(p => p.status === 'active') .map(p => p.id);
-  meta.archived_plans = allPlans.filter(p => p.status === 'archived').map(p => p.id);
+  const archivedPlans = allPlans.filter(p => p.status === 'archived');
+  meta.active_plans        = allPlans.filter(p => p.status === 'active').map(p => p.id);
+  meta.archived_plans      = archivedPlans.map(p => p.id);
+  meta.archived_plan_count = archivedPlans.length;
   // Populate child_workspace_ids from parent_workspace_id FK relationship
   meta.child_workspace_ids = listChildWorkspaces(wsId).map(c => c.id);
   // Additive _ref: typed DB reference for this workspace artifact

@@ -1,0 +1,19 @@
+[package]
+name = "client-proxy"
+version = "0.1.0"
+edition = "2021"
+description = "stdio MCP proxy for Project Memory — sits between Claude Code/VS Code and the supervisor HTTP server"
+
+[[bin]]
+name = "client-proxy"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+reqwest = { workspace = true }
+anyhow = { workspace = true }
+rand = { workspace = true }
+chrono = { workspace = true }
+rusqlite = { version = "0.32", features = ["bundled"] }
