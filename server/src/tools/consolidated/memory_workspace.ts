@@ -45,6 +45,7 @@ export interface MemoryWorkspaceParams {
   child_workspace_id?: string;       // for link
   mode?: 'link' | 'unlink';          // for link
   hierarchical?: boolean;            // for list (hierarchical grouping)
+  verbose?: boolean;                 // for list (return full WorkspaceMeta; default false = slim summary)
   display_name?: string;             // for set_display_name
   output_filename?: string;          // for export_pending (custom filename, defaults to 'pending-steps.md'); also for generate_focused_workspace
   plan_id?: string;                  // for generate_focused_workspace, list_focused_workspaces
@@ -91,9 +92,21 @@ interface WorkspaceInfoResult {
 
 type HierarchicalWorkspaceMeta = WorkspaceMeta & { children?: WorkspaceMeta[] };
 
-type WorkspaceResult = 
+/** Slim workspace summary returned by list when verbose=false (default). */
+interface SlimWorkspaceSummary {
+  workspace_id: string;
+  name: string;
+  display_name?: string;
+  path: string;
+  active_plan_count: number;
+  archived_plan_count: number;
+  indexed: boolean;
+  last_accessed?: string;
+}
+
+type WorkspaceResult =
   | { action: 'register'; data: { workspace: WorkspaceMeta; first_time: boolean; indexed: boolean; profile?: WorkspaceProfile; overlap_detected?: boolean; overlaps?: WorkspaceOverlapInfo[]; message?: string; context_health?: WorkspaceContextHealth } }
-  | { action: 'list'; data: WorkspaceMeta[] | HierarchicalWorkspaceMeta[] }
+  | { action: 'list'; data: WorkspaceMeta[] | HierarchicalWorkspaceMeta[] | SlimWorkspaceSummary[] }
   | { action: 'info'; data: WorkspaceInfoResult }
   | { action: 'reindex'; data: { workspace_id: string; previous_profile?: WorkspaceProfile; new_profile: WorkspaceProfile; changes: object } }
   | { action: 'merge'; data: MergeResult }
@@ -589,7 +602,7 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
         }
       }
 
-      // Hierarchical grouping: nest children under their parents
+      // Hierarchical grouping: nest children under their parents (verbose path only)
       if (params.hierarchical) {
         const allWorkspaces = result.data!;
         const childIds = new Set<string>();
@@ -626,6 +639,29 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
             action: 'list',
             data: hierarchicalList,
           }
+        };
+      }
+
+      // Slim summary (default): strip large fields to keep response small.
+      // Pass verbose=true to receive full WorkspaceMeta objects.
+      if (!params.verbose) {
+        const slim: SlimWorkspaceSummary[] = result.data!.map(ws => {
+          const entry: SlimWorkspaceSummary = {
+            workspace_id: ws.workspace_id,
+            name: ws.name,
+            path: ws.path,
+            active_plan_count: ws.active_plans?.length ?? 0,
+            archived_plan_count: ws.archived_plan_count ?? ws.archived_plans?.length ?? 0,
+            indexed: ws.indexed ?? false,
+          };
+          // Only include optional fields when they have a value
+          if (ws.display_name) entry.display_name = ws.display_name;
+          if (ws.last_accessed) entry.last_accessed = ws.last_accessed.split('T')[0] ?? ws.last_accessed;
+          return entry;
+        });
+        return {
+          success: true,
+          data: { action: 'list', data: slim },
         };
       }
 

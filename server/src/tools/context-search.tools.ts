@@ -234,7 +234,6 @@ async function collectKnowledgeFiles(workspaceId: string): Promise<SearchItem[]>
     }
     const knowledgeFile = getResult.data.knowledge_file;
     const content = `${knowledgeFile.title} ${knowledgeFile.content}`;
-    const filePath = knowledgeTools.getKnowledgeFilePath(workspaceId, file.slug);
     const sizeBytes = Buffer.byteLength(content, 'utf-8');
     items.push({
       id: `knowledge:${file.slug}`,
@@ -242,7 +241,7 @@ async function collectKnowledgeFiles(workspaceId: string): Promise<SearchItem[]>
       type: 'knowledge_file',
       title: knowledgeFile.title,
       source: `workspace:${workspaceId}`,
-      path: toPosixRelative(filePath),
+      path: `knowledge/${file.slug}`,
       preview: toPreview(knowledgeFile.content),
       size_bytes: sizeBytes,
       updated_at: knowledgeFile.updated_at,

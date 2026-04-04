@@ -3,7 +3,7 @@
 
 use iced::{
     widget::{button, column, container, pick_list, row, text, Space},
-    Background, Border, Color, Element, Length,
+    Background, Border, Element, Length,
 };
 
 use crate::app_state::AppState;

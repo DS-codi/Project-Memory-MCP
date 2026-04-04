@@ -13,16 +13,15 @@ struct ServiceRow {
     name:    &'static str,
     port_fn: fn(&AppState) -> i32,
     runtime: &'static str,
-    desc:    &'static str,
 }
 
 const SERVICE_ROWS: &[ServiceRow] = &[
-    ServiceRow { name: "MCP Server",          port_fn: |s| s.mcp.port,       runtime: "node dist/index.js",              desc: "VS Code / Claude MCP endpoint" },
-    ServiceRow { name: "CLI MCP Server",       port_fn: |_| 3466,             runtime: "node dist/index-cli.js",           desc: "HTTP-only MCP for CLI agents" },
-    ServiceRow { name: "Interactive Terminal", port_fn: |s| s.terminal.port,  runtime: "interactive-terminal.exe",          desc: "WebSocket terminal sessions" },
-    ServiceRow { name: "Dashboard",            port_fn: |s| s.dashboard.port, runtime: "node dist/index.js",               desc: "Web dashboard UI" },
-    ServiceRow { name: "Fallback REST API",    port_fn: |_| 3465,             runtime: "node dist/fallback-rest-main.js",  desc: "REST fallback for remote control" },
-    ServiceRow { name: "Supervisor GUI",       port_fn: |_| 3464,             runtime: "supervisor-iced.exe (Rust/iced)",  desc: "GUI HTTP server + form apps" },
+    ServiceRow { name: "MCP Server",          port_fn: |s| s.mcp.port,       runtime: "node dist/index.js" },
+    ServiceRow { name: "CLI MCP Server",       port_fn: |_| 3466,             runtime: "node dist/index-cli.js" },
+    ServiceRow { name: "Interactive Terminal", port_fn: |s| s.terminal.port,  runtime: "interactive-terminal.exe" },
+    ServiceRow { name: "Dashboard",            port_fn: |s| s.dashboard.port, runtime: "node dist/index.js" },
+    ServiceRow { name: "Fallback REST API",    port_fn: |_| 3465,             runtime: "node dist/fallback-rest-main.js" },
+    ServiceRow { name: "Supervisor GUI",       port_fn: |_| 3464,             runtime: "supervisor-iced.exe (Rust/iced)" },
 ];
 
 const API_ROUTES: &[&str] = &[

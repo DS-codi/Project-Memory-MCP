@@ -38,6 +38,13 @@ import { memoryAgent } from '../tools/consolidated/memory_agent.js';import { sto
 import { runSeed } from '../db/seed.js';
 import { run, queryOne, queryAll, newId, nowIso } from '../db/query-helpers.js';
 import { getAllLiveSessions, getLiveSessionCount, getLiveSessionEntry, clearLiveSession } from '../tools/session-live-store.js';
+import {
+  listUserSessions,
+  getUserSession,
+  createUserSession,
+  updateUserSession,
+  deleteUserSession,
+} from '../db/user-session-db.js';
 import { runMigrations, migrationStatus } from '../db/index.js';
 
 // ---------------------------------------------------------------------------
@@ -707,6 +714,120 @@ export function createHttpApp(getServer: () => McpServer): Express {
       });
     } catch {
       res.json({ success: true, has_data: false, data: null });
+    }
+  });
+
+  // ---- Admin: user sessions CRUD ----
+
+  app.get('/admin/user-sessions', (_req: Request, res: Response) => {
+    try {
+      const sessions = listUserSessions();
+      res.json({ sessions, total: sessions.length });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[http] Error listing user sessions:', error);
+      res.status(500).json({ error: message });
+    }
+  });
+
+  app.get('/admin/user-sessions/:id', (req: Request, res: Response) => {
+    try {
+      const session = getUserSession(req.params.id);
+      if (!session) {
+        res.status(404).json({ error: `User session not found: ${req.params.id}` });
+        return;
+      }
+      res.json(session);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[http] Error fetching user session:', error);
+      res.status(500).json({ error: message });
+    }
+  });
+
+  app.post('/admin/user-sessions', (req: Request, res: Response) => {
+    try {
+      const body = req.body as Record<string, unknown>;
+      if (!body.name || typeof body.name !== 'string') {
+        res.status(400).json({ error: 'name is required' });
+        return;
+      }
+      const session = createUserSession({
+        name: body.name,
+        working_dirs: Array.isArray(body.working_dirs) ? body.working_dirs as string[] : [],
+        commands: Array.isArray(body.commands) ? body.commands as string[] : [],
+        notes: typeof body.notes === 'string' ? body.notes : '',
+        linked_agent_session_ids: Array.isArray(body.linked_agent_session_ids) ? body.linked_agent_session_ids as string[] : [],
+        pinned: body.pinned === true,
+      });
+      res.status(201).json(session);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[http] Error creating user session:', error);
+      res.status(500).json({ error: message });
+    }
+  });
+
+  app.put('/admin/user-sessions/:id', (req: Request, res: Response) => {
+    try {
+      const body = req.body as Record<string, unknown>;
+      const session = updateUserSession(req.params.id, {
+        ...(typeof body.name === 'string' && { name: body.name }),
+        ...(Array.isArray(body.working_dirs) && { working_dirs: body.working_dirs as string[] }),
+        ...(Array.isArray(body.commands) && { commands: body.commands as string[] }),
+        ...(typeof body.notes === 'string' && { notes: body.notes }),
+        ...(Array.isArray(body.linked_agent_session_ids) && { linked_agent_session_ids: body.linked_agent_session_ids as string[] }),
+        ...(typeof body.pinned === 'boolean' && { pinned: body.pinned }),
+      });
+      if (!session) {
+        res.status(404).json({ error: `User session not found: ${req.params.id}` });
+        return;
+      }
+      res.json(session);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[http] Error updating user session:', error);
+      res.status(500).json({ error: message });
+    }
+  });
+
+  app.delete('/admin/user-sessions/:id', (req: Request, res: Response) => {
+    try {
+      const deleted = deleteUserSession(req.params.id);
+      if (!deleted) {
+        res.status(404).json({ error: `User session not found: ${req.params.id}` });
+        return;
+      }
+      res.status(204).send();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[http] Error deleting user session:', error);
+      res.status(500).json({ error: message });
+    }
+  });
+
+  // GET /admin/user-sessions/:id/agent-sessions — join linked IDs against live sessions store
+  app.get('/admin/user-sessions/:id/agent-sessions', (req: Request, res: Response) => {
+    try {
+      const session = getUserSession(req.params.id);
+      if (!session) {
+        res.status(404).json({ error: `User session not found: ${req.params.id}` });
+        return;
+      }
+      const live = getAllLiveSessions();
+      const agentSessions = session.linked_agent_session_ids.map(agentId => {
+        const liveEntry = live[agentId] ?? null;
+        return {
+          session_id: agentId,
+          live: liveEntry !== null,
+          ...(liveEntry ?? {}),
+        };
+      });
+      res.json({ user_session_id: session.id, agent_sessions: agentSessions });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[http] Error fetching agent sessions for user session:', error);
+      res.status(500).json({ error: message });
     }
   });
 

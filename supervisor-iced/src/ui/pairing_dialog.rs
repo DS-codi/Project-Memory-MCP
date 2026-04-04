@@ -4,7 +4,7 @@
 
 use iced::{
     widget::{button, column, container, row, text, Space, svg},
-    Alignment, Background, Border, Color, Element, Length, Padding,
+    Alignment, Background, Border, Color, Element, Length,
 };
 
 use crate::app_state::AppState;

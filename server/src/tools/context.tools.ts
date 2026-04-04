@@ -19,6 +19,11 @@ import * as store from '../storage/db-store.js';
 import { sanitizeJsonData, sanitizeContent, addSecurityMetadata } from '../security/sanitize.js';
 import { appendWorkspaceFileUpdate } from '../logging/workspace-update-log.js';
 import { makeDbRef } from '../types/db-ref.types.js';
+import {
+  storeContext as dbStoreContext,
+  getContext as dbGetContext,
+} from '../db/context-db.js';
+import { appendPlanResearch } from '../db/research-db.js';
 
 /**
  * Store context data (audit, research, decisions, etc.)
@@ -26,10 +31,10 @@ import { makeDbRef } from '../types/db-ref.types.js';
  */
 export async function storeContext(
   params: StoreContextParams
-): Promise<ToolResponse<{ path: string; _ref?: DbRef; security_warnings?: string[] }>> {
+): Promise<ToolResponse<{ _ref: DbRef; security_warnings?: string[] }>> {
   try {
     const { workspace_id, plan_id, type, data } = params;
-    
+
     if (!workspace_id || !plan_id || !type || !data) {
       const missing: string[] = [];
       if (!workspace_id) missing.push('workspace_id');
@@ -41,7 +46,7 @@ export async function storeContext(
         error: `memory_context(action: store) missing required field(s): ${missing.join(', ')}. Provide a JSON object as the 'data' payload.`
       };
     }
-    
+
     // Verify plan exists
     const state = await store.getPlanState(workspace_id, plan_id);
     if (!state) {
@@ -50,34 +55,15 @@ export async function storeContext(
         error: `Plan not found: ${plan_id}`
       };
     }
-    
-    const contextPath = store.getContextPath(workspace_id, plan_id, type);
-    
+
     // Sanitize data for security
     const sanitizedData = addSecurityMetadata(data, `context/${type}`);
-    
-    // Add metadata to the context
-    const contextData = {
-      type,
-      plan_id,
-      workspace_id,
-      stored_at: store.nowISO(),
-      data: sanitizedData
-    };
-    
-    await store.writeJsonLocked(contextPath, contextData);
-    await appendWorkspaceFileUpdate({
-      workspace_id,
-      plan_id,
-      file_path: contextPath,
-      summary: `Stored context ${type}`,
-      action: 'store_context'
-    });
-    
+
+    dbStoreContext('plan', plan_id, type, sanitizedData);
+
     return {
       success: true,
       data: {
-        path: contextPath,
         _ref: makeDbRef('context_items', `${plan_id}:${type}`, 'context', type),
       }
     };
@@ -105,20 +91,21 @@ export async function getContext(
       };
     }
     
-    const contextPath = store.getContextPath(workspace_id, plan_id, type);
-    const data = await store.readJson<Record<string, unknown>>(contextPath);
-    
-    if (!data) {
+    const rows = dbGetContext('plan', plan_id, type);
+
+    if (!rows.length) {
       return {
         success: false,
         error: `Context not found: ${type}`
       };
     }
-    
+
+    const parsed = JSON.parse(rows[0].data) as Record<string, unknown>;
+
     return {
       success: true,
       data: {
-        ...data,
+        ...parsed,
         _ref: makeDbRef('context_items', `${plan_id}:${type}`, 'context', type),
       }
     };
@@ -141,11 +128,11 @@ export async function getContext(
  */
 export async function storeInitialContext(
   params: StoreInitialContextParams
-): Promise<ToolResponse<{ path: string; context_summary: string; _ref?: DbRef }>> {
+): Promise<ToolResponse<{ context_summary: string; _ref: DbRef }>> {
   try {
-    const { 
-      workspace_id, 
-      plan_id, 
+    const {
+      workspace_id,
+      plan_id,
       user_request,
       files_mentioned,
       file_contents,
@@ -155,14 +142,14 @@ export async function storeInitialContext(
       conversation_context,
       additional_notes
     } = params;
-    
+
     if (!workspace_id || !plan_id || !user_request) {
       return {
         success: false,
         error: 'workspace_id, plan_id, and user_request are required'
       };
     }
-    
+
     // Verify plan exists
     const state = await store.getPlanState(workspace_id, plan_id);
     if (!state) {
@@ -171,15 +158,9 @@ export async function storeInitialContext(
         error: `Plan not found: ${plan_id}`
       };
     }
-    
-    const contextPath = store.getContextPath(workspace_id, plan_id, 'original_request');
-    
+
     // Structure the initial context
     const initialContext = {
-      type: 'original_request',
-      plan_id,
-      workspace_id,
-      captured_at: store.nowISO(),
       user_request: sanitizeContent(user_request),
       context: {
         files_mentioned: files_mentioned || [],
@@ -191,16 +172,9 @@ export async function storeInitialContext(
         additional_notes: additional_notes ? sanitizeContent(additional_notes) : null
       }
     };
-    
-    await store.writeJsonLocked(contextPath, initialContext);
-    await appendWorkspaceFileUpdate({
-      workspace_id,
-      plan_id,
-      file_path: contextPath,
-      summary: 'Stored initial user context',
-      action: 'store_initial_context'
-    });
-    
+
+    dbStoreContext('plan', plan_id, 'original_request', initialContext);
+
     // Generate a summary for the response
     const contextSummary = [
       `User request: ${user_request.substring(0, 100)}${user_request.length > 100 ? '...' : ''}`,
@@ -209,11 +183,10 @@ export async function storeInitialContext(
       requirements?.length ? `Requirements: ${requirements.length}` : null,
       constraints?.length ? `Constraints: ${constraints.length}` : null,
     ].filter(Boolean).join(' | ');
-    
+
     return {
       success: true,
-      data: { 
-        path: contextPath,
+      data: {
         context_summary: contextSummary,
         _ref: makeDbRef('context_items', `${plan_id}:original_request`, 'context', 'original_request'),
       }
@@ -232,23 +205,21 @@ export async function storeInitialContext(
  */
 export async function appendResearch(
   params: AppendResearchParams
-): Promise<ToolResponse<{ 
-  path: string; 
-  sanitized: boolean; 
-  injection_attempts: string[]; 
+): Promise<ToolResponse<{
+  sanitized: boolean;
+  injection_attempts: string[];
   warnings: string[];
-  trimmed: boolean;
 }>> {
   try {
     const { workspace_id, plan_id, filename, content } = params;
-    
+
     if (!workspace_id || !plan_id || !filename || !content) {
       return {
         success: false,
         error: 'workspace_id, plan_id, filename, and content are required'
       };
     }
-    
+
     // Verify plan exists
     const state = await store.getPlanState(workspace_id, plan_id);
     if (!state) {
@@ -257,52 +228,19 @@ export async function appendResearch(
         error: `Plan not found: ${plan_id}`
       };
     }
-    
-    // Sanitize filename
+
+    // Sanitize filename and content
     const safeFilename = filename.replace(/[^a-zA-Z0-9-_.]/g, '-');
-    const researchPath = store.getResearchNotesPath(workspace_id, plan_id);
-    const filePath = `${researchPath}/${safeFilename}`;
-    
-    // Sanitize content for security
     const sanitizationResult = sanitizeContent(content);
-    
-    // Add header with metadata
-    const header = `---
-plan_id: ${plan_id}
-created_at: ${store.nowISO()}
-sanitized: ${sanitizationResult.wasModified}
-injection_attempts: ${sanitizationResult.injectionAttempts.length}
-warnings: ${sanitizationResult.warnings.length}
----
 
-`;
-    
-    await store.writeText(filePath, header + sanitizationResult.sanitized);
+    appendPlanResearch(plan_id, workspace_id, safeFilename, sanitizationResult.sanitized);
 
-    // Auto-summarize older sections when file exceeds 50KB
-    let wasTrimmed = false;
-    try {
-      wasTrimmed = await trimResearchNoteIfOversized(filePath, 50 * 1024);
-    } catch {
-      // Non-fatal: trimming failure doesn't block the append
-    }
-
-    await appendWorkspaceFileUpdate({
-      workspace_id,
-      plan_id,
-      file_path: filePath,
-      summary: `Appended research note ${safeFilename}`,
-      action: 'append_research'
-    });
-    
     return {
       success: true,
-      data: { 
-        path: filePath, 
+      data: {
         sanitized: sanitizationResult.wasModified,
         injection_attempts: sanitizationResult.injectionAttempts,
         warnings: sanitizationResult.warnings,
-        trimmed: wasTrimmed
       }
     };
   } catch (error) {
@@ -877,109 +815,6 @@ function extractBulletList(content: string): string[] {
     .split('\n')
     .filter(line => line.startsWith('- '))
     .map(line => line.substring(2).trim());
-}
-
-// =============================================================================
-// Research Note Size Management
-// =============================================================================
-
-const SUMMARIZED_MARKER = '[Summarized]';
-
-/**
- * Trim a research note file if it exceeds the size limit.
- * 
- * Strategy: split content into sections by markdown headers (## or #).
- * Summarize (replace body with one-line summary) the oldest sections first
- * until the file is under the limit. Preserve headers.
- * 
- * @returns true if the file was trimmed
- */
-async function trimResearchNoteIfOversized(
-  filePath: string,
-  maxBytes: number
-): Promise<boolean> {
-  const existing = await store.readText(filePath);
-  if (!existing) return false;
-
-  const sizeBytes = Buffer.byteLength(existing, 'utf-8');
-  if (sizeBytes <= maxBytes) return false;
-
-  // Split into sections by markdown headers
-  const sections = splitIntoSections(existing);
-  if (sections.length <= 1) return false; // Nothing to summarize
-
-  // Summarize oldest sections first (skip the last section — newest)
-  let trimmed = false;
-  for (let i = 0; i < sections.length - 1; i++) {
-    if (sections[i].alreadySummarized) continue;
-
-    // Summarize this section: keep header, replace body with marker
-    const headerLine = sections[i].header || '---';
-    const bodyLineCount = sections[i].body.split('\n').filter(l => l.trim()).length;
-    sections[i].body = `${SUMMARIZED_MARKER} ${bodyLineCount} lines condensed`;
-    sections[i].header = headerLine;
-    sections[i].alreadySummarized = true;
-    trimmed = true;
-
-    // Check if we're under the limit now
-    const reconstituted = reconstituteSections(sections);
-    if (Buffer.byteLength(reconstituted, 'utf-8') <= maxBytes) break;
-  }
-
-  if (trimmed) {
-    await store.writeText(filePath, reconstituteSections(sections));
-  }
-
-  return trimmed;
-}
-
-interface NoteSection {
-  header: string;
-  body: string;
-  alreadySummarized: boolean;
-}
-
-function splitIntoSections(content: string): NoteSection[] {
-  const lines = content.split('\n');
-  const sections: NoteSection[] = [];
-  let currentHeader = '';
-  let currentBody: string[] = [];
-
-  for (const line of lines) {
-    if (/^#{1,3}\s/.test(line)) {
-      // New header — push previous section
-      if (currentHeader || currentBody.length > 0) {
-        const bodyText = currentBody.join('\n');
-        sections.push({
-          header: currentHeader,
-          body: bodyText,
-          alreadySummarized: bodyText.includes(SUMMARIZED_MARKER)
-        });
-      }
-      currentHeader = line;
-      currentBody = [];
-    } else {
-      currentBody.push(line);
-    }
-  }
-
-  // Push final section
-  if (currentHeader || currentBody.length > 0) {
-    const bodyText = currentBody.join('\n');
-    sections.push({
-      header: currentHeader,
-      body: bodyText,
-      alreadySummarized: bodyText.includes(SUMMARIZED_MARKER)
-    });
-  }
-
-  return sections;
-}
-
-function reconstituteSections(sections: NoteSection[]): string {
-  return sections
-    .map(s => s.header ? `${s.header}\n${s.body}` : s.body)
-    .join('\n');
 }
 
 // =============================================================================

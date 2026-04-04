@@ -28,9 +28,10 @@ export interface WorkspaceMeta {
   status?: string;
   active_plans: string[];
   archived_plans: string[];
+  archived_plan_count?: number;  // Count of archived plans (populated by db-store; avoids sending full ID array)
   active_programs: string[];  // IDs of active Integrated Programs
   indexed: boolean;  // Whether codebase has been indexed
-  profile?: WorkspaceProfile;  // Codebase profile from indexing
+  profile?: WorkspaceProfile;  // Codebase profile from indexing (omitted by default in list responses)
   workspace_build_scripts?: BuildScript[];  // Workspace-level build scripts
   parent_workspace_id?: string;  // ID of the parent workspace (if this is a child)
   child_workspace_ids?: string[];  // IDs of child workspaces (if this is a parent)

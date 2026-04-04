@@ -2,7 +2,7 @@
 /// Ported from supervisor/qml/SettingsPanel.qml.
 
 use iced::{
-    widget::{button, column, container, row, scrollable, text, text_input, Space, Column},
+    widget::{button, column, container, row, scrollable, text, Space, Column},
     Alignment, Background, Border, Color, Element, Length, Padding,
 };
 
@@ -11,10 +11,8 @@ use super::theme;
 
 #[derive(Debug, Clone, Default)]
 pub struct SettingsState {
-    pub visible:     bool,
-    pub config_toml: String,
-    pub save_error:  String,
-    pub active_cat:  usize,  // 0=General 1=Services 2=Reconnect 3=Approval 4=VS Code
+    pub visible:    bool,
+    pub active_cat: usize,  // 0=General 1=Services 2=Reconnect 3=Approval 4=VS Code
 }
 
 const CATEGORIES: [&str; 5] = ["General", "Services", "Reconnect", "Approval", "VS Code"];

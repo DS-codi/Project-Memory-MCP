@@ -8,12 +8,13 @@ Item {
 
     ListModel {
         id: componentModel
-        ListElement { name: "Supervisor (Tray App)"; desc: "Main orchestration application"; selected: true }
-        ListElement { name: "Interactive Terminal"; desc: "Bridge for terminal workflows"; selected: true }
-        ListElement { name: "PM GUI Forms"; desc: "Desktop approval/brainstorm dialogs"; selected: true }
-        ListElement { name: "MCP Server"; desc: "Core tool server & data engine"; selected: true }
-        ListElement { name: "Dashboard"; desc: "Local React-based observer UI"; selected: true }
-        ListElement { name: "VS Code Extension"; desc: "IDE integration & chat host"; selected: true }
+        ListElement { key: "supervisor";        name: "Supervisor (Tray App)";        desc: "Main orchestration application";                  selected: true }
+        ListElement { key: "terminal";          name: "Interactive Terminal";          desc: "Bridge for terminal workflows";                    selected: true }
+        ListElement { key: "gui_forms";         name: "PM GUI Forms";                 desc: "Desktop approval/brainstorm dialogs";              selected: true }
+        ListElement { key: "mcp_server";        name: "MCP Server";                   desc: "Core tool server & data engine";                   selected: true }
+        ListElement { key: "dashboard";         name: "Dashboard";                    desc: "Local React-based observer UI";                    selected: true }
+        ListElement { key: "vscode_extension";  name: "VS Code Extension";            desc: "IDE integration & chat host";                      selected: true }
+        ListElement { key: "global_claude";     name: "Global Claude Integration";    desc: "Register MCP tools & agents in all Claude Code sessions"; selected: true }
     }
 
     Column {
@@ -39,13 +40,14 @@ Item {
             delegate: Rectangle {
                 id: compDelegate
                 // qmllint disable unqualified
+                required property string key
                 required property string name
                 required property string desc
                 required property bool selected
                 width: parent.width
                 height: 45
-                color: "#22000000"
-                border.color: "#3360a5fa"
+                color: compDelegate.key === "global_claude" ? "#221e3a5f" : "#22000000"
+                border.color: compDelegate.key === "global_claude" ? "#5560a5fa" : "#3360a5fa"
                 radius: 4
 
                 Row {
@@ -55,7 +57,12 @@ Item {
                     CheckBox {
                         anchors.verticalCenter: parent.verticalCenter
                         checked: compDelegate.selected
-                        onToggled: compDelegate.selected = checked
+                        onToggled: {
+                            compDelegate.selected = checked
+                            if (compDelegate.key === "global_claude") {
+                                wizard.globalClaude = checked
+                            }
+                        }
                     }
                     Column {
                         anchors.verticalCenter: parent.verticalCenter

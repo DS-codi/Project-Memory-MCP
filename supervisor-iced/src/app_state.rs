@@ -2,6 +2,8 @@
 /// SupervisorGuiBridge.  Every panel reads from this struct; mutations are
 /// driven by `Message` variants in `main.rs`.
 
+use iced::window;
+
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum ServiceStatus {
     #[default]
@@ -77,19 +79,23 @@ pub struct SessionEntry {
 // ── Plan entry ────────────────────────────────────────────────────────────────
 #[derive(Debug, Clone)]
 pub struct PlanEntry {
-    pub plan_id:          String,
-    pub title:            String,
-    pub status:           String,
-    pub category:         String,
-    pub steps_done:       i32,
-    pub steps_total:      i32,
-    pub workspace_id:     String,
-    pub next_step_task:   String,
-    pub next_step_phase:  String,
-    pub next_step_agent:  String,
-    pub next_step_status: String,
-    pub recommended:      String,
-    pub expanded:         bool,
+    pub plan_id:              String,
+    pub title:                String,
+    pub status:               String,
+    pub category:             String,
+    pub steps_done:           i32,
+    pub steps_total:          i32,
+    pub workspace_id:         String,
+    pub next_step_task:       String,
+    pub next_step_phase:      String,
+    pub next_step_agent:      String,
+    pub next_step_status:     String,
+    pub recommended:          String,
+    pub expanded:             bool,
+    /// Animated reveal height for the expanded details area (0.0 = hidden).
+    pub expanded_height:      f32,
+    /// Target height the animation is moving toward.
+    pub expanded_height_target: f32,
 }
 
 // ── Sprint / Goal entries ─────────────────────────────────────────────────────
@@ -126,15 +132,6 @@ pub struct ChatMessage {
     pub is_tool_call: bool,
 }
 
-// ── Custom service ────────────────────────────────────────────────────────────
-#[derive(Debug, Clone)]
-pub struct CustomService {
-    pub name:    String,
-    pub display: String,
-    pub status:  ServiceStatus,
-    pub port:    Option<i32>,
-}
-
 // ── Active panel / overlay ─────────────────────────────────────────────────────
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum Overlay {
@@ -163,14 +160,12 @@ pub struct AppState {
     pub cli_mcp:   ServiceInfo,
 
     // ── Misc bridge properties ────────────────────────────────────────────────
-    pub status_text:            String,
     pub dashboard_url:          String,
     pub terminal_url:           String,
     pub action_feedback:        String,
     pub focused_workspace_path: String,
     pub gui_auth_key:           String,
     pub custom_services_json:   String,
-    pub custom_services:        Vec<CustomService>,
 
     // ── MCP proxy stats ───────────────────────────────────────────────────────
     pub total_mcp_connections:      i32,
@@ -184,12 +179,8 @@ pub struct AppState {
     pub event_subscriber_count:  i32,
     pub events_total_emitted:    i32,
 
-    // ── Tray / notifications ──────────────────────────────────────────────────
-    pub tray_notification_text: String,
-
     // ── Upgrade / About ───────────────────────────────────────────────────────
     pub supervisor_version: String,
-    pub upgrade_report_json: String,
 
     // ── Config editor ─────────────────────────────────────────────────────────
     pub config_editor_text:  String,
@@ -238,16 +229,40 @@ pub struct AppState {
     pub chat_workspaces:       Vec<WorkspaceEntry>,
     pub chat_workspace_index:  usize,
     pub chat_provider:         usize,   // 0 = Gemini, 1 = Copilot
-    pub chat_model:            String,
     pub chat_key_configured:   bool,
     pub chat_show_settings:    bool,
     pub chat_api_key_input:    String,
+
+    // ── Panel animation ───────────────────────────────────────────────────────
+    /// Current animated width of the Plans sidebar (px).
+    pub plans_panel_width:        f32,
+    /// Target width the plans sidebar is animating toward.
+    pub plans_panel_width_target: f32,
+    /// Current animated width of the Chat sidebar (px).
+    pub chat_panel_width:         f32,
+    /// Target width the chat sidebar is animating toward.
+    pub chat_panel_width_target:  f32,
+    /// True while any animation is still moving — drives the 16ms tick subscription.
+    pub animation_running:        bool,
+
+    // ── Window IDs (daemon mode — no MAIN constant) ───────────────────────────
+    /// ID of the primary supervisor window, set immediately in init().
+    pub main_window_id:           Option<window::Id>,
+
+    // ── Chat pop-out window ───────────────────────────────────────────────────
+    /// True when the chat panel has been opened in a separate OS window.
+    pub chat_popped_out:          bool,
+    /// Window ID of the chat pop-out, if open.
+    pub chat_popout_window_id:    Option<window::Id>,
+
+    // ── Notification dedup ────────────────────────────────────────────────────
+    /// Key of the most-recently seen (and notified-on) activity entry.
+    pub last_activity_key:        String,
 
     // ── Shutdown confirmation visible ─────────────────────────────────────────
     pub shutdown_dialog_visible: bool,
 
     // ── Settings panel ────────────────────────────────────────────────────────
-    pub settings_loaded:      bool,
     pub settings_active_cat:  usize,  // 0=General 1=Services 2=Reconnect 3=Approval 4=VS Code
 }
 

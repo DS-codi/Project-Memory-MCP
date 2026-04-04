@@ -10,6 +10,28 @@ use crate::app_state::AppState;
 use super::{theme, sprints_panel};
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Shared tab button style
+// ─────────────────────────────────────────────────────────────────────────────
+fn tab_btn_style(active: bool) -> impl Fn(&iced::Theme, iced::widget::button::Status) -> iced::widget::button::Style {
+    move |_theme, _status| {
+        iced::widget::button::Style {
+            background: Some(Background::Color(if active {
+                Color::from_rgb8(0x1c, 0x21, 0x28)
+            } else {
+                Color::TRANSPARENT
+            })),
+            text_color: if active { theme::TEXT_PRIMARY } else { theme::TEXT_SECONDARY },
+            border: Border {
+                color: if active { theme::CLR_BLUE } else { Color::TRANSPARENT },
+                width: 0.0,
+                radius: 4.0.into(),
+            },
+            ..Default::default()
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Public API
 // ─────────────────────────────────────────────────────────────────────────────
 #[allow(clippy::too_many_arguments)]
@@ -40,8 +62,11 @@ pub fn view<'a, Message>(
 where
     Message: Clone + 'a,
 {
-    // ── Collapsed strip (44 px) ───────────────────────────────────────────────
-    if !state.plans_panel_expanded {
+    // ── Collapsed strip (shown when fully at rest AND not expanded) ──────────
+    // During animation the expanded layout is kept and clipped to the current
+    // animated width, giving a smooth slide-in / slide-out effect.
+    let fully_collapsed = !state.plans_panel_expanded && state.plans_panel_width <= 45.0;
+    if fully_collapsed {
         return container(
             column![
                 button(text("►").size(14)).on_press(on_toggle),
@@ -98,25 +123,6 @@ where
     .width(Length::Fill);
 
     // ── Main tab bar: Plans / Sprints ─────────────────────────────────────────
-    fn tab_btn_style(active: bool) -> impl Fn(&iced::Theme, iced::widget::button::Status) -> iced::widget::button::Style {
-        move |_theme, _status| {
-            iced::widget::button::Style {
-                background: Some(Background::Color(if active {
-                    Color::from_rgb8(0x1c, 0x21, 0x28)
-                } else {
-                    Color::TRANSPARENT
-                })),
-                text_color: if active { theme::TEXT_PRIMARY } else { theme::TEXT_SECONDARY },
-                border: Border {
-                    color: if active { theme::CLR_BLUE } else { Color::TRANSPARENT },
-                    width: if active { 0.0 } else { 0.0 },
-                    radius: 4.0.into(),
-                },
-                ..Default::default()
-            }
-        }
-    }
-
     let main_tabs = row![
         button(text("Plans").size(11))
             .on_press(on_main_tab_plans)
@@ -161,7 +167,10 @@ where
             .height(Length::Fill),
     )
     .padding(Padding { top: 10.0, right: 6.0, bottom: 8.0, left: 10.0 })
-    .width(Length::Fixed(460.0))
+    // Width follows the animation; clip prevents content from overflowing
+    // while the panel is still mid-slide.
+    .width(Length::Fixed(state.plans_panel_width.max(44.0)))
+    .clip(true)
     .height(Length::Fill)
     .style(|_| iced::widget::container::Style {
         background: Some(Background::Color(theme::BG_PANEL)),
@@ -219,9 +228,11 @@ where
     let tabs = row![
         button(text("Active").size(11))
             .on_press(on_tab_active)
+            .style(tab_btn_style(state.plans_tab == 0))
             .padding(Padding::from([3, 8])),
         button(text("All Plans").size(11))
             .on_press(on_tab_all)
+            .style(tab_btn_style(state.plans_tab == 1))
             .padding(Padding::from([3, 8])),
     ]
     .spacing(0)
@@ -348,7 +359,8 @@ where
 
             let mut card_col = column![card_header].spacing(0).width(Length::Fill);
 
-            if plan.expanded {
+            // Show detail area during animation (expanding or collapsing) or when fully open.
+            if plan.expanded || plan.expanded_height > 0.5 {
                 let mut detail: Column<Message> = Column::new().spacing(8).width(Length::Fill);
 
                 // Category + recommended agent
@@ -460,6 +472,9 @@ where
 
                 let expanded_area = container(detail.padding(Padding::from([10, 12])))
                     .width(Length::Fill)
+                    // Clip to animated height for smooth reveal/collapse.
+                    .height(Length::Fixed(plan.expanded_height.max(0.0)))
+                    .clip(true)
                     .style(|_| iced::widget::container::Style {
                         background: Some(Background::Color(Color::from_rgb8(0x1c, 0x21, 0x28))),
                         border: Border {

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use tokio::sync::mpsc;
 
-use crate::pty_host_protocol::{SessionCreate, SessionExited};
+use crate::pty_host_protocol::SessionCreate;
 
 /// Events emitted by PTY sessions to the IPC send loop.
 #[derive(Debug)]

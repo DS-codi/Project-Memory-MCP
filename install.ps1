@@ -81,7 +81,7 @@
 
 [CmdletBinding()]
 param(
-    [ValidateSet("Server", "FallbackServer", "Extension", "Container", "Supervisor", "InteractiveTerminal", "Dashboard", "GuiForms", "InstallWizard", "Mobile", "All", "--help")]
+    [ValidateSet("Server", "FallbackServer", "Extension", "Container", "Supervisor", "InteractiveTerminal", "Dashboard", "GuiForms", "InstallWizard", "Mobile", "GlobalClaude", "All", "--help")]
     [string[]]$Component = @("All"),
 
     [switch]$InstallOnly,
@@ -109,7 +109,7 @@ function Show-InstallHelp {
     Write-Host "  .\install.ps1 [-Component <list>] [-InstallOnly] [-SkipInstall] [-Force] [-NoBuild] [-NewDatabase] [-SkipOutdatedAudit] [-ApplyOutdatedAuditFixes] [-h|-Help|--help]"
     Write-Host ""
     Write-Host "Components:" -ForegroundColor Cyan
-    Write-Host "  Supervisor, GuiForms, InteractiveTerminal, Server, FallbackServer, Dashboard, Mobile, Extension, Container, All"
+    Write-Host "  Supervisor, GuiForms, InteractiveTerminal, Server, FallbackServer, Dashboard, Mobile, Extension, Container, GlobalClaude, All"
     Write-Host ""
     Write-Host "Flags:" -ForegroundColor Cyan
     Write-Host "  -InstallOnly   Extension only: install latest .vsix without rebuilding"
@@ -1667,6 +1667,18 @@ function Install-Mobile {
 # Container
 # ──────────────────────────────────────────────────────────────
 
+function Install-GlobalClaude {
+    Write-Step "Global Claude Code Install"
+    $script = Join-Path $Root 'scripts\install-global-claude.ps1'
+    if (-not (Test-Path $script)) {
+        Write-Fail "Script not found: $script"
+        return
+    }
+    & $script -Force:$Force
+}
+
+# ──────────────────────────────────────────────────────────────
+
 function Install-Container {
     Write-Step "Container (podman)"
 
@@ -1720,6 +1732,7 @@ foreach ($comp in $Components) {
         "Mobile"              { Install-Mobile }
         "Extension"           { Install-Extension }
         "Container"           { Install-Container }
+        "GlobalClaude"        { Install-GlobalClaude }
     }
 }
 

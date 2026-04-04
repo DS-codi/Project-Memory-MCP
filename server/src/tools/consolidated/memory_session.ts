@@ -16,6 +16,8 @@
 import { randomBytes } from 'crypto';
 import * as store from '../../storage/db-store.js';
 import { deployForTask } from '../agent-deploy.js';
+import { getWorkspaceInstructionsWithContent, getInstruction } from '../../db/instruction-db.js';
+import { getWorkspaceSkillsWithContent, getSkill } from '../../db/skill-db.js';
 import { getImportantResponseContext } from '../../utils/important-response-context.js';
 import { isSupervisorRunning } from '../orchestration/supervisor-client.js';
 import {
@@ -40,7 +42,7 @@ import type {
 // Types
 // ---------------------------------------------------------------------------
 
-export type SessionAction = 'prep' | 'deploy_and_prep' | 'list_sessions' | 'get_session';
+export type SessionAction = 'prep' | 'deploy_and_prep' | 'list_sessions' | 'get_session' | 'prep_claude';
 
 export interface MemorySessionParams {
     action: SessionAction;
@@ -92,6 +94,12 @@ export interface MemorySessionParams {
 
     // For list_sessions
     status_filter?: 'active' | 'stopping' | 'completed' | 'all';
+
+    // For prep_claude
+    role?: 'Researcher' | 'Architect' | 'Executor' | 'Reviewer' | 'Tester' | 'Revisionist' | 'Archivist' | 'Worker';
+    context_summary?: string;
+    skills_to_load?: string[];
+    instructions_to_load?: string[];
 }
 
 interface PrepResult {
@@ -825,6 +833,25 @@ async function handleDeployAndPrep(params: MemorySessionParams) {
 // Action: list_sessions
 // ---------------------------------------------------------------------------
 
+/** Slim session entry for list_sessions response — full detail is via get_session. */
+function slimSession(sess: any, overridePlanId?: string): Record<string, unknown> {
+    const entry: Record<string, unknown> = {
+        session_id: sess.session_id,
+        agent_type: sess.agent_type,
+    };
+    // Include status and plan_id only when present
+    if (sess.status != null) entry.status = sess.status;
+    const pid = overridePlanId ?? sess.plan_id;
+    if (pid != null) entry.plan_id = pid;
+    // Date portion only from started_at
+    if (sess.started_at != null) {
+        entry.started_at = typeof sess.started_at === 'string'
+            ? (sess.started_at.split('T')[0] ?? sess.started_at)
+            : sess.started_at;
+    }
+    return entry;
+}
+
 async function handleListSessions(params: MemorySessionParams) {
     const { workspace_id, plan_id, status_filter } = params;
 
@@ -837,7 +864,7 @@ async function handleListSessions(params: MemorySessionParams) {
             if (!planState) return err(`Plan not found: ${plan_id}`);
 
             const sessions = (planState as any).agent_sessions || [];
-            const filtered = status_filter && status_filter !== 'all'
+            const filtered: any[] = status_filter && status_filter !== 'all'
                 ? sessions.filter((s: any) => s.status === status_filter)
                 : sessions;
 
@@ -845,7 +872,7 @@ async function handleListSessions(params: MemorySessionParams) {
                 workspace_id,
                 plan_id,
                 session_count: filtered.length,
-                sessions: filtered
+                sessions: filtered.map((s: any) => slimSession(s, plan_id))
             });
         } catch (e) {
             return err(`Failed to load plan sessions: ${(e as Error).message}`);
@@ -862,19 +889,19 @@ async function handleListSessions(params: MemorySessionParams) {
             const state = await store.getPlanState(workspace_id, plan.id);
             if (state && (state as any).agent_sessions) {
                 for (const sess of (state as any).agent_sessions) {
-                    allSessions.push({ ...sess, plan_id: plan.id, plan_title: state.title });
+                    allSessions.push({ ...sess, plan_id: plan.id });
                 }
             }
         }
 
-        const filtered = status_filter && status_filter !== 'all'
+        const filtered: any[] = status_filter && status_filter !== 'all'
             ? allSessions.filter(s => s.status === status_filter)
             : allSessions;
 
         return ok('list_sessions', {
             workspace_id,
             session_count: filtered.length,
-            sessions: filtered
+            sessions: filtered.map((s: any) => slimSession(s))
         });
     } catch (e) {
         return err(`Failed to list sessions: ${(e as Error).message}`);
@@ -920,6 +947,199 @@ async function handleGetSession(params: MemorySessionParams) {
 }
 
 // ---------------------------------------------------------------------------
+// Action: prep_claude
+// ---------------------------------------------------------------------------
+
+/**
+ * Simplified spoke-spawn preparation for Claude Code hub-and-spoke.
+ *
+ * Unlike deploy_and_prep, this action:
+ *   - Takes simple inputs (role, step_indices, context_summary, scope_boundaries)
+ *   - Pre-embeds instruction and skill content from the DB into the enriched_prompt
+ *   - Requires no hub policy params, bundle scope, or compat modes
+ *   - Returns enriched_prompt + session_id ready for direct use with the Agent tool
+ *
+ * The spoke receives all context it needs inline; it does NOT need to call
+ * memory_agent(action: get_instructions) or get_skill at startup.
+ */
+async function handlePrepClaude(params: MemorySessionParams) {
+    const { workspace_id, plan_id, role, prompt, parent_session_id } = params;
+
+    if (!workspace_id) return err('workspace_id is required');
+    if (!role) return err('role is required');
+    if (!prompt) return err('prompt is required');
+
+    // Mint session ID
+    const sessionId = mintSessionId();
+    const startedAt = new Date().toISOString();
+
+    // Fetch workspace info
+    let workspacePath: string | undefined;
+    try {
+        const ws = await store.getWorkspace(workspace_id);
+        workspacePath = ws?.path;
+    } catch { /* non-fatal */ }
+
+    // Fetch plan info
+    let planTitle: string | undefined;
+    let currentPhase: string | undefined;
+    let planSteps: Array<{ index: number; title: string; description?: string; status: string }> = [];
+
+    if (plan_id) {
+        try {
+            const planState = await store.getPlanState(workspace_id, plan_id);
+            if (planState) {
+                planTitle = planState.title;
+                currentPhase = planState.current_phase;
+
+                // Collect requested steps
+                if (params.step_indices?.length && Array.isArray((planState as any).steps)) {
+                    const allSteps = (planState as any).steps as Array<any>;
+                    planSteps = params.step_indices
+                        .map(idx => {
+                            const s = allSteps[idx];
+                            if (!s) return null;
+                            return {
+                                index: idx,
+                                title: s.title ?? s.name ?? `Step ${idx}`,
+                                description: s.description,
+                                status: s.status ?? 'pending',
+                            };
+                        })
+                        .filter((s): s is NonNullable<typeof s> => s !== null);
+                }
+            }
+        } catch { /* non-fatal */ }
+    }
+
+    // Fetch instructions to embed
+    const instructionNames: string[] = [];
+    const instructionBlocks: string[] = [];
+
+    if (params.instructions_to_load?.length) {
+        for (const name of params.instructions_to_load) {
+            try {
+                const row = getInstruction(name);
+                if (row) {
+                    instructionNames.push(row.filename);
+                    instructionBlocks.push(`### ${row.filename}\n${row.content}`);
+                }
+            } catch { /* non-fatal */ }
+        }
+    } else {
+        try {
+            const rows = getWorkspaceInstructionsWithContent(workspace_id);
+            for (const row of rows) {
+                instructionNames.push(row.filename);
+                instructionBlocks.push(`### ${row.filename}\n${row.content}`);
+            }
+        } catch { /* non-fatal */ }
+    }
+
+    // Fetch skills to embed
+    const skillNames: string[] = [];
+    const skillBlocks: string[] = [];
+
+    if (params.skills_to_load?.length) {
+        for (const name of params.skills_to_load) {
+            try {
+                const row = getSkill(name);
+                if (row) {
+                    skillNames.push(row.name);
+                    skillBlocks.push(`### ${row.name}\n${row.content}`);
+                }
+            } catch { /* non-fatal */ }
+        }
+    } else {
+        try {
+            const rows = getWorkspaceSkillsWithContent(workspace_id);
+            for (const row of rows) {
+                skillNames.push(row.name);
+                skillBlocks.push(`### ${row.name}\n${row.content}`);
+            }
+        } catch { /* non-fatal */ }
+    }
+
+    // Build enriched prompt
+    const parts: string[] = [];
+
+    // Session context block
+    parts.push('--- SESSION CONTEXT ---');
+    parts.push(`Workspace: ${workspace_id}`);
+    if (workspacePath) parts.push(`Path: ${workspacePath}`);
+    if (plan_id) {
+        parts.push(`Plan: ${plan_id}`);
+        if (planTitle) parts.push(`Plan title: ${planTitle}`);
+    }
+    if (params.phase_name || currentPhase) parts.push(`Phase: ${params.phase_name ?? currentPhase}`);
+    if (params.step_indices?.length) parts.push(`Step indices: ${params.step_indices.join(', ')}`);
+    parts.push(`Session: ${sessionId}`);
+    parts.push(`Role: ${role}`);
+    parts.push('--- END SESSION CONTEXT ---\n');
+
+    // Assigned steps block
+    if (planSteps.length > 0) {
+        parts.push('--- ASSIGNED STEPS ---');
+        for (const step of planSteps) {
+            parts.push(`[${step.index}] ${step.title} (status: ${step.status})`);
+            if (step.description) parts.push(`    ${step.description}`);
+        }
+        parts.push('--- END ASSIGNED STEPS ---\n');
+    }
+
+    // Instructions block
+    if (instructionBlocks.length > 0) {
+        parts.push('--- INSTRUCTIONS ---');
+        parts.push(instructionBlocks.join('\n\n'));
+        parts.push('--- END INSTRUCTIONS ---\n');
+    }
+
+    // Skills block
+    if (skillBlocks.length > 0) {
+        parts.push('--- SKILLS ---');
+        parts.push(skillBlocks.join('\n\n'));
+        parts.push('--- END SKILLS ---\n');
+    }
+
+    // Scope boundaries block
+    const scopeBlock = buildScopeBoundariesBlock(params.prep_config);
+    if (scopeBlock) parts.push(scopeBlock);
+
+    // Anti-spawning + git stability
+    parts.push(ANTI_SPAWNING_TEMPLATE);
+    parts.push(GIT_STABILITY_GUARD);
+
+    // Hub context
+    if (params.context_summary) {
+        parts.push(`--- HUB CONTEXT ---\n${params.context_summary}\n--- END HUB CONTEXT ---\n`);
+    }
+
+    // User prompt (the task itself)
+    parts.push(prompt);
+
+    const enrichedPrompt = parts.join('\n');
+
+    return ok('prep_claude', {
+        session_id: sessionId,
+        role,
+        enriched_prompt: enrichedPrompt,
+        workspace_id,
+        plan_id,
+        instructions_embedded: instructionNames,
+        skills_embedded: skillNames,
+        steps_embedded: planSteps.map(s => s.index),
+        session_registration: {
+            session_id: sessionId,
+            workspace_id,
+            plan_id,
+            agent_type: role,
+            parent_session_id,
+            started_at: startedAt,
+        },
+    });
+}
+
+// ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
 
@@ -933,6 +1153,8 @@ export async function memorySession(params: MemorySessionParams) {
             return handleListSessions(params);
         case 'get_session':
             return handleGetSession(params);
+        case 'prep_claude':
+            return handlePrepClaude(params);
         default:
             return err(`Unknown action: ${(params as any).action}`);
     }

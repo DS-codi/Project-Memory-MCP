@@ -24,7 +24,8 @@ import * as agentTools from './tools/agent.tools.js';
 import * as validationTools from './tools/agent-validation.tools.js';
 import * as store from './storage/db-store.js';
 import { logToolCall, runWithToolContext, setCurrentAgent } from './logging/tool-logger.js';
-import { touchLiveSession, getLiveSessionEntry } from './tools/session-live-store.js';
+import { touchLiveSession, getLiveSessionEntry, hasInstructionsSurfaced, markInstructionsSurfaced } from './tools/session-live-store.js';
+import { getAutoSurfaceInstructions } from './db/instruction-db.js';
 
 // Import consolidated tools
 import * as consolidatedTools from './tools/consolidated/index.js';
@@ -108,6 +109,30 @@ async function withLogging<T>(
         });
         if (importantContext) {
           (result as Record<string, unknown>).important_context = importantContext;
+        }
+
+        // Phase 2 — Workspace-First Instructions: inject auto_surface instructions
+        // on the first tool call in a session for a given workspace.
+        const workspaceId = params.workspace_id as string | undefined;
+        if (workspaceId && sessionId && !hasInstructionsSurfaced(sessionId, workspaceId)) {
+          try {
+            const autoSurfaceInstructions = getAutoSurfaceInstructions(workspaceId);
+            if (autoSurfaceInstructions.length > 0) {
+              (result as Record<string, unknown>).priority_instructions = {
+                surfaced_at: new Date().toISOString(),
+                workspace_id: workspaceId,
+                instructions: autoSurfaceInstructions.map(i => ({
+                  filename: i.filename,
+                  priority: i.priority,
+                  content:  i.content,
+                })),
+                notice: 'PRIORITY: These workspace instructions must be followed for all work in this session.',
+              };
+            }
+            markInstructionsSurfaced(sessionId, workspaceId);
+          } catch {
+            // Non-fatal: if the migration hasn't run yet or columns are missing, skip silently.
+          }
         }
       }
 
@@ -315,6 +340,7 @@ server.tool(
     child_workspace_id: z.string().optional().describe('Child workspace ID (for link action)'),
     mode: z.enum(['link', 'unlink']).optional().describe('Link or unlink mode (for link action, defaults to link)'),
     hierarchical: z.boolean().optional().describe('When true, group child workspaces under parents in list results (for list action)'),
+    verbose: z.boolean().optional().describe('When true, return full WorkspaceMeta objects for list action; default false returns a slim summary per workspace'),
     display_name: z.string().optional().describe('New display name for the workspace (for set_display_name)'),
     output_filename: z.string().optional().describe('Custom output filename for export_pending (defaults to pending-steps.md)'),
     plan_id: z.string().optional().describe('Plan ID (for generate_focused_workspace and list_focused_workspaces)'),
@@ -881,16 +907,20 @@ server.tool(
     'list — all instructions, metadata only, no content; ' +
     'list_workspace — workspace-assigned instructions, metadata only — spokes call this then fetch only what they need.',
     {
-      action: z.enum(['search', 'get', 'get_section', 'list', 'list_workspace'])
+      action: z.enum(['search', 'get', 'get_section', 'list', 'list_workspace', 'assign_priority'])
         .describe('Action to perform'),
       query: z.string().optional()
         .describe('Keyword to search for (required for: search)'),
       filename: z.string().optional()
-        .describe('Instruction filename (required for: get, get_section)'),
+        .describe('Instruction filename (required for: get, get_section, assign_priority)'),
       heading: z.string().optional()
         .describe('Section heading — partial case-insensitive ## or ### match (required for: get_section)'),
       workspace_id: z.string().optional()
-        .describe('Workspace ID (required for: list_workspace)'),
+        .describe('Workspace ID (required for: list_workspace; optional for: assign_priority — scopes the flag to the workspace assignment row)'),
+      priority: z.enum(['normal', 'critical']).optional()
+        .describe('Priority level for the instruction (used with: assign_priority)'),
+      auto_surface: z.boolean().optional()
+        .describe('Whether to auto-surface this instruction on first tool call in a session (used with: assign_priority)'),
       _session_id: z.string().optional()
         .describe('Session ID for instrumentation tracking'),
     },

@@ -19,6 +19,7 @@ import {
   extractMatchingSections,
   getInstructionSection,
   listWorkspaceInstructionAssignments,
+  setInstructionAutoSurface,
 } from '../../db/instruction-db.js';
 import type { ToolResponse } from '../../types/index.js';
 
@@ -26,7 +27,7 @@ import type { ToolResponse } from '../../types/index.js';
 // Types
 // ---------------------------------------------------------------------------
 
-export type InstructionsAction = 'search' | 'get' | 'get_section' | 'list' | 'list_workspace';
+export type InstructionsAction = 'search' | 'get' | 'get_section' | 'list' | 'list_workspace' | 'assign_priority';
 
 export interface MemoryInstructionsParams {
   action:        InstructionsAction;
@@ -34,6 +35,8 @@ export interface MemoryInstructionsParams {
   filename?:     string;
   heading?:      string;
   workspace_id?: string;
+  priority?:     'normal' | 'critical';
+  auto_surface?: boolean;
 }
 
 type InstructionsResult =
@@ -144,6 +147,33 @@ export async function memoryInstructions(
           return { success: false, error: `Section "${heading}" not found in ${filename}` };
         }
         return { success: true, data: { action: 'get_section', data: section } };
+      }
+
+      // ---- assign_priority ----------------------------------------------------
+      case 'assign_priority': {
+        const { filename, priority, auto_surface, workspace_id } = params;
+        if (!filename) {
+          return { success: false, error: 'filename is required for assign_priority' };
+        }
+        const resolvedPriority = priority ?? 'normal';
+        if (resolvedPriority !== 'normal' && resolvedPriority !== 'critical') {
+          return { success: false, error: `Invalid priority "${resolvedPriority}": must be 'normal' or 'critical'` };
+        }
+        const resolvedAutoSurface = auto_surface ?? false;
+        setInstructionAutoSurface(filename, resolvedPriority, resolvedAutoSurface, workspace_id);
+        return {
+          success: true,
+          data: {
+            action: 'assign_priority',
+            data: {
+              filename,
+              priority:     resolvedPriority,
+              auto_surface: resolvedAutoSurface,
+              workspace_id: workspace_id ?? null,
+              updated:      true,
+            },
+          },
+        };
       }
 
       default: {

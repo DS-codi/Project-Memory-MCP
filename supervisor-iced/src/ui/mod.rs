@@ -20,7 +20,6 @@ pub mod theme {
     pub const BG_WINDOW:      Color = Color { r: 0.059, g: 0.075, b: 0.098, a: 1.0 };
     pub const BG_PANEL:       Color = Color { r: 0.086, g: 0.106, b: 0.133, a: 1.0 };
     pub const BG_CARD:        Color = Color { r: 0.110, g: 0.129, b: 0.157, a: 1.0 };
-    pub const BG_TERMINAL:    Color = Color { r: 0.051, g: 0.067, b: 0.090, a: 1.0 };
     pub const BORDER_SUBTLE:  Color = Color { r: 0.188, g: 0.212, b: 0.239, a: 1.0 };
     pub const TEXT_PRIMARY:   Color = Color { r: 0.788, g: 0.820, b: 0.851, a: 1.0 };
     pub const TEXT_SECONDARY: Color = Color { r: 0.545, g: 0.580, b: 0.620, a: 1.0 };

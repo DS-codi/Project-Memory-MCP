@@ -15,6 +15,9 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "0.8"
 anyhow = "1"
+async-trait = "0.1"
+sysinfo = "0.29"
+clap = { version = "4", features = ["derive"] }
 reqwest = { version = "0.12", features = ["json"] }
 axum = "0.8"
 hyper-util = "0.1"
@@ -27,6 +30,8 @@ mdns-sd = "0.13"
 qrcode = { version = "0.14", default-features = false, features = ["svg"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tray-icon = "0.19"
+notify-rust = "4"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = [
@@ -35,4 +40,8 @@ windows-sys = { version = "0.59", features = [
     "Win32_UI_WindowsAndMessaging",
     "Win32_System_Console",
     "Win32_Graphics_Gdi",
+    "Win32_System_Threading",
+    "Win32_System_JobObjects",
+    "Win32_Security",
+    "Win32_System_IO",
 ] }

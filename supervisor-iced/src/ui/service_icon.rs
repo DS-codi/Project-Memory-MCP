@@ -2,10 +2,9 @@
 /// Each icon is drawn at 32×32 in a 512×512 coordinate space (scale 32/512) or 24×24 (scale 32/24).
 
 use iced::{
-    widget::canvas::{self, Fill, Frame, LineCap, LineJoin, Path, Stroke},
+    widget::canvas::{self, Frame, LineCap, LineJoin, Path, Stroke},
     Color, Element, Length, Point, Size,
 };
-use std::f32::consts::PI;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ServiceIconKind {

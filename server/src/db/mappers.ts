@@ -31,8 +31,11 @@ import { getWorkflowMode } from './plan-db.js';
 // ---------------------------------------------------------------------------
 
 export function rowToWorkspaceMeta(row: WorkspaceRow): WorkspaceMeta {
-  const profile  = row.profile ? JSON.parse(row.profile) as WorkspaceProfile : undefined;
-  const metaBlob = row.meta    ? JSON.parse(row.meta)    as Record<string, unknown> : {};
+  // Decode profile only to determine indexed status — do NOT include full
+  // profile in the returned object (it is large and rarely needed in list
+  // responses; callers that need it can fetch via getWorkspace separately).
+  const hasProfile = Boolean(row.profile);
+  const metaBlob   = row.meta ? JSON.parse(row.meta) as Record<string, unknown> : {};
 
   return {
     workspace_id:   row.id,
@@ -42,10 +45,11 @@ export function rowToWorkspaceMeta(row: WorkspaceRow): WorkspaceMeta {
     last_accessed:  row.updated_at,
     updated_at:     row.updated_at,
     active_plans:   [],     // Populated separately from plan queries
-    archived_plans: [],
+    archived_plans: [],     // Populated separately from plan queries
+    archived_plan_count: 0, // Populated separately from plan queries
     active_programs: [],
-    indexed:        Boolean(profile),
-    profile,
+    indexed:        hasProfile,
+    // profile intentionally omitted — too large for list payloads
     parent_workspace_id:  row.parent_workspace_id ?? undefined,
     hierarchy_linked_at:  (metaBlob['hierarchy_linked_at'] as string | undefined),
     child_workspace_ids:  [],  // Populated separately via listChildWorkspaces

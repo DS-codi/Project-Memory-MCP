@@ -11,6 +11,8 @@ use super::theme;
 
 pub fn view<'a, Message>(
     state: &'a AppState,
+    // standalone=true → fills its OS window; false → sidebar, uses chat_panel_width
+    standalone:         bool,
     on_toggle:          Message,
     on_input:           impl Fn(String) -> Message + 'a,
     on_send:            Message,
@@ -18,12 +20,50 @@ pub fn view<'a, Message>(
     on_show_settings:   Message,
     on_api_key_input:   impl Fn(String) -> Message + 'a,
     on_save_settings:   Message,
+    // Fired when the user clicks the ↗ pop-out or ↙ pop-in button.
+    on_popout:          Message,
 ) -> Element<'a, Message>
 where
     Message: Clone + 'a,
 {
+    // ── When popped-out and rendered inline: show 44px placeholder ────────────
+    if state.chat_popped_out && !standalone {
+        let key_dot_color = if state.chat_key_configured {
+            theme::CLR_RUNNING
+        } else {
+            Color::from_rgb8(0xe3, 0xb3, 0x41)
+        };
+        let key_dot = container(Space::new(8.0, 8.0))
+            .style(move |_| iced::widget::container::Style {
+                background: Some(Background::Color(key_dot_color)),
+                border: Border { radius: 4.0.into(), ..Default::default() },
+                ..Default::default()
+            });
+        return container(
+            column![
+                button(text("↙").size(14)).on_press(on_popout),
+                text("AI").size(11).color(theme::TEXT_ACCENT),
+                key_dot,
+            ]
+            .spacing(14)
+            .align_x(Alignment::Center),
+        )
+        .width(Length::Fixed(44.0))
+        .height(Length::Fill)
+        .style(|_| iced::widget::container::Style {
+            background: Some(Background::Color(theme::BG_PANEL)),
+            border: Border {
+                color: theme::BORDER_SUBTLE,
+                width: 1.0,
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .into();
+    }
+
     // ── Collapsed strip (44 px wide) ──────────────────────────────────────────
-    if !state.chat_expanded {
+    if !state.chat_expanded && !standalone {
         let provider_color = if state.chat_provider == 1 {
             Color::from_rgb8(0x1f, 0x6f, 0xeb)
         } else {
@@ -96,14 +136,31 @@ where
         Space::new(0.0, 0.0).into()
     };
 
+    // Toggle button: hidden in standalone mode (no sidebar to collapse into).
+    let toggle_btn: Element<'a, Message> = if standalone {
+        Space::new(0.0, 0.0).into()
+    } else {
+        button(text("►").size(12)).on_press(on_toggle).into()
+    };
+
+    // Pop-out / pop-in button: ↗ opens new window; only shown when not standalone.
+    let popout_btn: Element<'a, Message> = if standalone {
+        Space::new(0.0, 0.0).into()
+    } else {
+        button(text("↗").size(13))
+            .on_press(on_popout)
+            .into()
+    };
+
     let header = row![
-        button(text("►").size(12)).on_press(on_toggle),
+        toggle_btn,
         text("[AI] AI ASSISTANT")
             .size(11)
             .color(theme::TEXT_PRIMARY)
             .width(Length::Fill),
         provider_badge,
         busy_widget,
+        popout_btn,
         button(text("⚙").size(13)).on_press(on_show_settings),
         button(text("⎚").size(13))
             .on_press_maybe(if !state.chat_messages.is_empty() { Some(on_clear) } else { None }),
@@ -269,9 +326,17 @@ where
 
     panel = panel.push(chat_scroll).push(input_row);
 
+    // Width: animated when sidebar, fills window when standalone.
+    let outer_width = if standalone {
+        Length::Fill
+    } else {
+        Length::Fixed(state.chat_panel_width.max(44.0))
+    };
+
     container(panel.width(Length::Fill).height(Length::Fill))
         .padding(Padding { top: 8.0, right: 6.0, bottom: 8.0, left: 8.0 })
-        .width(Length::Fixed(380.0))
+        .width(outer_width)
+        .clip(true)
         .height(Length::Fill)
         .style(|_| iced::widget::container::Style {
             background: Some(Background::Color(theme::BG_PANEL)),

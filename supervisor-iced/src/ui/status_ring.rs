@@ -4,7 +4,7 @@
 
 use iced::{
     widget::canvas::{self, Frame, Path, Stroke},
-    Color, Element, Length, Point, Size,
+    Color, Element, Length, Point,
 };
 use std::f32::consts::PI;
 

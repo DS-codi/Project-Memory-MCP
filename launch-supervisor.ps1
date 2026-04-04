@@ -39,6 +39,11 @@
     The CLI MCP serves CLI agents on port 3466 and shares the same SQLite
     database as the main MCP server.
 
+.PARAMETER NoClaude
+    Disable Claude-profile MCP server startup (enabled by default).
+    The Claude MCP serves Claude Code hub-and-spoke agents on port 3467
+    with the project-memory-claude profile (prep_claude action, no memory_filesystem).
+
 .PARAMETER AutoKillExisting
     Automatically kill detected running component processes (no prompt).
 
@@ -47,6 +52,12 @@
 
 .PARAMETER WriteConfigOnly
     Write supervisor.toml and exit without launching the supervisor.
+
+.PARAMETER InstallDir
+    Optional path to a directory that contains an already-installed supervisor.exe.
+    When provided, this directory takes precedence over the default build output
+    path (target\release\).  Useful when running a release build that was copied
+    or installed to a custom location without a full Rust workspace present.
 
 .EXAMPLE
     .\launch-supervisor.ps1
@@ -59,6 +70,20 @@
 
 .EXAMPLE
     .\launch-supervisor.ps1 -IncludeInteractiveTerminal -AutoKillExisting
+
+.EXAMPLE
+    .\launch-supervisor.ps1 -InstallDir 'C:\Program Files\ProjectMemory'
+
+.NOTES
+    ── supervisor-iced (standalone Iced/Rust GUI) ──────────────────────────────
+    supervisor-iced is a fully self-contained binary that is launched DIRECTLY,
+    bypassing this script entirely:
+
+        supervisor-iced.exe --config <path\to\supervisor.toml>
+
+    This script is ONLY for the legacy QML-based supervisor.  Do NOT add
+    supervisor-iced launch logic here.
+    ─────────────────────────────────────────────────────────────────────────────
 #>
 
 [CmdletBinding()]
@@ -69,9 +94,11 @@ param(
     [switch]$NoApprovalGui,
     [switch]$IncludeInteractiveTerminal,
     [switch]$NoCliMcp,
+    [switch]$NoClaude,
     [switch]$AutoKillExisting,
     [switch]$SkipKillPrompt,
-    [switch]$WriteConfigOnly
+    [switch]$WriteConfigOnly,
+    [string]$InstallDir = ''
 )
 
 Set-StrictMode -Version Latest
@@ -193,7 +220,8 @@ function New-SupervisorToml {
         [bool]$EnableBrainstorm         = $true,
         [bool]$EnableApproval           = $true,
         [bool]$EnableInteractiveTerminal = $false,
-        [bool]$EnableCliMcp             = $true
+        [bool]$EnableCliMcp             = $true,
+        [bool]$EnableClaudeMcp          = $true
     )
 
     $appDataDir = Join-Path $env:APPDATA 'ProjectMemory'
@@ -217,7 +245,8 @@ function New-SupervisorToml {
     $bsEnabled    = ($EnableBrainstorm).ToString().ToLower()
     $apprEnabled  = ($EnableApproval).ToString().ToLower()
     $termEnabled    = ($EnableInteractiveTerminal).ToString().ToLower()
-    $cliMcpEnabled  = ($EnableCliMcp).ToString().ToLower()
+    $cliMcpEnabled    = ($EnableCliMcp).ToString().ToLower()
+    $claudeMcpEnabled = ($EnableClaudeMcp).ToString().ToLower()
 
     # Paths use TOML single-quoted strings (no backslash escaping needed).
     # PowerShell expands $variables inside the @"..."@ heredoc, so $serverDir etc.
@@ -287,6 +316,13 @@ port        = 3466
 command     = "node"
 args        = ["dist/index-cli.js"]
 working_dir = '$serverDir'
+
+[claude_mcp]
+enabled     = $claudeMcpEnabled
+port        = 3467
+command     = "node"
+args        = ["dist/index-claude.js"]
+working_dir = '$serverDir'
 "@
 
     Set-Content -Path $configPath -Value $content -Encoding UTF8
@@ -311,6 +347,7 @@ $enableBrainstorm = -not $NoBrainstormGui
 $enableApproval   = -not $NoApprovalGui
 $enableInteractive = [bool]$IncludeInteractiveTerminal
 $enableCliMcp     = -not $NoCliMcp
+$enableClaudeMcp  = -not $NoClaude
 
 Write-Host 'Project Memory MCP — Launch Supervisor' -ForegroundColor Magenta
 
@@ -322,7 +359,8 @@ $configPath = New-SupervisorToml `
     -EnableBrainstorm $enableBrainstorm `
     -EnableApproval $enableApproval `
     -EnableInteractiveTerminal $enableInteractive `
-    -EnableCliMcp $enableCliMcp
+    -EnableCliMcp $enableCliMcp `
+    -EnableClaudeMcp $enableClaudeMcp
 Write-Ok "Config written: $configPath"
 
 if ($WriteConfigOnly) {
@@ -330,9 +368,20 @@ if ($WriteConfigOnly) {
     return
 }
 
-$supervisorExe = Join-Path $root 'target\release\supervisor.exe'
+$supervisorExe = if ($InstallDir -ne '') {
+    # -InstallDir supplied: use the provided installation directory
+    Join-Path $InstallDir 'supervisor.exe'
+} else {
+    # Default: locate the binary in the Rust build output tree
+    Join-Path $root 'target\release\supervisor.exe'
+}
 if (-not (Test-Path $supervisorExe)) {
-    throw "supervisor.exe not found at $supervisorExe`nBuild Supervisor first: .\install.ps1 -Component Supervisor"
+    $hint = if ($InstallDir -ne '') {
+        "Build or copy supervisor.exe to $InstallDir"
+    } else {
+        "Build Supervisor first: .\install.ps1 -Component Supervisor"
+    }
+    throw "supervisor.exe not found at $supervisorExe`n$hint"
 }
 
 Write-Host "  Supervisor         : $supervisorExe" -ForegroundColor DarkGray

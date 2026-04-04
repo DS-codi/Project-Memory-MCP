@@ -7,7 +7,7 @@ use iced::{
     Background, Border, Color, Element, Length, Padding,
 };
 
-use crate::app_state::{ActivityEntry, AppState};
+use crate::app_state::AppState;
 use super::theme;
 
 /// Map QML-style event type strings to display colours.
