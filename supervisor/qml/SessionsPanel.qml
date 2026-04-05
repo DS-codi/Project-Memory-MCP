@@ -12,6 +12,11 @@ Rectangle {
     property string mcpBaseUrl: ""
     property int    mcpPort:    0
 
+    /// Output: true when the last poll completed successfully.
+    property bool pollingOk:    false
+    /// Output: number of active sessions from the last successful poll.
+    property int  sessionCount: 0
+
     color:        "#161b22"
     radius:       10
     border.color: "#30363d"
@@ -34,7 +39,11 @@ Rectangle {
             if (sessionsPanel.mcpPort <= 0) return
             var xhr = new XMLHttpRequest()
             xhr.onreadystatechange = function() {
-                if (xhr.readyState !== XMLHttpRequest.DONE || xhr.status !== 200) return
+                if (xhr.readyState !== XMLHttpRequest.DONE) return
+                if (xhr.status !== 200) {
+                    sessionsPanel.pollingOk = false
+                    return
+                }
                 try {
                     var raw  = JSON.parse(xhr.responseText)
                     var keys = Object.keys(raw)
@@ -54,7 +63,11 @@ Rectangle {
                                         (s.serverSessionId || keys[i])
                         })
                     }
-                } catch(e) {}
+                    sessionsPanel.pollingOk    = true
+                    sessionsPanel.sessionCount = sessionsRepeater.count
+                } catch(e) {
+                    sessionsPanel.pollingOk = false
+                }
             }
             xhr.open("GET", sessionsPanel.mcpBaseUrl + "/sessions/live")
             xhr.send()
@@ -65,9 +78,29 @@ Rectangle {
     ColumnLayout {
         anchors.fill: parent; anchors.margins: 10; spacing: 6
 
-        Label {
-            text: "ACTIVE SESSIONS"
-            font.pixelSize: 10; font.letterSpacing: 1.0; color: "#8b949e"
+        RowLayout {
+            spacing: 6; Layout.fillWidth: true
+
+            Label {
+                text: "ACTIVE SESSIONS"
+                font.pixelSize: 10; font.letterSpacing: 1.0; color: "#8b949e"
+            }
+
+            // Live polling status dot
+            Rectangle {
+                Layout.preferredWidth: 8; Layout.preferredHeight: 8
+                radius: 4
+                color: sessionsPanel.pollingOk ? "#3fb950" : "#f85149"
+                Layout.alignment: Qt.AlignVCenter
+            }
+
+            // Session count badge
+            Text {
+                text: "[" + sessionsPanel.sessionCount + "]"
+                color: "#58a6ff"
+                font.pixelSize: 12
+                Layout.alignment: Qt.AlignVCenter
+            }
         }
 
         RowLayout {

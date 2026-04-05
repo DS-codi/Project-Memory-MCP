@@ -1,0 +1,15 @@
+
+=== ClientProxy - Rust Build ===
+-- Building client-proxy
+   Compiling slab v0.4.12
+   Compiling futures-macro v0.3.32
+   Compiling futures-util v0.3.32
+   Compiling hyper-util v0.1.20
+   Compiling tower v0.5.3
+   Compiling tower-http v0.6.8
+   Compiling hyper-rustls v0.27.7
+   Compiling hyper-tls v0.6.0
+   Compiling reqwest v0.12.28
+   Compiling client-proxy v0.1.0 (C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\client-server)
+    Finished `release` profile [optimized] target(s) in 27.17s
+client-proxy built OK -> target/release/client-proxy.exe

@@ -1,7 +1,7 @@
 //! Integration tests for CountdownTimer lifecycle, pause/resume/cancel,
 //! and TimerSnapshot helpers.
 
-use pm_gui_forms::timer::{CountdownTimer, TimerEvent, TimerHandle, TimerSnapshot};
+use pm_gui_forms::timer::{CountdownTimer, TimerEvent, TimerSnapshot};
 
 // ── TimerSnapshot Unit Tests (sync — no runtime needed) ──────────
 

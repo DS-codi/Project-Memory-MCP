@@ -33,6 +33,36 @@ pub fn set_pairing_config(http_port: u16, ws_port: u16, api_key: String) {
     }));
 }
 
+pub fn get_monitors_json() -> String {
+    use windows_sys::Win32::Graphics::Gdi::{EnumDisplayMonitors, HMONITOR, HDC};
+    use windows_sys::Win32::Foundation::{LPARAM, RECT, TRUE, BOOL};
+
+    let mut monitors = Vec::new();
+    unsafe {
+        EnumDisplayMonitors(
+            0,
+            std::ptr::null(),
+            Some(enumerate_callback),
+            &mut monitors as *mut Vec<String> as LPARAM,
+        );
+    }
+    if monitors.is_empty() {
+        monitors.push("Default Monitor".to_string());
+    }
+    serde_json::to_string(&monitors).unwrap_or_else(|_| "[]".to_string())
+}
+
+unsafe extern "system" fn enumerate_callback(
+    hmonitor: HMONITOR,
+    _hdc: HDC,
+    _rect: *mut RECT,
+    lparam: LPARAM,
+) -> BOOL {
+    let monitors = &mut *(lparam as *mut Vec<String>);
+    monitors.push(format!("Monitor {}", hmonitor));
+    TRUE
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 fn get_hostname() -> String {
@@ -42,18 +72,18 @@ fn get_hostname() -> String {
         .unwrap_or_else(|_| "localhost".to_string())
 }
 
-fn build_pairing_url() -> String {
+fn build_pairing_url(apps: &str, monitor: i32) -> String {
     let host = get_hostname();
     if let Some(lock) = PAIRING_CONFIG.get() {
         if let Ok(cfg) = lock.lock() {
             return format!(
-                "pmobile://{}:{}?key={}&ws_port={}",
-                host, cfg.http_port, cfg.api_key, cfg.ws_port
+                "pmobile://{}:{}?key={}&ws_port={}&apps={}&monitor={}",
+                host, cfg.http_port, cfg.api_key, cfg.ws_port, apps, monitor
             );
         }
     }
     // Fallback: ports not yet set — produce a placeholder URL.
-    format!("pmobile://{}:3464?key=&ws_port=3458", host)
+    format!("pmobile://{}:3464?key=&ws_port=3458&apps={}&monitor={}", host, apps, monitor)
 }
 
 fn get_api_key_display() -> String {
@@ -106,13 +136,15 @@ pub mod ffi {
         #[qproperty(QString, pairing_qr_svg, cxx_name = "pairingQrSvg")]
         /// Raw API key string for manual display.
         #[qproperty(QString, api_key_text, cxx_name = "apiKeyText")]
+        /// Random 6-digit PIN for alternative manual pairing.
+        #[qproperty(QString, pairing_pin, cxx_name = "pairingPin")]
         type QrPairingBridge = super::QrPairingBridgeRust;
 
         /// Regenerate the QR SVG from the current pairing config.
         /// TODO: also rotate the API key and persist it to supervisor.toml.
         #[qinvokable]
         #[cxx_name = "refreshPairingQr"]
-        fn refresh_pairing_qr(self: Pin<&mut QrPairingBridge>);
+        fn refresh_pairing_qr(self: Pin<&mut QrPairingBridge>, apps: &QString, monitor: i32);
     }
 
     impl cxx_qt::Initialize for QrPairingBridge {}
@@ -121,16 +153,18 @@ pub mod ffi {
 pub struct QrPairingBridgeRust {
     pub pairing_qr_svg: cxx_qt_lib::QString,
     pub api_key_text: cxx_qt_lib::QString,
+    pub pairing_pin: cxx_qt_lib::QString,
 }
 
 impl Default for QrPairingBridgeRust {
     fn default() -> Self {
-        let url = build_pairing_url();
+        let url = build_pairing_url("terminal,files,dashboard,supervisor", 0);
         let svg = generate_qr_svg(&url);
         let key = get_api_key_display();
         Self {
             pairing_qr_svg: cxx_qt_lib::QString::from(svg.as_str()),
             api_key_text: cxx_qt_lib::QString::from(key.as_str()),
+            pairing_pin: cxx_qt_lib::QString::default(),
         }
     }
 }
@@ -144,8 +178,8 @@ impl cxx_qt::Initialize for ffi::QrPairingBridge {
 impl ffi::QrPairingBridge {
     /// Rebuild the QR SVG from the current pairing config and push both
     /// `pairingQrSvg` and `apiKeyText` property-change signals to QML.
-    fn refresh_pairing_qr(mut self: std::pin::Pin<&mut Self>) {
-        let url = build_pairing_url();
+    fn refresh_pairing_qr(mut self: std::pin::Pin<&mut Self>, apps: &cxx_qt_lib::QString, monitor: i32) {
+        let url = build_pairing_url(&apps.to_string(), monitor);
         let svg = generate_qr_svg(&url);
         let key = get_api_key_display();
         self.as_mut()

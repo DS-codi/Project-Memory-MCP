@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Terminal</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css"/>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; background: #1e1e1e; overflow: hidden; }
+
+  /* ── Layout: terminal + optional side panel ─────────────────────────── */
+  #layout {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    position: relative;
+  }
+  #terminal-wrap {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100%;
+    position: relative;
+  }
+  #terminal { width: 100%; height: 100%; }
+
+  /* ── Thinking toggle button ─────────────────────────────────────────── */
+  #thinking-toggle {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    z-index: 30;
+    background: #2d2d2d;
+    border: 1px solid #3c3c3c;
+    border-radius: 5px;
+    color: #808080;
+    font-size: 14px;
+    line-height: 1;
+    padding: 4px 7px;
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.2s, border-color 0.2s, background 0.2s;
+  }
+  #thinking-toggle:hover { background: #3a3a3a; color: #c0c0c0; }
+  #thinking-toggle.has-content { color: #c586c0; border-color: #6b3a7a; }
+  #thinking-toggle.panel-open { background: #3a1f4a; border-color: #c586c0; color: #dda0f0; }
+
+  /* ── Thinking side panel ────────────────────────────────────────────── */
+  #thinking-panel {
+    flex: 0 0 0;
+    width: 0;
+    height: 100%;
+    overflow: hidden;
+    background: #1a1025;
+    border-left: 0px solid #3c3c3c;
+    display: flex;
+    flex-direction: column;
+    transition: flex-basis 0.25s ease, width 0.25s ease, border-left-width 0.25s ease;
+  }
+  #thinking-panel.open {
+    flex: 0 0 340px;
+    width: 340px;
+    border-left-width: 1px;
+  }
+  #thinking-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    background: #1e1530;
+    border-bottom: 1px solid #3c3c3c;
+    flex-shrink: 0;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 11px;
+    color: #9b6cb5;
+    letter-spacing: 0.5px;
+  }
+  #thinking-header span { opacity: 0.7; }
+  #thinking-clear {
+    background: none;
+    border: none;
+    color: #6a6a6a;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 0 2px;
+    line-height: 1;
+  }
+  #thinking-clear:hover { color: #c0c0c0; }
+  #thinking-content {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 10px 12px;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 12px;
+    line-height: 1.55;
+    color: #c5a0d8;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  #thinking-content::-webkit-scrollbar { width: 6px; }
+  #thinking-content::-webkit-scrollbar-track { background: #1a1025; }
+  #thinking-content::-webkit-scrollbar-thumb { background: #4a2d5a; border-radius: 3px; }
+  .thinking-block {
+    border-top: 1px solid #2d1e3d;
+    padding-top: 8px;
+    margin-top: 8px;
+    color: #b090c8;
+  }
+  .thinking-block:first-child { border-top: none; padding-top: 0; margin-top: 0; }
+  #thinking-empty {
+    color: #4a3a5a;
+    font-style: italic;
+    font-size: 11px;
+    padding: 16px 12px;
+  }
+
+  /* ── Autocomplete suggestions ───────────────────────────────────────── */
+  #suggestions {
+    position: absolute;
+    display: none;
+    min-width: 220px;
+    max-width: 520px;
+    max-height: 220px;
+    overflow-y: auto;
+    background: #252526;
+    border: 1px solid #3c3c3c;
+    border-radius: 6px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+    z-index: 20;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 12px;
+    color: #d4d4d4;
+  }
+  .suggestion-item {
+    padding: 6px 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: default;
+  }
+  .suggestion-item.selected {
+    background: #094771;
+    color: #ffffff;
+  }
+</style>
+</head>
+<body>
+<div id="layout">
+  <div id="terminal-wrap">
+    <div id="terminal"></div>
+    <div id="suggestions"></div>
+    <button id="thinking-toggle" title="Toggle thinking panel">&#x1F9E0;</button>
+  </div>
+  <div id="thinking-panel">
+    <div id="thinking-header">
+      <span>THINKING</span>
+      <button id="thinking-clear" title="Clear thinking content">&#x2715;</button>
+    </div>
+    <div id="thinking-content">
+      <div id="thinking-empty">Waiting for thinking content...<br><span style="font-size:10px;opacity:0.6">Gemini: shows reasoning status&nbsp;&nbsp;|&nbsp;&nbsp;Claude: shows extended thinking blocks</span></div>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+<script>
+(function() {
+  var term = new Terminal({
+    theme: {
+      background:     '#1e1e1e',
+      foreground:     '#d4d4d4',
+      cursor:         '#d4d4d4',
+      black:          '#1e1e1e',
+      red:            '#f44747',
+      green:          '#6a9955',
+      yellow:         '#dcdcaa',
+      blue:           '#569cd6',
+      magenta:        '#c586c0',
+      cyan:           '#4ec9b0',
+      white:          '#d4d4d4',
+      brightBlack:    '#808080',
+      brightRed:      '#f44747',
+      brightGreen:    '#6a9955',
+      brightYellow:   '#dcdcaa',
+      brightBlue:     '#569cd6',
+      brightMagenta:  '#c586c0',
+      brightCyan:     '#4ec9b0',
+      brightWhite:    '#ffffff',
+    },
+    cursorBlink: true,
+    fontFamily: "'Cascadia Code', 'Fira Code', 'Consolas', monospace",
+    fontSize: 14,
+    allowProposedApi: true,
+  });
+
+  var fitAddon = new FitAddon.FitAddon();
+  term.loadAddon(fitAddon);
+  term.open(document.getElementById('terminal'));
+
+  // ── Thinking panel ──────────────────────────────────────────────────────
+
+  var thinkingPanel   = document.getElementById('thinking-panel');
+  var thinkingContent = document.getElementById('thinking-content');
+  var thinkingEmpty   = document.getElementById('thinking-empty');
+  var thinkingToggle  = document.getElementById('thinking-toggle');
+  var thinkingClear   = document.getElementById('thinking-clear');
+  var panelOpen       = false;
+
+  try { panelOpen = localStorage.getItem('thinkingPanelOpen') === '1'; } catch(_) {}
+  if (panelOpen) {
+    thinkingPanel.classList.add('open');
+    thinkingToggle.classList.add('panel-open');
+  }
+
+  // Defer the initial fit to the next animation frame so the layout has
+  // settled after the thinking panel state is restored above.  This ensures
+  // fitAddon.fit() measures the correct terminal-wrap width (accounting for
+  // a pre-opened side panel) before the WebSocket sends its first resize.
+  requestAnimationFrame(function() { fitAddon.fit(); });
+
+  function fitAfterTransition() {
+    setTimeout(function() { fitAddon.fit(); sendResize(); }, 280);
+  }
+
+  thinkingToggle.addEventListener('click', function() {
+    panelOpen = !panelOpen;
+    thinkingPanel.classList.toggle('open', panelOpen);
+    thinkingToggle.classList.toggle('panel-open', panelOpen);
+    try { localStorage.setItem('thinkingPanelOpen', panelOpen ? '1' : '0'); } catch(_) {}
+    fitAfterTransition();
+  });
+
+  thinkingClear.addEventListener('click', function() {
+    thinkingContent.innerHTML = '';
+    thinkingContent.appendChild(thinkingEmpty);
+    thinkingToggle.classList.remove('has-content');
+  });
+
+  var currentBlock = null;
+  var thinkingHasContent = false;
+
+  function appendThinkingText(text) {
+    if (!thinkingHasContent) {
+      thinkingHasContent = true;
+      if (thinkingEmpty.parentNode) {
+        thinkingEmpty.parentNode.removeChild(thinkingEmpty);
+      }
+      thinkingToggle.classList.add('has-content');
+    }
+    if (!currentBlock) {
+      currentBlock = document.createElement('div');
+      currentBlock.className = 'thinking-block';
+      thinkingContent.appendChild(currentBlock);
+    }
+    currentBlock.textContent += text;
+    thinkingContent.scrollTop = thinkingContent.scrollHeight;
+  }
+
+  function resetThinkingBlock() {
+    currentBlock = null;
+  }
+
+  // ── WebSocket ───────────────────────────────────────────────────────────
+
+  var wsUrl = 'ws://' + window.location.host + '/ws';
+  var ws = null;
+  var reconnectTimer = null;
+  var resizeDebounceTimer = null;
+  var suggestionsEl = document.getElementById('suggestions');
+  var commandHistory = [];
+  var currentInput = '';
+  var suggestionItems = [];
+  var suggestionIndex = 0;
+
+  function toBase64(str) {
+    var bytes = new TextEncoder().encode(str);
+    var binary = '';
+    for (var i = 0; i < bytes.length; i++) { binary += String.fromCharCode(bytes[i]); }
+    return btoa(binary);
+  }
+
+  function fromBase64(b64) {
+    var binary = atob(b64);
+    var bytes = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i++) { bytes[i] = binary.charCodeAt(i); }
+    return bytes;
+  }
+
+  function fromBase64ToString(b64) {
+    try { return new TextDecoder().decode(fromBase64(b64)); } catch(_) { return atob(b64); }
+  }
+
+  function wsSend(data) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'data', session_id: '', payload: toBase64(data) }));
+    }
+  }
+
+  function sendResize() {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+    }
+  }
+
+  function sendResizeDebounced() {
+    if (resizeDebounceTimer) clearTimeout(resizeDebounceTimer);
+    resizeDebounceTimer = setTimeout(sendResize, 80);
+  }
+
+  function updateInputBuffer(data) {
+    if (!data || data.indexOf('\x1b') === 0) { hideSuggestions(); return; }
+    if (data === '\r') {
+      var trimmed = currentInput.trim();
+      if (trimmed.length > 0) {
+        commandHistory = commandHistory.filter(function(item) { return item !== trimmed; });
+        commandHistory.unshift(trimmed);
+        if (commandHistory.length > 100) commandHistory = commandHistory.slice(0, 100);
+      }
+      currentInput = '';
+      hideSuggestions();
+      return;
+    }
+    if (data === '\u007f') {
+      currentInput = currentInput.slice(0, -1);
+      if (!currentInput.length) hideSuggestions();
+      return;
+    }
+    if (data === '\u0003' || data === '\u0015') { currentInput = ''; hideSuggestions(); return; }
+    if (data.length === 1 && data >= ' ' && data !== '\u007f') currentInput += data;
+  }
+
+  function hideSuggestions() {
+    suggestionItems = []; suggestionIndex = 0;
+    suggestionsEl.style.display = 'none';
+    suggestionsEl.style.left = '0px'; suggestionsEl.style.top = '0px';
+    suggestionsEl.innerHTML = '';
+  }
+
+  function positionSuggestions() {
+    if (!term.cols || !term.rows) return;
+    var viewport = document.getElementById('terminal');
+    var cellWidth = viewport.clientWidth / term.cols;
+    var cellHeight = viewport.clientHeight / term.rows;
+    var left = Math.max(6, Math.floor(term.buffer.active.cursorX * cellWidth));
+    var popupHeight = suggestionsEl.offsetHeight || 120;
+    var top = Math.floor((term.buffer.active.cursorY - 1) * cellHeight - popupHeight);
+    if (top < 4) top = Math.floor((term.buffer.active.cursorY + 1) * cellHeight + 4);
+    suggestionsEl.style.left = left + 'px';
+    suggestionsEl.style.top = Math.max(4, top) + 'px';
+  }
+
+  function renderSuggestions() {
+    if (!suggestionItems.length) { hideSuggestions(); return; }
+    suggestionsEl.innerHTML = '';
+    suggestionItems.forEach(function(item, index) {
+      var row = document.createElement('div');
+      row.className = 'suggestion-item' + (index === suggestionIndex ? ' selected' : '');
+      row.textContent = item;
+      suggestionsEl.appendChild(row);
+    });
+    suggestionsEl.style.display = 'block';
+    positionSuggestions();
+  }
+
+  function openSuggestions() {
+    var prefix = currentInput.trim();
+    if (!prefix.length) { hideSuggestions(); return; }
+    suggestionItems = commandHistory.filter(function(item) {
+      return item.toLowerCase().indexOf(prefix.toLowerCase()) === 0 && item !== prefix;
+    }).slice(0, 8);
+    suggestionIndex = 0;
+    renderSuggestions();
+  }
+
+  function acceptSuggestion() {
+    if (!suggestionItems.length) return false;
+    var selected = suggestionItems[suggestionIndex];
+    var suffix = selected.slice(currentInput.length);
+    if (suffix.length) { wsSend(suffix); currentInput = selected; }
+    hideSuggestions();
+    return true;
+  }
+
+  function connect() {
+    ws = new WebSocket(wsUrl);
+    ws.binaryType = 'arraybuffer';
+
+    ws.onopen = function() {
+      // Full VT100 reset clears both normal and alternate screen buffers,
+      // all scroll regions, and cursor state so TUI apps always start on
+      // a completely clean canvas after a reconnect.
+      term.write('\x1bc');
+      resetThinkingBlock();
+      // Send resize immediately (not debounced) so the CLI receives correct
+      // terminal dimensions before it renders its very first frame.
+      sendResize();
+    };
+
+    ws.onmessage = function(evt) {
+      if (evt.data instanceof ArrayBuffer) { term.write(new Uint8Array(evt.data)); return; }
+      try {
+        var msg = JSON.parse(evt.data);
+        if (msg.type === 'data' && msg.payload) {
+          term.write(fromBase64(msg.payload));
+        } else if (msg.type === 'thinking' && msg.payload) {
+          appendThinkingText(fromBase64ToString(msg.payload));
+        } else if (msg.type === 'heartbeat') {
+          ws.send(JSON.stringify({ type: 'heartbeat' }));
+        }
+      } catch (_) { term.write(evt.data); }
+    };
+
+    ws.onclose = function() {
+      term.write('\r\n\x1b[31mDisconnected \u2014 reconnecting...\x1b[0m\r\n');
+      reconnectTimer = setTimeout(connect, 2000);
+    };
+
+    ws.onerror = function() {};
+  }
+
+  term.onKey(function(event) {
+    var domEvent = event.domEvent;
+    if (domEvent.key === 'Tab') {
+      domEvent.preventDefault();
+      if (suggestionItems.length) { suggestionIndex = (suggestionIndex + 1) % suggestionItems.length; renderSuggestions(); }
+      else openSuggestions();
+      return;
+    }
+    if (domEvent.key === 'Escape' && suggestionItems.length) { domEvent.preventDefault(); hideSuggestions(); return; }
+    if (domEvent.key === 'ArrowDown' || domEvent.key === 'ArrowUp') { currentInput = ''; hideSuggestions(); return; }
+    if (domEvent.key === 'Backspace' || domEvent.key === 'Delete') { if (!currentInput.length || suggestionItems.length) hideSuggestions(); return; }
+    if (suggestionItems.length && domEvent.key !== 'Tab') hideSuggestions();
+    if (suggestionItems.length && domEvent.key === 'Enter') { if (acceptSuggestion()) { domEvent.preventDefault(); return; } }
+  });
+
+  term.onData(function(data) { updateInputBuffer(data); wsSend(data); });
+
+  // Keep xterm sized to fill the container.  Debounce ResizeObserver and
+  // window resize so TUI apps only get a single SIGWINCH per drag gesture.
+  var resizeObserver = new ResizeObserver(function() {
+    fitAddon.fit(); sendResizeDebounced();
+    if (suggestionItems.length) positionSuggestions();
+  });
+  resizeObserver.observe(document.getElementById('terminal'));
+  window.addEventListener('resize', function() {
+    fitAddon.fit(); sendResizeDebounced();
+    if (suggestionItems.length) positionSuggestions();
+  });
+
+  connect();
+})();
+</script>
+</body>
+</html>

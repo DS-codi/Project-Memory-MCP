@@ -28,6 +28,8 @@ export interface LiveSessionEntry {
   planId?: string;
   /** Workspace ID from init params */
   workspaceId?: string;
+  /** Client type reported by client-proxy (cli / vscode / unknown) */
+  clientType?: 'cli' | 'vscode' | 'unknown';
   /** ISO timestamp when this session was registered */
   registeredAt: string;
 }
@@ -65,6 +67,7 @@ export function registerLiveSession(
     agentType?: string;
     planId?: string;
     workspaceId?: string;
+    clientType?: 'cli' | 'vscode' | 'unknown';
   }
 ): void {
   const now = new Date().toISOString();
@@ -77,6 +80,7 @@ export function registerLiveSession(
     agentType: meta.agentType,
     planId: meta.planId,
     workspaceId: meta.workspaceId,
+    clientType: meta.clientType,
     registeredAt: now,
   };
   liveStore.set(serverSessionId, entry);

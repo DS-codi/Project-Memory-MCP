@@ -4,9 +4,9 @@
 // shelling out to PowerShell:
 //
 //   1. Copies mandatory agent files from agents/ to ~/.claude/agents/
-//   2. Registers project-memory-cli and project-memory MCP servers in
-//      ~/.claude/settings.json
-//   3. Adds all mcp__project-memory*__ tool permissions to the allowlist
+//   2. Registers project-memory, project-memory-cli, and pmmcp MCP servers in
+//      ~/.claude/settings.json  (pmmcp → client-proxy → port 3467/index-claude.ts)
+//   3. Adds all mcp__project-memory*__ and mcp__pmmcp__* tool permissions to the allowlist
 //   4. Registers supervisor-iced as a Windows Task Scheduler logon task
 //
 // Called from command_registry::dispatch("global-claude", …) which is in turn
@@ -70,55 +70,25 @@ const AGENT_FILES: &[&str] = &[
 /// Written as stdio entries pointing at client-proxy.exe so sessions have
 /// graceful degradation when the supervisor is restarting.
 const MCP_SERVERS: &[(&str, &str)] = &[
-    ("project-memory-cli",    "http://127.0.0.1:3466/mcp"),
-    ("project-memory",        "http://127.0.0.1:3457/mcp"),
-    ("project-memory-claude", "http://127.0.0.1:3467/mcp"),
+    ("pmmcp", "http://127.0.0.1:3457/mcp"),
 ];
 
 const ALLOWLIST_TOOLS: &[&str] = &[
-    "mcp__project-memory-cli__memory_agent",
-    "mcp__project-memory-cli__memory_plan",
-    "mcp__project-memory-cli__memory_session",
-    "mcp__project-memory-cli__memory_filesystem",
-    "mcp__project-memory-cli__memory_steps",
-    "mcp__project-memory-cli__memory_workspace",
-    "mcp__project-memory-cli__memory_context",
-    "mcp__project-memory-cli__memory_cartographer",
-    "mcp__project-memory-cli__memory_brainstorm",
-    "mcp__project-memory-cli__memory_instructions",
-    "mcp__project-memory-cli__memory_sprint",
-    "mcp__project-memory-cli__memory_terminal",
-    "mcp__project-memory-cli__memory_task",
-    "mcp__project-memory-cli__runtime_mode",
-    "mcp__project-memory-cli__ping",
-    "mcp__project-memory__memory_agent",
-    "mcp__project-memory__memory_plan",
-    "mcp__project-memory__memory_session",
-    "mcp__project-memory__memory_filesystem",
-    "mcp__project-memory__memory_steps",
-    "mcp__project-memory__memory_workspace",
-    "mcp__project-memory__memory_context",
-    "mcp__project-memory__memory_cartographer",
-    "mcp__project-memory__memory_brainstorm",
-    "mcp__project-memory__memory_instructions",
-    "mcp__project-memory__memory_sprint",
-    "mcp__project-memory__memory_terminal",
-    "mcp__project-memory__memory_task",
-    "mcp__project-memory__runtime_mode",
-    "mcp__project-memory__ping",
-    "mcp__project-memory-claude__memory_agent",
-    "mcp__project-memory-claude__memory_plan",
-    "mcp__project-memory-claude__memory_session",
-    "mcp__project-memory-claude__memory_steps",
-    "mcp__project-memory-claude__memory_workspace",
-    "mcp__project-memory-claude__memory_context",
-    "mcp__project-memory-claude__memory_cartographer",
-    "mcp__project-memory-claude__memory_instructions",
-    "mcp__project-memory-claude__memory_sprint",
-    "mcp__project-memory-claude__memory_terminal",
-    "mcp__project-memory-claude__memory_task",
-    "mcp__project-memory-claude__runtime_mode",
-    "mcp__project-memory-claude__ping",
+    "mcp__pmmcp__memory_agent",
+    "mcp__pmmcp__memory_plan",
+    "mcp__pmmcp__memory_session",
+    "mcp__pmmcp__memory_steps",
+    "mcp__pmmcp__memory_workspace",
+    "mcp__pmmcp__memory_context",
+    "mcp__pmmcp__memory_cartographer",
+    "mcp__pmmcp__memory_filesystem",
+    "mcp__pmmcp__memory_brainstorm",
+    "mcp__pmmcp__memory_instructions",
+    "mcp__pmmcp__memory_sprint",
+    "mcp__pmmcp__memory_terminal",
+    "mcp__pmmcp__memory_task",
+    "mcp__pmmcp__runtime_mode",
+    "mcp__pmmcp__ping",
 ];
 
 // ---------------------------------------------------------------------------
@@ -332,6 +302,16 @@ fn step1_copy_agents(root: &Path, claude_dir: &Path) -> Result<bool, String> {
 // Step 2 — MCP server registration + allowlist
 // ---------------------------------------------------------------------------
 
+/// Updates `~/.claude/settings.json` with stdio client-proxy MCP server entries.
+///
+/// Exposed as a standalone function so it can be called automatically after
+/// `pm-cli deploy ClientProxy` without needing to run the full global-claude install.
+///
+/// Returns `Ok(true)` if settings.json was written (new servers or tools added).
+pub fn register_mcp_servers() -> Result<bool, String> {
+    step2_register_mcp_servers(&claude_dir())
+}
+
 /// Returns `Ok(true)` if settings.json was written (new servers or tools added).
 fn step2_register_mcp_servers(claude_dir: &Path) -> Result<bool, String> {
     println!("-- MCP Servers + Allowlist -> ~/.claude/settings.json");
@@ -508,18 +488,26 @@ default_countdown_seconds = 60
 default_on_timeout        = "approve"
 
 [cli_mcp]
-enabled     = true
+enabled     = false
 port        = 3466
 command     = "node"
-args        = ["dist/index-cli.js"]
+args        = ["dist/index-claude.js", "--transport", "streamable-http", "--port", "3466"]
 working_dir = "{server}"
+
+[cli_mcp.env]
+PM_PROXY_PATH    = "{proxy}"
+PM_CLI_MCP_PORT  = "3466"
 
 [claude_mcp]
 enabled     = true
 port        = 3467
 command     = "node"
-args        = ["dist/index-claude.js"]
+args        = ["dist/index-claude.js", "--transport", "streamable-http", "--cli-port", "3466"]
 working_dir = "{server}"
+
+[claude_mcp.env]
+PM_PROXY_PATH      = "{proxy}"
+PM_CLAUDE_MCP_PORT = "3467"
 "#,
         server    = s(&server_dir),
         data      = s(&data_dir),
@@ -528,6 +516,7 @@ working_dir = "{server}"
         brainstorm = s(&brainstorm_exe),
         approval  = s(&approval_exe),
         dashboard = s(&dashboard_dir),
+        proxy     = s(&install_dir.join(crate::install_config::binary_name("client-proxy"))),
     );
 
     std::fs::write(&config_path, &content)

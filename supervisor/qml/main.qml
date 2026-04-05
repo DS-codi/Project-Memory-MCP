@@ -60,6 +60,7 @@ ApplicationWindow {
     Connections {
         target: chatPanel
         function onExpandedChanged() {
+            if (!settingsOverlay.showChatbotPanel) return
             if (chatPanel.expanded)
                 root.width += 380
             else
@@ -294,32 +295,49 @@ ApplicationWindow {
             bridge:      supervisorGuiBridge
         }
 
-        Flickable {
+        // ── Tab bar: Components | My Sessions ─────────────────────────────
+        ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            clip: true
-            boundsBehavior: Flickable.StopAtBounds
-            contentHeight: scrollContent.implicitHeight
-            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+            spacing: 0
 
-            ColumnLayout {
-                id: scrollContent
-                width: parent.width
-                spacing: 8
+            TabBar {
+                id: mainTabBar
+                Layout.fillWidth: true
+                background: Rectangle { color: root.bgPanel }
 
-                // ── MCP SERVERS ────────────────────────────────────────────
-                Label {
-                    text: "MCP SERVERS"
-                    font.pixelSize: 10; font.letterSpacing: 1.0
-                    color: root.textSecondary
-                }
+                TabButton { text: "Components"; font.pixelSize: 12 }
+                TabButton { text: "My Sessions"; font.pixelSize: 12 }
+            }
 
+            Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: root.borderSubtle }
+
+            StackLayout {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                currentIndex: mainTabBar.currentIndex
+
+                // ── Tab 0: Components ────────────────────────────────────────
+                Flickable {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
+                    contentHeight: scrollContent.implicitHeight
+                    ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+                    ColumnLayout {
+                        id: scrollContent
+                        width: parent.width
+                        spacing: 8
+
+                // ── SERVICE CARDS (2×2 grid) ───────────────────────────────
                 GridLayout {
                     Layout.fillWidth: true
                     columns: 2
                     rowSpacing: 8; columnSpacing: 8
 
-                    // ── MCP Server (VS Code proxy) ────────────────────────────
+                    // ── MCP Server ────────────────────────────────────────────
                     ServiceCard {
                         serviceName:  "MCP Server"
                         status:       supervisorGuiBridge.mcpStatus
@@ -349,59 +367,40 @@ ApplicationWindow {
                         secondaryActionLabel: "Manage"
                     }
 
-                    // ── CLI MCP Server ────────────────────────────────────────
+                    // ── Dashboard ─────────────────────────────────────────────
                     ServiceCard {
-                        serviceName:  "CLI MCP Server"
-                        status:       supervisorGuiBridge.cliMcpStatus
-                        accentColor:  "#26c6da"
-                        iconBgColor:  "#0a1e25"
+                        serviceName:  "Dashboard"
+                        status:       supervisorGuiBridge.dashboardStatus
+                        accentColor:  "#42a5f5"
+                        iconBgColor:  "#0d1f2e"
                         iconDelegate: Component {
                             Canvas {
                                 anchors.fill: parent
                                 onPaint: {
                                     var c = getContext("2d")
                                     c.clearRect(0, 0, 32, 32)
-                                    c.save(); c.scale(32/512, 32/512)
-                                    // Chevron '>'
-                                    c.strokeStyle = "#26c6da"; c.lineWidth = 36
-                                    c.lineCap = "round"; c.lineJoin = "round"
-                                    c.beginPath()
-                                    c.moveTo(80, 140); c.lineTo(220, 256); c.lineTo(80, 372)
-                                    c.stroke()
-                                    // Underscore cursor '_'
-                                    c.beginPath()
-                                    c.moveTo(240, 372); c.lineTo(420, 372)
-                                    c.stroke()
-                                    // Small MCP bolt (top-right)
-                                    c.fillStyle = "#26c6da"; c.globalAlpha = 0.85
-                                    c.beginPath()
-                                    c.moveTo(370, 60); c.lineTo(300, 185); c.lineTo(345, 185)
-                                    c.lineTo(285, 320); c.lineTo(440, 175); c.lineTo(385, 175)
-                                    c.closePath(); c.fill()
+                                    c.save(); c.scale(32/24, 32/24)
+                                    c.fillStyle = "#42a5f5"
+                                    c.fillRect(3, 3, 7, 9)
+                                    c.fillRect(14, 3, 7, 5)
+                                    c.fillRect(14, 12, 7, 9)
+                                    c.fillRect(3, 16, 7, 5)
                                     c.restore()
                                 }
                             }
                         }
-                        infoLine1:  "Port: 3466"
-                        infoLine2:  "HTTP-only · CLI agents"
-                        infoAlways: supervisorGuiBridge.cliMcpStatus !== "Running" ? "http://127.0.0.1:3466/mcp" : ""
+                        infoLine1: "PID: " + supervisorGuiBridge.dashboardPid + "   Port: " + supervisorGuiBridge.dashboardPort
+                        infoLine2: "Runtime: " + supervisorGuiBridge.dashboardRuntime + "   Up: " + supervisorGuiBridge.dashboardUptimeSecs + "s"
                         primaryActionLabel: "Restart"
-                        onPrimaryActionClicked: supervisorGuiBridge.restartService("cli_mcp")
+                        onPrimaryActionClicked: supervisorGuiBridge.restartService("dashboard")
+                        secondaryActionLabel:   "Visit"
+                        secondaryActionEnabled: supervisorGuiBridge.dashboardUrl !== ""
+                        onSecondaryActionClicked: Qt.openUrlExternally(supervisorGuiBridge.dashboardUrl)
+                        showVariantPicker:    true
+                        variantPickerModel:   ["classic", "solid"]
+                        currentVariantIndex:  supervisorGuiBridge.dashboardVariant === "solid" ? 1 : 0
+                        onVariantPickerChanged: (variant) => supervisorGuiBridge.setDashboardVariant(variant)
                     }
-
-                } // end GridLayout (MCP servers)
-
-                // ── SERVICES ───────────────────────────────────────────────────
-                Label {
-                    text: "SERVICES"
-                    font.pixelSize: 10; font.letterSpacing: 1.0
-                    color: root.textSecondary
-                }
-
-                GridLayout {
-                    Layout.fillWidth: true
-                    columns: 2
-                    rowSpacing: 8; columnSpacing: 8
 
                     // ── Interactive Terminal ──────────────────────────────────
                     ServiceCard {
@@ -449,37 +448,6 @@ ApplicationWindow {
                         runtimeStripValue: supervisorGuiBridge.terminalStatus === "Running" ? supervisorGuiBridge.terminalRuntime : "--"
                     }
 
-                    // ── Dashboard ─────────────────────────────────────────────
-                    ServiceCard {
-                        serviceName:  "Dashboard"
-                        status:       supervisorGuiBridge.dashboardStatus
-                        accentColor:  "#42a5f5"
-                        iconBgColor:  "#0d1f2e"
-                        iconDelegate: Component {
-                            Canvas {
-                                anchors.fill: parent
-                                onPaint: {
-                                    var c = getContext("2d")
-                                    c.clearRect(0, 0, 32, 32)
-                                    c.save(); c.scale(32/24, 32/24)
-                                    c.fillStyle = "#42a5f5"
-                                    c.fillRect(3, 3, 7, 9)
-                                    c.fillRect(14, 3, 7, 5)
-                                    c.fillRect(14, 12, 7, 9)
-                                    c.fillRect(3, 16, 7, 5)
-                                    c.restore()
-                                }
-                            }
-                        }
-                        infoLine1: "PID: " + supervisorGuiBridge.dashboardPid + "   Port: " + supervisorGuiBridge.dashboardPort
-                        infoLine2: "Runtime: " + supervisorGuiBridge.dashboardRuntime + "   Up: " + supervisorGuiBridge.dashboardUptimeSecs + "s"
-                        primaryActionLabel: "Restart"
-                        onPrimaryActionClicked: supervisorGuiBridge.restartService("dashboard")
-                        secondaryActionLabel:   "Visit"
-                        secondaryActionEnabled: supervisorGuiBridge.dashboardUrl !== ""
-                        onSecondaryActionClicked: Qt.openUrlExternally(supervisorGuiBridge.dashboardUrl)
-                    }
-
                     // ── Fallback API ──────────────────────────────────────────
                     ServiceCard {
                         serviceName: "Fallback API"
@@ -509,7 +477,7 @@ ApplicationWindow {
                         onPrimaryActionClicked: supervisorGuiBridge.restartService("fallback_api")
                     }
 
-                } // end GridLayout (services)
+                } // end GridLayout (service cards)
 
                 // ── CONFIGURED SERVERS ([[servers]] entries) ──────────────────
                 // Parsed from supervisorGuiBridge.customServicesJson each time it
@@ -585,32 +553,140 @@ ApplicationWindow {
                     }
                 }
 
-                // ── ACTIVE SESSIONS + RECENT ACTIVITY ────────────────────────
-                RowLayout {
+                // ── SESSIONS + ACTIVITY TABS ─────────────────────────────────
+                Rectangle {
                     Layout.fillWidth: true
-                    spacing: 8
+                    Layout.preferredHeight: 280
+                    color:  root.bgCard
+                    radius: 8
+                    border.color: root.borderSubtle
+                    border.width: 1
 
-                    SessionsPanel {
-                        mcpBaseUrl: root.mcpBaseUrl
-                        mcpPort:    supervisorGuiBridge.mcpPort
+                    ColumnLayout {
+                        anchors.fill: parent
+                        spacing: 0
+
+                        TabBar {
+                            id: sessionsTabBar
+                            Layout.fillWidth: true
+                            background: Rectangle { color: "transparent" }
+
+                            TabButton { text: "Proxy Sessions"; font.pixelSize: 11 }
+                            TabButton { text: "Active Sessions"; font.pixelSize: 11 }
+                            TabButton { text: "Recent Activity"; font.pixelSize: 11 }
+                        }
+
+                        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: root.borderSubtle }
+
+                        StackLayout {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            currentIndex: sessionsTabBar.currentIndex
+
+                            // Tab 0: Proxy Sessions
+                            Item {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+
+                                ColumnLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: 8
+                                    spacing: 4
+
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        Label {
+                                            text: "Proxy Sessions"
+                                            color: "#26c6da"
+                                            font.pixelSize: 12
+                                            font.bold: true
+                                            Layout.fillWidth: true
+                                        }
+                                        Label {
+                                            text: supervisorGuiBridge.proxySessionCount + " active"
+                                            color: supervisorGuiBridge.proxySessionCount > 0 ? "#a6e3a1" : "#6c7086"
+                                            font.pixelSize: 11
+                                        }
+                                    }
+
+                                    Label {
+                                        visible: supervisorGuiBridge.proxySessionCount === 0
+                                        text: "No active sessions"
+                                        color: root.textSecondary
+                                        font.pixelSize: 11
+                                        Layout.fillWidth: true
+                                    }
+
+                                    ListView {
+                                        id: proxySessions
+                                        visible: supervisorGuiBridge.proxySessionCount > 0
+                                        Layout.fillWidth: true
+                                        Layout.fillHeight: true
+                                        clip: true
+                                        model: {
+                                            try { return JSON.parse(supervisorGuiBridge.proxySessionsJson) }
+                                            catch(e) { return [] }
+                                        }
+                                        delegate: RowLayout {
+                                            id: sessionRow
+                                            required property var modelData
+                                            width: proxySessions.width
+                                            spacing: 8
+                                            Label {
+                                                text: sessionRow.modelData.clientType || "unknown"
+                                                color: sessionRow.modelData.clientType === "cli" ? "#89dceb" : "#cba6f7"
+                                                font.pixelSize: 10
+                                                Layout.preferredWidth: 50
+                                            }
+                                            Label {
+                                                text: sessionRow.modelData.agentType || "—"
+                                                color: "#f9e2af"
+                                                font.pixelSize: 10
+                                                Layout.preferredWidth: 72
+                                                elide: Text.ElideRight
+                                            }
+                                            Label {
+                                                text: (sessionRow.modelData.workspaceId || "-").split("/").pop().split("\\").pop()
+                                                color: "#cdd6f4"
+                                                font.pixelSize: 10
+                                                elide: Text.ElideRight
+                                                Layout.fillWidth: true
+                                            }
+                                            Label {
+                                                text: sessionRow.modelData.callCount + "c"
+                                                color: "#a6e3a1"
+                                                font.pixelSize: 10
+                                                Layout.preferredWidth: 28
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Tab 1: Active Sessions
+                            SessionsPanel {
+                                id: sessionsPanel
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                mcpBaseUrl: root.mcpBaseUrl
+                                mcpPort:    supervisorGuiBridge.mcpPort
+                            }
+
+                            // Tab 2: Recent Activity
+                            ActivityPanel {
+                                id: activityPanel
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                dashBaseUrl:   root.dashBaseUrl
+                                dashboardPort: supervisorGuiBridge.dashboardPort
+                            }
+                        }
                     }
 
-                    ActivityPanel {
-                        dashBaseUrl:   root.dashBaseUrl
-                        dashboardPort: supervisorGuiBridge.dashboardPort
-                    }
-                }
-
-                // ── MY SESSIONS ────────────────────────────────────────────────
-                Label {
-                    text: "MY SESSIONS"
-                    font.pixelSize: 10; font.letterSpacing: 1.0
-                    color: root.textSecondary
-                }
-
-                SessionsDashboardPanel {
-                    mcpBaseUrl: root.mcpBaseUrl
-                    mcpPort:    supervisorGuiBridge.mcpPort
+                    Binding { target: supervisorGuiBridge; property: "sessionsPollingOk"; value: sessionsPanel.pollingOk }
+                    Binding { target: supervisorGuiBridge; property: "sessionsCount";     value: sessionsPanel.sessionCount }
+                    Binding { target: supervisorGuiBridge; property: "activityPollingOk"; value: activityPanel.pollingOk }
+                    Binding { target: supervisorGuiBridge; property: "activityCount";     value: activityPanel.activityCount }
                 }
 
                 // ── WORKSPACE CARTOGRAPHER + MCP PROXY + EVENTS ──────────────
@@ -638,6 +714,7 @@ ApplicationWindow {
                             enabled:         supervisorGuiBridge.eventBroadcastEnabled
                             subscriberCount: supervisorGuiBridge.eventSubscriberCount
                             totalEmitted:    supervisorGuiBridge.eventsTotalEmitted
+                            onToggleRequested: supervisorGuiBridge.toggleBroadcast()
                         }
 
                     } // end right ColumnLayout
@@ -651,16 +728,24 @@ ApplicationWindow {
                     wrapMode: Text.Wrap
                 }
 
-            } // end scrollContent ColumnLayout
-        } // end Flickable
+                    } // end scrollContent ColumnLayout
+                } // end Flickable
+
+                // ── Tab 1: My Sessions ───────────────────────────────────────
+                MySessionsPanel {}
+
+            } // end StackLayout
+        } // end tab ColumnLayout
 
         ChatbotPanel {
             id: chatPanel
             Layout.fillHeight: true
-            mcpBaseUrl:  root.mcpBaseUrl
-            guiBaseUrl:  "http://127.0.0.1:3464"
-            mcpPort:     supervisorGuiBridge.mcpPort
-            guiAuthKey:  supervisorGuiBridge.guiAuthKey
+            visible: settingsOverlay.showChatbotPanel
+            mcpBaseUrl:           root.mcpBaseUrl
+            guiBaseUrl:           "http://127.0.0.1:3464"
+            mcpPort:              supervisorGuiBridge.mcpPort
+            guiAuthKey:           supervisorGuiBridge.guiAuthKey
+            chatApiKeyConfigured: supervisorGuiBridge.chatApiKeyConfigured
         }
 
         } // end content+sidebar RowLayout

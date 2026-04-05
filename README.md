@@ -3,7 +3,7 @@
 Project Memory MCP is a local-first orchestration platform for AI-assisted software delivery.
 It combines a Model Context Protocol server, a VS Code extension, a dashboard, and desktop runtime components so multi-agent workflows can persist across sessions.
 
-This README reflects the current repository state (early March 2026).
+This README reflects the current repository state (April 2026).
 
 ## What this project does
 
@@ -11,6 +11,7 @@ This README reflects the current repository state (early March 2026).
 - Orchestrates hub-and-spoke agent workflows with MCP tools.
 - Exposes plan and workspace operations through VS Code, MCP, and dashboard interfaces.
 - Supports desktop interactive terminal flows for command execution/approval runtime.
+- Routes all MCP traffic through a per-session stdio proxy (`client-proxy`) for graceful degradation when the supervisor is restarting.
 
 ## Current architecture
 
@@ -21,6 +22,21 @@ High-level runtime model:
 3. Dashboard (`dashboard/`) provides web/API views over workspace + plan state.
 4. Supervisor and GUI binaries (Rust/QML) support orchestration and UX flows.
 5. Interactive terminal (Rust/CxxQt/QML) provides host runtime bridge behavior.
+6. **Client-proxy** (`client-server/`) sits between each Claude Code/VS Code session and the supervisor's HTTP MCP server via stdio, providing transparent forwarding and local SQLite fallback when the supervisor is unreachable.
+
+### MCP connectivity model
+
+```
+Claude Code / VS Code
+    └─ stdio → client-proxy (per-session, ~2–5 MB RAM)
+                ├─ Always local: runtime_mode, ping
+                ├─ Local-capable (direct SQLite when supervisor down):
+                │    memory_workspace, memory_plan, memory_steps, memory_instructions
+                └─ HTTP → supervisor MCP server (all tool calls when reachable)
+```
+
+**Supervisor UP:** every tool call is forwarded to the supervisor — proxy is transparent.
+**Supervisor DOWN:** local-capable tools are served directly from the SQLite database. Other tools return an informative error. The tool list presented to the client is always identical regardless of supervisor state.
 
 ## Agent architecture
 
@@ -40,159 +56,168 @@ See [`docs/design docs/dynamic-hub-architecture.md`](docs/design%20docs/dynamic-
 
 ## Main components
 
-- `server/`  
+- `server/`
   TypeScript MCP server (`project-memory-mcp`, v1.0.0) with build/test scripts and consolidated tool handlers.
 
-- `vscode-extension/`  
+- `client-server/`
+  Rust crate producing `client-proxy.exe` — a lightweight stdio MCP proxy. Each Claude Code/VS Code session spawns its own instance. Provides graceful degradation (direct SQLite access for key tools) when the supervisor is not reachable, and transparent HTTP forwarding when it is. See [Architecture](#mcp-connectivity-model).
+
+- `pm-cli/`
+  Rust TUI build orchestrator. Primary tool for building, deploying, and installing all project components. Handles component builds (native Rust and PowerShell fallbacks for Qt), binary deployment to the install directory, GlobalClaude install (agent files + MCP registration + Task Scheduler autostart), and supervisor launch.
+
+- `vscode-extension/`
   VS Code extension (`project-memory-dashboard`, v0.2.0) with dashboard, commands, chat integration, and tooling bridge.
 
-- `dashboard/`  
+- `dashboard/`
   React + TypeScript UI plus dashboard server for API/WebSocket-driven views.
 
-- `interactive-terminal/`  
+- `interactive-terminal/`
   Rust + CxxQt + QML interactive runtime endpoint and bridge listener.
 
-- `interactive-terminal/pty-host/`  
+- `interactive-terminal/pty-host/`
   Out-of-process PTY host binary (Cargo workspace member) for the interactive terminal GUI.
 
-- `python-core/memory_cartographer/`  
+- `interactive-terminal-iced/`
+  Pure Rust / iced 0.13 re-implementation of the interactive terminal GUI. Runs as an `iced::daemon` with multiple windows, embeds an xterm.js terminal area via a `wry` WebView2 OS window, and communicates with `pm-cli` over a local TCP bridge. Coexists alongside the CxxQt/QML `interactive-terminal`; no Qt dependency. **Windows only** for full WebView2 support; the iced/TCP logic is cross-platform. Build with `.\build-interactive-terminal-iced.ps1`.
+
+- `python-core/memory_cartographer/`
   Python cartography engine and schema producer. Runs as a subprocess invoked by the MCP server via single-line NDJSON on stdin/stdout. Handles file-system scanning, symbol extraction, dependency graph resolution, and database schema cartography.
 
-- `supervisor/`, `pm-approval-gui/`, `pm-brainstorm-gui/`, `pm-gui-forms/`  
-  Rust workspace members for orchestration and desktop form workflows.
+- `supervisor/`, `pm-approval-gui/`, `pm-brainstorm-gui/`, `pm-gui-forms/`
+  Rust workspace members for orchestration and desktop form workflows. The QML-based `supervisor.exe` is the primary runtime supervisor.
 
-## Active utility scripts
+- `supervisor-iced/`
+  Work-in-progress Iced-based Rust supervisor (alternative backend, not yet production). Built by pm-cli alongside the QML supervisor; the deployed `supervisor.exe` is the QML version.
 
-The active script set is intentionally small and standardized:
+## pm-cli — build and deploy
 
-- `install.ps1`
-- `new-install.ps1`
-- `install-animated.ps1`
-- `run-tests.ps1`
-- `interactive-terminal/build-interactive-terminal.ps1`
-- `scripts/preflight-machine.ps1`
-- `scripts/folder_cleanup/*.py` (non-destructive cleanup + organization helpers)
+`pm-cli` is the primary build and install tool. Run it from `target/release/pm-cli.exe` (or the deployed install directory) for an interactive TUI, or pass subcommands directly.
 
-Detailed arguments and use-cases are documented in:
+### TUI mode
 
-- `docs/utility-scripts-reference.md`
-
-### Integration harness
-
-The `scripts/` directory also contains an integration test harness suite for container-based validation:
-
-- `integration-harness-matrix.ps1` — Matrix test runner (smoke/fault/resilience tiers)
-- `integration-harness-lifecycle.ps1` — Podman Compose lifecycle (up/down/restart/reset)
-- `integration-harness-readiness.ps1` — Startup readiness gate
-- `integration-harness-fault-runner.ps1` — Fault injection runner
-- `integration-harness-recovery-assertions.ps1` — Recovery assertion checks
-- `integration-harness-event-aggregate.ps1` — Event aggregation
-- `integration-harness-health-timeline.ps1` — Health timeline tracking
-- `integration-harness-extension-headless.ps1` — Headless extension testing
-- `integration-harness-extension-reconnect.ps1` — Extension reconnect scenarios
-- `integration-harness-run-summary.ps1` — Run summary generation
-
-Integration harness design and contracts are documented in `docs/integration-harness/`.
-
-Legacy helper scripts have been moved to:
-
-- `archive/legacy-scripts/2026-03-01/`
-
-## Quick start (current)
-
-### 0) Run machine preflight
-
-From repo root:
-
-```powershell
-.\scripts\preflight-machine.ps1
+```
+pm-cli
 ```
 
-This checks required toolchains and required repository assets before a first-time build.
+Navigate with arrow keys. Select a component to build or deploy. The install directory is shown in the footer and can be changed with `D`.
 
-### 0.5) First-time install (Wizard)
+### CLI mode
 
-For a guided experience that installs Project Memory MCP to your user directories and sets up your environment:
-
-```powershell
-.\install-wizard.ps1
+```
+pm-cli install  <component>           # build component
+pm-cli deploy   <component> [--dir PATH] [--no-shortcuts]  # copy artifacts to install dir
+pm-cli launch   [supervisor|supervisor-iced]               # launch supervisor binary
+pm-cli global-claude                  # run Global Claude Code install
+pm-cli status                         # show install status
 ```
 
-This is the recommended way to "install" the system into your OS (setting up PATH, PM_DATA_ROOT, and permanent binaries).
+### Available components
 
-### 0.6) First-time cross-machine install + migration
+| Component | Description |
+|-----------|-------------|
+| `Supervisor` | QML-based supervisor (PowerShell/Qt build) |
+| `SupervisorIced` | Iced-based supervisor (native Rust build) |
+| `GuiForms` | Approval + brainstorm GUI windows |
+| `InteractiveTerminal` | Interactive terminal host |
+| `Server` | TypeScript MCP server |
+| `Dashboard` | React dashboard |
+| `Extension` | VS Code extension |
+| `Cartographer` | Python cartography engine |
+| `ClientProxy` | stdio MCP proxy binary |
+| `GlobalClaude` | Global Claude Code install (agents + MCP + autostart) |
+| `All` | All of the above in order |
 
-For more advanced data migration and repo-local setup:
+### GlobalClaude install
 
-```powershell
-.\new-install.ps1
+`pm-cli global-claude` (or component `GlobalClaude`) performs:
+
+1. Copies `agents/*.agent.md` files to `~/.claude/agents/`
+2. Registers three MCP servers in `~/.claude/settings.json` as stdio entries pointing at `client-proxy.exe`:
+   - `project-memory-cli` → `http://127.0.0.1:3466/mcp`
+   - `project-memory` → `http://127.0.0.1:3457/mcp`
+   - `pmmcp` → `http://127.0.0.1:3467/mcp`
+3. Adds all `mcp__project-memory*__` tool permissions to the Claude Code allowlist
+4. Writes `supervisor.toml` to the install base directory
+5. Registers `supervisor.exe` as a Windows Task Scheduler logon task (`ProjectMemorySupervisor`)
+
+Recommended first-install order:
+
+```
+1. pm-cli install  ClientProxy    # build client-proxy.exe (release)
+2. pm-cli deploy   ClientProxy    # copy to install dir
+3. pm-cli install  GlobalClaude   # write settings.json with correct proxy path
+4. pm-cli install  Server         # build TypeScript server
+5. pm-cli deploy   Server
+6. Restart Claude Code
 ```
 
-### 1) Prerequisites
+## Quick start
+
+### Prerequisites
 
 - Node.js 20+
 - npm 9+
 - VS Code 1.109+
 - Rust toolchain (`cargo`, `rustc`)
-- Qt 6 MSVC kit (default path used by scripts: `C:\Qt\6.10.2\msvc2022_64`)
+- Qt 6 MSVC kit (default path: `C:\Qt\6.10.2\msvc2022_64`) — required for Supervisor/GuiForms/InteractiveTerminal
 - PowerShell 7+
 
-### 2) Build/install core components
-
-From repo root:
+### 1) Run machine preflight
 
 ```powershell
-.\install.ps1 -Component Server
-.\install.ps1 -Component Extension
+.\scripts\preflight-machine.ps1
 ```
 
-Available `-Component` values: `Server`, `Extension`, `Container`, `Supervisor`, `InteractiveTerminal`, `Dashboard`, `GuiForms`, `All`.
+### 2) Build pm-cli first
 
-`-Component All` expands to: Supervisor → GuiForms → InteractiveTerminal → Server → Dashboard → Extension.
+`pm-cli` is the build tool itself, so build it with cargo before using it:
 
-Optional full build pass:
+```
+cargo build --release -p pm-cli
+```
+
+The release binary lands at `target/release/pm-cli.exe`.
+
+### 3) Build and deploy all components
+
+```
+pm-cli install All
+pm-cli deploy  All
+```
+
+Or use the TUI (`pm-cli` with no args) for interactive component selection.
+
+### 4) Global Claude Code setup
+
+```
+pm-cli global-claude
+```
+
+Then restart Claude Code to pick up the new MCP server registrations.
+
+### 5) Launch supervisor
+
+The supervisor is registered as a Task Scheduler logon task by GlobalClaude install and starts automatically on login. To start manually from the install directory:
 
 ```powershell
-.\install.ps1 -Component All
+supervisor.exe --config "%APPDATA%\ProjectMemory\supervisor.toml"
 ```
 
-For a clean-machine DB bootstrap during server install:
+Or via pm-cli:
 
-```powershell
-.\install.ps1 -Component Server -NewDatabase
+```
+pm-cli launch supervisor
 ```
 
-### 3) Run tests
+### 6) Run tests
 
 ```powershell
 .\run-tests.ps1
 ```
 
-Targeted example:
-
-```powershell
-.\run-tests.ps1 -Component Extension -TailLines 120 -FullOutputOnFailure
-```
-
-### 4) Build interactive terminal
-
-```powershell
-cd interactive-terminal
-.\build-interactive-terminal.ps1 -Clean -Profile release
-```
-
-### 5) Launch supervisor (preferred)
-
-`launch-supervisor.ps1` is archived. Use direct executable launch:
-
-```powershell
-cd "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\target\release\"
-.\supervisor.exe
-```
-
 ## Mobile App Setup
 
-The Project Memory mobile app connects to the Supervisor over LAN. Before using it on the same network:
+The Project Memory mobile app connects to the Supervisor over LAN.
 
 ### 1. Open Windows Firewall ports (run once as Administrator)
 
@@ -200,26 +225,23 @@ The Project Memory mobile app connects to the Supervisor over LAN. Before using 
 .\scripts\setup-firewall-mobile.ps1
 ```
 
-This opens inbound TCP ports **3464** (Supervisor HTTP) and **3458** (Terminal WebSocket) on Private and Domain network profiles.
+This opens inbound TCP ports **3464** (Supervisor HTTP) and **3458** (Terminal WebSocket).
 
 ### 2. Pair the mobile app
 
-1. Right-click the Project Memory tray icon
-2. Click **"Show Pairing QR"**
-3. Open the Project Memory mobile app → tap **Scan QR Code**
-4. Point your camera at the QR code — the app connects and stores the API key automatically
-
-### 3. Manual pairing (if QR unavailable)
-
-1. In the Supervisor tray → **"Show Pairing QR"** → note the API key shown below the QR
-2. In the mobile app → tap **"Enter manually"** → enter your machine's local IP and the API key
+1. Right-click the Project Memory tray icon → **"Show Pairing QR"**
+2. Open the Project Memory mobile app → tap **Scan QR Code**
 
 ### Port reference
 
-| Component | Protocol | Port | Notes |
-|-----------|----------|------|-------|
-| Supervisor HTTP | TCP | 3464 | REST API, chatbot, runtime events |
-| Interactive Terminal | WebSocket | 3458 | PTY sessions |
+| Component | Protocol | Port |
+|-----------|----------|------|
+| Supervisor HTTP | TCP | 3464 |
+| CLI MCP server | TCP | 3466 |
+| MCP server (main) | TCP | 3457 |
+| Claude MCP server | TCP | 3467 |
+| Interactive Terminal | WebSocket | 3458 |
+| Dashboard | TCP | 3459 |
 
 ## Build/test command map
 
@@ -241,6 +263,12 @@ This opens inbound TCP ports **3464** (Supervisor HTTP) and **3458** (Terminal W
 - Test: `npm run test`
 - Package: `npx @vscode/vsce package`
 
+### Rust workspace
+
+- Build all: `cargo build --release`
+- Build specific: `cargo build --release -p <crate>`
+- Crates: `pm-cli`, `client-proxy` (in `client-server/`), `supervisor`, `supervisor-iced`, `pm-gui-forms`, `pm-approval-gui`, `pm-brainstorm-gui`, `interactive-terminal`, `interactive-terminal-iced`, `pty-host`, `cartographer`
+
 ## MCP tool surface (current)
 
 Primary consolidated tools:
@@ -252,18 +280,25 @@ Primary consolidated tools:
 - `memory_agent`
 - `memory_session` — agent session management: prep, deploy_and_prep, list_sessions, get_session
 - `memory_brainstorm` — GUI form routing: route, route_with_fallback, refine
+- `memory_instructions`
+- `memory_sprint`
 
-Additional runtime/tooling surfaces in active use:
+Runtime tools (always available via client-proxy, no supervisor required):
+
+- `runtime_mode` — proxy status: connected, client_type, uptime, last_connected
+- `ping` — always returns `pong`
+
+Additional runtime/tooling surfaces:
 
 - `memory_terminal`
 - `memory_filesystem`
 - `memory_terminal_interactive`
 - `memory_terminal_vscode`
-- `memory_spawn_agent` (prep-only context builder)
 
 ## Data and state model
 
-- MCP server state is DB-backed (SQLite-based storage used by the server runtime).
+- MCP server state is DB-backed (SQLite at `%APPDATA%\ProjectMemory\project-memory.db`).
+- WAL mode is enabled; client-proxy reads the same database concurrently when the supervisor is down.
 - Workspace identity and project-scoped artifacts also live under each repo in `.projectmemory/`.
 - Plan/workspace/session context is persisted and reused across agent sessions.
 
@@ -279,13 +314,17 @@ Additional runtime/tooling surfaces in active use:
 ```text
 Project-Memory-MCP/
   server/                      # TypeScript MCP server
+  client-server/               # Rust: client-proxy stdio MCP proxy
+  pm-cli/                      # Rust: TUI build/deploy/install orchestrator
   dashboard/                   # React + TypeScript dashboard UI
   vscode-extension/            # VS Code extension
   interactive-terminal/        # Rust + CxxQt + QML interactive terminal
     pty-host/                  # Out-of-process PTY host (Cargo member)
+  interactive-terminal-iced/   # Rust + iced 0.13 interactive terminal (no Qt)
   python-core/                 # Python cartography engine
     memory_cartographer/
-  supervisor/                  # Rust orchestration supervisor
+  supervisor/                  # Rust + QML orchestration supervisor (primary)
+  supervisor-iced/             # Rust + Iced supervisor (work in progress)
   pm-gui-forms/                # Rust desktop form workflows
   pm-approval-gui/             # Rust approval GUI
   pm-brainstorm-gui/           # Rust brainstorm GUI
@@ -295,9 +334,10 @@ Project-Memory-MCP/
   database-seed-resources/     # DB reproducibility packages
   docs/
     cartography/               # Database schema cartography artifacts
-    guide/                     # CLI reference guides (Gemini, Copilot)
+    guide/                     # CLI reference guides
     integration-harness/       # Integration test framework docs
     design docs/               # Architecture design documents
+    session-history/           # Session summaries documenting major changes
   archive/
 ```
 
@@ -312,31 +352,29 @@ The `python-core/memory_cartographer` engine produces comprehensive database doc
 
 See `docs/cartography/db/unified-cartography-model.md` for the master reference.
 
+## Integration harness
+
+The `scripts/` directory contains an integration test harness suite for container-based validation:
+
+- `integration-harness-matrix.ps1` — Matrix test runner (smoke/fault/resilience tiers)
+- `integration-harness-lifecycle.ps1` — Podman Compose lifecycle (up/down/restart/reset)
+- `integration-harness-readiness.ps1` — Startup readiness gate
+- `integration-harness-fault-runner.ps1` — Fault injection runner
+- `integration-harness-recovery-assertions.ps1` — Recovery assertion checks
+
+Integration harness design and contracts are documented in `docs/integration-harness/`.
+
 ## Container notes
 
 - Container assets remain in `Containerfile`, `podman-compose.yml`, and `container/`.
-- Build via install script:
-
-```powershell
-.\install.ps1 -Component Container
-```
-
-## Why this README changed
-
-The repo has diverged substantially from older snapshots (large file and feature deltas, major tooling and runtime changes).  
-Comparison artifacts used during this refresh include:
-
-- `folder-diff-details.json`
-- `folder-diff-report.md`
-- `same-name-file-diff-report.md`
-
-This README is now aligned with the current scripts, component boundaries, and launch flows.
+- Build via pm-cli: `pm-cli install Container`
 
 ## Contributing and maintenance
 
 - Prefer updating docs with any script/tool contract changes.
 - Keep script usage centralized in `docs/utility-scripts-reference.md`.
 - Keep legacy workflows archived, not active, unless intentionally restored.
+- Session history summaries for major changes live in `docs/session-history/`.
 
 ## License
 

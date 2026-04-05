@@ -25,6 +25,8 @@ pub struct RemoteConnectionEntry {
     pub agent_type: Option<String>,
     pub workspace_id: Option<String>,
     pub plan_id: Option<String>,
+    #[serde(rename = "clientType", default)]
+    pub client_type: Option<String>,
 }
 
 /// Fetch the list of active connections from a running MCP instance.

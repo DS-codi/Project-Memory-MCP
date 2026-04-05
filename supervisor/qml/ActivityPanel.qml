@@ -13,6 +13,11 @@ Rectangle {
     property string dashBaseUrl:    ""
     property int    dashboardPort:  0
 
+    /// Output: true when the last poll completed successfully.
+    property bool pollingOk:     false
+    /// Output: number of activity events from the last successful poll.
+    property int  activityCount: 0
+
     color:        "#161b22"
     radius:       10
     border.color: "#30363d"
@@ -45,7 +50,11 @@ Rectangle {
             if (actPane.dashboardPort <= 0) return
             var xhr = new XMLHttpRequest()
             xhr.onreadystatechange = function() {
-                if (xhr.readyState !== XMLHttpRequest.DONE || xhr.status !== 200) return
+                if (xhr.readyState !== XMLHttpRequest.DONE) return
+                if (xhr.status !== 200) {
+                    actPane.pollingOk = false
+                    return
+                }
                 try {
                     var parsed = JSON.parse(xhr.responseText)
                     var list = Array.isArray(parsed) ? parsed : (parsed.events || [])
@@ -58,7 +67,11 @@ Rectangle {
                             evTime:  actPane.shortTime(ev.timestamp || ev.created_at || "")
                         })
                     }
-                } catch(ex) {}
+                    actPane.pollingOk     = true
+                    actPane.activityCount = activityList.count
+                } catch(ex) {
+                    actPane.pollingOk = false
+                }
             }
             xhr.open("GET", actPane.dashBaseUrl + "/api/events?limit=15")
             xhr.send()
@@ -69,9 +82,29 @@ Rectangle {
     ColumnLayout {
         anchors.fill: parent; anchors.margins: 10; spacing: 6
 
-        Label {
-            text: "RECENT ACTIVITY"
-            font.pixelSize: 10; font.letterSpacing: 1.0; color: "#8b949e"
+        RowLayout {
+            spacing: 6; Layout.fillWidth: true
+
+            Label {
+                text: "RECENT ACTIVITY"
+                font.pixelSize: 10; font.letterSpacing: 1.0; color: "#8b949e"
+            }
+
+            // Live polling status dot
+            Rectangle {
+                Layout.preferredWidth: 8; Layout.preferredHeight: 8
+                radius: 4
+                color: actPane.pollingOk ? "#3fb950" : "#f85149"
+                Layout.alignment: Qt.AlignVCenter
+            }
+
+            // Activity count badge
+            Text {
+                text: "[" + actPane.activityCount + "]"
+                color: "#58a6ff"
+                font.pixelSize: 12
+                Layout.alignment: Qt.AlignVCenter
+            }
         }
 
         Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: "#30363d" }

@@ -3,6 +3,7 @@
 use crate::client_detect::{from_initialize_params, ClientProfile};
 use crate::db;
 use crate::local_tools;
+use crate::clog;
 use crate::upstream;
 use anyhow::Result;
 use reqwest::Client;
@@ -29,31 +30,51 @@ const LOCAL_CAPABLE: &[&str] = &[
 // ─────────────────────────────────────────────────────────────────────────────
 
 pub struct Proxy {
-    upstream_url:        String,
-    upstream_connected:  Arc<AtomicBool>,
-    last_connected_secs: Arc<AtomicU64>,
-    session_id:          Mutex<Option<String>>,
-    cached_tools:        Mutex<Option<Vec<Value>>>,
-    client_profile:      Mutex<ClientProfile>,
-    started_at:          Instant,
-    db:                  Mutex<Connection>,
-    http:                Client,
+    upstream_url:          String,
+    upstream_connected:    Arc<AtomicBool>,
+    last_connected_secs:   Arc<AtomicU64>,
+    session_id:            Mutex<Option<String>>,
+    cached_tools:          Mutex<Option<Vec<Value>>>,
+    client_profile:        Mutex<ClientProfile>,
+    started_at:            Instant,
+    db:                    Mutex<Connection>,
+    http:                  Client,
+    /// True after the first session_start call has been fired to upstream.
+    session_init_done:     AtomicBool,
+    /// True after priority_instructions have been injected into a response.
+    instructions_surfaced: AtomicBool,
+    /// Buffered priority_instructions from session_start, waiting to be injected.
+    pending_instructions:  Mutex<Option<Value>>,
+    /// Proxy-local session ID sent as _session_id to session_start.
+    proxy_session_id:      String,
 }
 
 impl Proxy {
     /// Create a new Proxy.  Opens the local database immediately.
     pub fn new(upstream_url: String, http: Client) -> Result<Self> {
         let db = db::open()?;
+        // Generate a stable proxy-local session ID for this process lifetime.
+        let proxy_session_id = {
+            let secs = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            format!("proxy-{secs:x}")
+        };
         Ok(Proxy {
             upstream_url,
-            upstream_connected:  Arc::new(AtomicBool::new(false)),
-            last_connected_secs: Arc::new(AtomicU64::new(0)),
-            session_id:          Mutex::new(None),
-            cached_tools:        Mutex::new(None),
-            client_profile:      Mutex::new(ClientProfile::default()),
-            started_at:          Instant::now(),
-            db:                  Mutex::new(db),
+            upstream_connected:    Arc::new(AtomicBool::new(false)),
+            last_connected_secs:   Arc::new(AtomicU64::new(0)),
+            session_id:            Mutex::new(None),
+            cached_tools:          Mutex::new(None),
+            client_profile:        Mutex::new(ClientProfile::default()),
+            started_at:            Instant::now(),
+            db:                    Mutex::new(db),
             http,
+            session_init_done:     AtomicBool::new(false),
+            instructions_surfaced: AtomicBool::new(false),
+            pending_instructions:  Mutex::new(None),
+            proxy_session_id,
         })
     }
 
@@ -126,7 +147,9 @@ impl Proxy {
                         .unwrap_or_default();
                     *self.cached_tools.lock().unwrap() = Some(tools.clone());
                 }
-                Err(_) => {
+                Err(e) => {
+                    clog!("[proxy] tools/list forward failed: {e}");
+                    self.mark_upstream_disconnected();
                     tools = self.degraded_tool_list();
                 }
             }
@@ -155,16 +178,76 @@ impl Proxy {
         // Ping upstream before routing.
         let connected = self.ping_upstream().await;
 
+        // Session init: on the first real tool call with a workspace_id, fire
+        // memory_session(action: session_start) to fetch priority instructions.
+        if connected && !self.session_init_done.load(Ordering::Relaxed) {
+            let workspace_id = args["workspace_id"].as_str()
+                .or_else(|| args["workspace_path"].as_str());
+            if workspace_id.is_some() {
+                self.session_init_done.store(true, Ordering::Relaxed);
+                let client_type_str = {
+                    let profile = self.client_profile.lock().unwrap();
+                    match &profile.client_type {
+                        crate::client_detect::ClientType::ClaudeCli  => "cli",
+                        crate::client_detect::ClientType::VsCode     => "vscode",
+                        crate::client_detect::ClientType::Unknown(_) => "unknown",
+                    }
+                    .to_string()
+                };
+                let init_req = json!({
+                    "jsonrpc": "2.0",
+                    "id": 0,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "memory_session",
+                        "arguments": {
+                            "action": "session_start",
+                            "workspace_id": workspace_id,
+                            "_session_id": self.proxy_session_id,
+                            "_client_type": client_type_str
+                        }
+                    }
+                });
+                let session = self.session_id.lock().unwrap().clone();
+                if let Ok((resp, new_sid)) = upstream::forward(
+                    &self.http, &self.upstream_url, session.as_deref(), &init_req,
+                ).await {
+                    self.update_session(new_sid);
+                    // Extract priority_instructions from session_start result.
+                    let instructions = resp["result"]["content"][0]["text"]
+                        .as_str()
+                        .and_then(|s| serde_json::from_str::<Value>(s).ok())
+                        .and_then(|v| {
+                            let instrs = v.pointer("/data/data/priority_instructions")
+                                .cloned()
+                                .unwrap_or(Value::Null);
+                            if instrs.as_array().map(|a| !a.is_empty()).unwrap_or(false) {
+                                Some(instrs)
+                            } else {
+                                None
+                            }
+                        });
+                    if let Some(instrs) = instructions {
+                        *self.pending_instructions.lock().unwrap() = Some(instrs);
+                    }
+                }
+            }
+        }
+
         if connected {
             // Forward to upstream for ALL tool calls (single source of truth).
             let session = self.session_id.lock().unwrap().clone();
             match upstream::forward(&self.http, &self.upstream_url, session.as_deref(), req).await {
                 Ok((resp, new_sid)) => {
                     self.update_session(new_sid);
-                    return extract_tool_result(resp);
+                    let mut result = extract_tool_result(resp);
+                    // Inject pending priority_instructions once into the first response.
+                    self.maybe_inject_instructions(&mut result);
+                    return json_result(id, result);
                 }
                 Err(e) => {
-                    eprintln!("[client-proxy] upstream forward error for {name}: {e}");
+                    clog!("[proxy] forward failed for {name}: {e}");
+                    self.mark_upstream_disconnected();
                     // Fall through to local handling if local-capable.
                 }
             }
@@ -191,6 +274,41 @@ impl Proxy {
         }))
     }
 
+    /// If priority_instructions are pending and haven't been surfaced yet,
+    /// inject them as a `priority_instructions` field into the tool result content.
+    fn maybe_inject_instructions(&self, result: &mut Value) {
+        if self.instructions_surfaced.load(Ordering::Relaxed) {
+            return;
+        }
+        let pending = self.pending_instructions.lock().unwrap().take();
+        if let Some(instrs) = pending {
+            self.instructions_surfaced.store(true, Ordering::Relaxed);
+            // Parse the first content[0].text JSON and inject the field, or
+            // append a new content item with the instructions.
+            if let Some(content) = result.get_mut("content").and_then(|c| c.as_array_mut()) {
+                if let Some(first) = content.first_mut() {
+                    if let Some(text) = first["text"].as_str() {
+                        if let Ok(mut parsed) = serde_json::from_str::<Value>(text) {
+                            parsed["priority_instructions"] = instrs;
+                            first["text"] = Value::String(
+                                serde_json::to_string(&parsed).unwrap_or_default()
+                            );
+                            return;
+                        }
+                    }
+                }
+                // Fallback: append a separate content item.
+                content.push(json!({
+                    "type": "text",
+                    "text": serde_json::to_string(&json!({
+                        "priority_instructions": instrs,
+                        "notice": "PRIORITY: These workspace instructions must be followed for all work in this session."
+                    })).unwrap_or_default()
+                }));
+            }
+        }
+    }
+
     // ── fallback: forward arbitrary methods ──────────────────────────────────
 
     async fn forward_raw(&self, req: &Value, id: Value) -> Value {
@@ -204,7 +322,10 @@ impl Proxy {
                 self.update_session(new_sid);
                 resp
             }
-            Err(e) => json_error(id, -32603, &e.to_string()),
+            Err(e) => {
+                self.mark_upstream_disconnected();
+                json_error(id, -32603, &e.to_string())
+            }
         }
     }
 
@@ -385,38 +506,48 @@ impl Proxy {
 
     // ── helpers ───────────────────────────────────────────────────────────────
 
-    /// Ping the upstream and update the connected flag. Returns current state.
+    /// Return the cached upstream connection state.
+    ///
+    /// When already known-connected, no network call is made — the background
+    /// reconnect loop and call-failure detection keep the flag accurate.
+    /// When known-disconnected, a real health check is done so the proxy can
+    /// detect when the supervisor comes back online mid-session.
     async fn ping_upstream(&self) -> bool {
-        let base_url = self.upstream_url.trim_end_matches("/mcp").to_string();
-        let was_connected = self.upstream_connected.load(Ordering::Relaxed);
-        let now_connected = upstream::health_check(&self.http, &base_url).await;
-
-        if now_connected != was_connected {
-            self.upstream_connected.store(now_connected, Ordering::Relaxed);
-            if now_connected {
-                // Freshly reconnected — establish a session with the upstream.
-                let init_req = upstream::make_initialize_request();
-                let session  = self.session_id.lock().unwrap().clone();
-                if let Ok((_, new_sid)) = upstream::forward(
-                    &self.http, &self.upstream_url, session.as_deref(), &init_req,
-                ).await {
-                    self.update_session(new_sid);
-                }
-                eprintln!("[client-proxy] upstream reconnected");
-            } else {
-                eprintln!("[client-proxy] upstream disconnected");
-            }
+        if self.upstream_connected.load(Ordering::Relaxed) {
+            // Fast path: already connected, no HTTP call needed.
+            return true;
         }
 
+        // Slow path: not connected — check if supervisor is back.
+        let base_url = self.upstream_url.trim_end_matches("/mcp").to_string();
+        let now_connected = upstream::health_check(&self.http, &base_url).await;
+
         if now_connected {
+            self.upstream_connected.store(true, Ordering::Relaxed);
             let secs = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs();
             self.last_connected_secs.store(secs, Ordering::Relaxed);
+            // Re-establish MCP session with the upstream.
+            let init_req = upstream::make_initialize_request();
+            let session  = self.session_id.lock().unwrap().clone();
+            if let Ok((_, new_sid)) = upstream::forward(
+                &self.http, &self.upstream_url, session.as_deref(), &init_req,
+            ).await {
+                self.update_session(new_sid);
+            }
+            clog!("[proxy] upstream reconnected, session established");
         }
 
         now_connected
+    }
+
+    /// Mark the upstream as disconnected (called when a forward call fails).
+    fn mark_upstream_disconnected(&self) {
+        if self.upstream_connected.swap(false, Ordering::Relaxed) {
+            clog!("[proxy] upstream marked disconnected after call failure");
+        }
     }
 
     fn update_session(&self, new_sid: Option<String>) {

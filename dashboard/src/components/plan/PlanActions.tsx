@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 
@@ -84,6 +85,7 @@ export const PlanActions = ({
   const [duplicateTitle, setDuplicateTitle] = useState(`${planTitle} (Copy)`);
   const [permanentDelete, setPermanentDelete] = useState(false);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const archiveMutation = useMutation({
     mutationFn: () => axios.post(`/api/plans/${workspaceId}/${planId}/archive`),
@@ -91,6 +93,7 @@ export const PlanActions = ({
       queryClient.invalidateQueries({ queryKey: ['plans', workspaceId] });
       setActiveAction(null);
       onActionComplete?.();
+      navigate(`/workspace/${workspaceId}`);
     },
   });
 
@@ -101,6 +104,7 @@ export const PlanActions = ({
       queryClient.invalidateQueries({ queryKey: ['plans', workspaceId] });
       setActiveAction(null);
       onActionComplete?.();
+      navigate(`/workspace/${workspaceId}`);
     },
   });
 

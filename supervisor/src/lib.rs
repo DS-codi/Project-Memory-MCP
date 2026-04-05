@@ -13,3 +13,9 @@ pub mod registry;
 pub mod runtime_output;
 pub mod runner;
 pub mod tray_tooltip;
+
+use std::sync::{Arc, RwLock};
+use once_cell::sync::Lazy;
+
+pub static PAIRING_PIN: Lazy<Arc<RwLock<String>>> = Lazy::new(|| Arc::new(RwLock::new(String::new())));
+pub static PAIRING_PASSWORD: Lazy<Arc<RwLock<String>>> = Lazy::new(|| Arc::new(RwLock::new(String::new())));

@@ -90,7 +90,7 @@ fn supervisor_mutex_name() -> String {
 
 fn is_workspace_root(path: &std::path::Path) -> bool {
     path.join("server").join("dist").join("server.js").exists()
-        && path.join("server").join("dist").join("index-cli.js").exists()
+        && path.join("server").join("dist").join("index.js").exists()
 }
 
 fn detect_workspace_root() -> Option<PathBuf> {
@@ -910,12 +910,18 @@ async fn supervisor_main() {
                 let terminal_url = format!("http://127.0.0.1:{}", cfg.interactive_terminal.port);
                 let monitor_url_for_qt = cfg.gui_server.monitor_url.clone();
                 let resolved_config_path = config_path.to_string_lossy().into_owned();
-                let gui_auth_key_for_qt = cfg.auth.api_key.clone().unwrap_or_default();
+                let gui_auth_key_for_qt = uuid::Uuid::new_v4().to_string();
+                let pairing_pin = format!("{:06}", rand::random::<u32>() % 1_000_000);
+                *supervisor::PAIRING_PIN.write().unwrap() = pairing_pin.clone();
+
+                let monitors = supervisor::cxxqt_bridge::qr_bridge::get_monitors_json();
                 let _ = qt.queue(move |mut obj| {
                     obj.as_mut().set_dashboard_url(cxx_qt_lib::QString::from(&dashboard_url));
                     obj.as_mut().set_terminal_url(cxx_qt_lib::QString::from(&terminal_url));
                     obj.as_mut().set_monitor_url(cxx_qt_lib::QString::from(&monitor_url_for_qt));
                     obj.as_mut().set_gui_auth_key(cxx_qt_lib::QString::from(&gui_auth_key_for_qt));
+                    obj.as_mut().set_available_monitors(cxx_qt_lib::QString::from(&monitors));
+                    obj.as_mut().set_pairing_pin(cxx_qt_lib::QString::from(&pairing_pin));
                     obj.as_mut().rust_mut().restart_tx = Some(restart_tx_for_qt.clone());
                     obj.as_mut().rust_mut().config_path = Some(resolved_config_path.clone());
                 });
@@ -1019,12 +1025,33 @@ async fn supervisor_main() {
                     chatbot_section.provider = saved.provider;
                     chatbot_section.model    = saved.model;
                 }
+                // Push chat API key presence to the Qt bridge so the collapsed
+                // chatbot strip can immediately show the correct status dot.
+                let chat_key_configured = !chatbot_section.api_key.is_empty();
+                if let Some(qt) = supervisor::cxxqt_bridge::SUPERVISOR_QT.get() {
+                    let _ = qt.queue(move |mut obj| {
+                        obj.as_mut().set_chat_api_key_configured(chat_key_configured);
+                    });
+                }
                 let chatbot_cfg = Arc::new(RwLock::new(chatbot_section));
                 let mcp_url = format!("http://127.0.0.1:{}", cfg.mcp.port);
                 let gui_api_key = cfg.auth.api_key.clone();
                 let monitor_allowed_paths = cfg.gui_server.monitor_allowed_paths.clone();
+                let pairing_pin = Arc::clone(&supervisor::PAIRING_PIN);
+                let pairing_password = Arc::clone(&supervisor::PAIRING_PASSWORD);
                 tokio::spawn(async move {
-                    if let Err(e) = supervisor::gui_server::start(&gui_bind, gui_port, fa_for_gui, chatbot_cfg, chatbot_sidecar, mcp_url, monitor_allowed_paths, gui_api_key).await {
+                    if let Err(e) = supervisor::gui_server::start(
+                        &gui_bind,
+                        gui_port,
+                        fa_for_gui,
+                        chatbot_cfg,
+                        chatbot_sidecar,
+                        mcp_url,
+                        monitor_allowed_paths,
+                        gui_api_key,
+                        pairing_pin,
+                        pairing_password
+                    ).await {
                         eprintln!("[supervisor] GUI HTTP server error: {e}");
                     }
                 });
@@ -1317,6 +1344,8 @@ async fn supervisor_main() {
                                                     call_count: rc.call_count,
                                                     linked_client_id: None,
                                                     instance_port: *port,
+                                                    client_type: rc.client_type,
+                                                    workspace_id: rc.workspace_id,
                                                 });
                                             }
                                         }
@@ -1376,6 +1405,19 @@ async fn supervisor_main() {
                                     let sub_count = events_handle_for_poll.subscriber_count() as i32;
                                     let emitted = events_handle_for_poll.events_emitted() as i32;
 
+                                    // Build proxy sessions JSON for the GUI card.
+                                    let proxy_count = all_connections.len() as i32;
+                                    let proxy_json = serde_json::to_string(
+                                        &all_connections.iter().map(|c| serde_json::json!({
+                                            "sessionId":   c.session_id,
+                                            "clientType":  c.client_type.as_deref().unwrap_or("unknown"),
+                                            "workspaceId": c.workspace_id,
+                                            "callCount":   c.call_count,
+                                            "connectedAt": c.connected_at,
+                                            "lastActivity": c.last_activity,
+                                        })).collect::<Vec<_>>()
+                                    ).unwrap_or_else(|_| "[]".to_string());
+
                                     if let Some(qt) = supervisor::cxxqt_bridge::SUPERVISOR_QT.get() {
                                         let _ = qt.queue(move |mut obj| {
                                             obj.as_mut().set_total_mcp_connections(total_conns);
@@ -1385,6 +1427,10 @@ async fn supervisor_main() {
                                             );
                                             obj.as_mut().set_event_subscriber_count(sub_count);
                                             obj.as_mut().set_events_total_emitted(emitted);
+                                            obj.as_mut().set_proxy_session_count(proxy_count);
+                                            obj.as_mut().set_proxy_sessions_json(
+                                                cxx_qt_lib::QString::from(&proxy_json)
+                                            );
                                         });
                                     }
                                 }
@@ -1740,6 +1786,42 @@ async fn supervisor_main() {
                                 }
                                 continue;
                             }
+                            // "set_dashboard_variant:<variant>" — hot-swap the dashboard variant
+                            if let Some(variant_str) = service_name.strip_prefix("set_dashboard_variant:") {
+                                use supervisor::config::DashboardVariant;
+                                let variant = match variant_str.trim() {
+                                    "solid" => DashboardVariant::Solid,
+                                    _ => DashboardVariant::Classic,
+                                };
+                                // Update in-memory config and runner variant.
+                                cfg.dashboard.variant = variant.clone();
+                                dashboard_runner.set_variant(variant);
+                                // Stop the running dashboard (ignore errors — process may already be gone).
+                                set_service_status(&registry, &mut tray, "dashboard", ServiceStatus::Stopping).await;
+                                let _ = dashboard_runner.stop().await;
+                                // Re-launch with the new variant.
+                                set_service_status(&registry, &mut tray, "dashboard", ServiceStatus::Starting).await;
+                                match dashboard_runner.start().await {
+                                    Ok(()) => {
+                                        set_service_status(&registry, &mut tray, "dashboard", ServiceStatus::Running).await;
+                                        set_service_health_ok(&registry, &mut tray, "dashboard").await;
+                                        dashboard_started_at = Some(std::time::Instant::now());
+                                        // Reflect the new variant in QML.
+                                        let variant_owned = variant_str.trim().to_string();
+                                        if let Some(qt) = supervisor::cxxqt_bridge::SUPERVISOR_QT.get() {
+                                            let _ = qt.queue(move |mut obj| {
+                                                obj.as_mut().set_dashboard_variant(cxx_qt_lib::QString::from(&variant_owned));
+                                            });
+                                        }
+                                    }
+                                    Err(e) => {
+                                        set_service_status(&registry, &mut tray, "dashboard", ServiceStatus::Error(e.to_string())).await;
+                                        set_service_error(&registry, &mut tray, "dashboard", e.to_string()).await;
+                                        eprintln!("[supervisor] failed to restart dashboard with new variant: {e}");
+                                    }
+                                }
+                                continue;
+                            }
                             if let Some(service) = find_custom_service_mut(&mut custom_services, &service_name) {
                                 restart_custom_service(service, &registry, &mut tray).await;
                                 continue;
@@ -2077,7 +2159,6 @@ fn push_qt_status(snapshot: &supervisor::control::protocol::HealthSnapshot) {
     let mut terminal_status = String::from("Stopped");
     let mut dashboard_status = String::from("Stopped");
     let mut fallback_status = String::from("Stopped");
-    let mut cli_mcp_status = String::from("Stopped");
     let mut custom_services_arr: Vec<serde_json::Value> = Vec::new();
     for child in &snapshot.children {
         let state = display_state_for_service(&child.status);
@@ -2086,7 +2167,6 @@ fn push_qt_status(snapshot: &supervisor::control::protocol::HealthSnapshot) {
             "interactive_terminal" => terminal_status = state,
             "dashboard" => dashboard_status = state,
             "fallback_api" => fallback_status = state,
-            "cli_mcp" => cli_mcp_status = state,
             _ => {
                 // Custom [[servers]] entry — collect for the JSON array.
                 let display = display_name_for_service(&child.service_name);
@@ -2119,7 +2199,6 @@ fn push_qt_status(snapshot: &supervisor::control::protocol::HealthSnapshot) {
             obj.as_mut().set_terminal_status(cxx_qt_lib::QString::from(&terminal_status));
             obj.as_mut().set_dashboard_status(cxx_qt_lib::QString::from(&dashboard_status));
             obj.as_mut().set_fallback_status(cxx_qt_lib::QString::from(&fallback_status));
-            obj.as_mut().set_cli_mcp_status(cxx_qt_lib::QString::from(&cli_mcp_status));
             obj.as_mut().set_custom_services_json(cxx_qt_lib::QString::from(&custom_json));
         });
     }

@@ -1,12 +1,14 @@
-/// AboutPanel — version info, service port map, REST API quick-reference.
+/// AboutPanel — version info, service port map, REST API quick-reference,
+/// and upgrade report card.
 /// Ported from supervisor/qml/AboutPanel.qml.
 
 use iced::{
-    widget::{button, column, container, row, scrollable, text, Space, Column},
+    widget::{button, column, container, row, scrollable, text, tooltip, Space, Column},
     Alignment, Background, Border, Color, Element, Length, Padding,
 };
 
 use crate::app_state::AppState;
+use crate::Message;
 use super::theme;
 
 struct ServiceRow {
@@ -48,7 +50,7 @@ const NOTES: &[&str] = &[
     "• Ports manifest (live): %APPDATA%\\ProjectMemory\\ports.json",
 ];
 
-fn card<'a, Message: Clone + 'a>(inner: Column<'a, Message>) -> Element<'a, Message> {
+fn card(inner: Column<Message>) -> Element<Message> {
     container(inner.padding(Padding::from(12u16)))
         .width(Length::Fill)
         .style(|_| iced::widget::container::Style {
@@ -63,12 +65,10 @@ fn card<'a, Message: Clone + 'a>(inner: Column<'a, Message>) -> Element<'a, Mess
         .into()
 }
 
-pub fn view<'a, Message>(
+pub fn view<'a>(
     state: &'a AppState,
     on_close: Message,
 ) -> Element<'a, Message>
-where
-    Message: Clone + 'a,
 {
     // Version card
     let version_card = card(column![
@@ -136,8 +136,130 @@ where
     }
     let notes_card = card(notes_col);
 
+    let upgrade_card = {
+        const GREEN:  Color = Color { r: 0.278, g: 0.776, b: 0.365, a: 1.0 };
+        const AMBER:  Color = Color { r: 0.996, g: 0.722, b: 0.224, a: 1.0 };
+        const RED:    Color = Color { r: 0.937, g: 0.325, b: 0.314, a: 1.0 };
+
+        let mut col: Column<Message> = Column::new().spacing(10).width(Length::Fill);
+        col = col.push(text("UPGRADE").size(10).color(theme::TEXT_SECONDARY));
+
+        // "Check for Updates" button — disabled while loading
+        let check_btn_inner = if state.about_upgrade_loading {
+            button(text("Checking…").size(12).color(theme::TEXT_SECONDARY))
+        } else {
+            button(text("Check for Updates").size(12))
+                .on_press(Message::AboutCheckUpgrade)
+        };
+        let check_btn = tooltip(
+            check_btn_inner,
+            container(text("Check the upgrade API for a newer supervisor version").size(11).color(theme::TEXT_PRIMARY))
+                .padding(Padding::from([4, 8]))
+                .style(|_| iced::widget::container::Style {
+                    background: Some(Background::Color(Color::from_rgb8(0x1c, 0x21, 0x28))),
+                    border: Border { color: theme::BORDER_SUBTLE, width: 1.0, radius: 4.0.into() },
+                    ..Default::default()
+                }),
+            tooltip::Position::Bottom,
+        );
+        col = col.push(check_btn);
+
+        // Status display
+        match state.about_upgrade_status.as_deref() {
+            Some("up-to-date") => {
+                col = col.push(
+                    text("✔  You are up to date").size(13).color(GREEN),
+                );
+            }
+            Some("update-available") => {
+                let version_label = state.about_upgrade_version
+                    .as_deref()
+                    .unwrap_or("unknown");
+                col = col.push(
+                    text(format!("⬆  Update available: {}", version_label))
+                        .size(13)
+                        .color(AMBER),
+                );
+                if let Some(notes) = &state.about_upgrade_notes {
+                    col = col.push(
+                        container(
+                            scrollable(
+                                text(notes.as_str())
+                                    .size(11)
+                                    .color(theme::TEXT_PRIMARY)
+                                    .width(Length::Fill),
+                            )
+                            .height(Length::Fixed(110.0)),
+                        )
+                        .width(Length::Fill)
+                        .style(|_| iced::widget::container::Style {
+                            background: Some(Background::Color(Color {
+                                r: 0.075, g: 0.090, b: 0.110, a: 1.0,
+                            })),
+                            border: Border {
+                                color: theme::BORDER_SUBTLE,
+                                width: 1.0,
+                                radius: 4.0.into(),
+                            },
+                            ..Default::default()
+                        })
+                        .padding(Padding::from(8u16)),
+                    );
+                }
+            }
+            Some("checking") => {
+                col = col.push(
+                    text("⟳  Checking…").size(13).color(theme::TEXT_SECONDARY),
+                );
+            }
+            Some(other) => {
+                col = col.push(
+                    text(other).size(12).color(theme::TEXT_SECONDARY),
+                );
+            }
+            None if !state.about_upgrade_loading => {
+                col = col.push(
+                    text("Never checked").size(12).color(theme::TEXT_SECONDARY),
+                );
+            }
+            None => {}
+        }
+
+        // Error
+        if let Some(err) = &state.about_upgrade_error {
+            col = col.push(
+                row![
+                    text(format!("Error: {}", err)).size(11).color(RED).width(Length::Fill),
+                    button(text("✕").size(10))
+                        .on_press(Message::AboutDismissError)
+                        .style(|_, _| iced::widget::button::Style {
+                            background: None,
+                            border: Border::default(),
+                            text_color: theme::TEXT_SECONDARY,
+                            ..Default::default()
+                        })
+                        .padding(Padding::from([0, 4])),
+                ]
+                .spacing(4)
+                .align_y(Alignment::Center)
+                .width(Length::Fill),
+            );
+        }
+
+        // Last checked timestamp
+        if let Some(ts) = &state.about_last_checked {
+            col = col.push(
+                text(format!("Last checked: {}", ts))
+                    .size(10)
+                    .color(theme::TEXT_SECONDARY),
+            );
+        }
+
+        card(col)
+    };
+
     let body = scrollable(
-        column![version_card, services_card, api_card, notes_card]
+        column![version_card, services_card, api_card, notes_card, upgrade_card]
             .spacing(16)
             .width(Length::Fill)
             .padding(0),

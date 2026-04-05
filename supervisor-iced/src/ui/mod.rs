@@ -3,6 +3,7 @@ pub mod service_icon;
 pub mod status_ring;
 pub mod activity_panel;
 pub mod sessions_panel;
+pub mod sessions_live_panel;
 pub mod plans_panel;
 pub mod sprints_panel;
 pub mod cartographer_panel;

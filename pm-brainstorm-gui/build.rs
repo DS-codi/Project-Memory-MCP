@@ -61,6 +61,7 @@ fn main() {
                 "qml/CountdownBar.qml",
                 "qml/ConfirmRejectCard.qml",
                 "qml/ActionButtons.qml",
+                "qml/ChatPanel.qml",
                 "qml/main.qml",
             ]),
     )

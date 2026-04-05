@@ -50,11 +50,29 @@ pub struct GuiServerState {
     /// Extra filesystem paths the monitor file browser may expose (from config).
     /// Workspace paths from the MCP database are merged in at request time.
     pub monitor_allowed_paths: Arc<Vec<String>>,
+    pub api_key: Option<String>,
+    pub pairing_pin: Arc<RwLock<String>>,
+    pub pairing_password: Arc<RwLock<String>>,
+    /// Valid session tokens with their expiry (UNIX timestamp).
+    pub valid_tokens: Arc<RwLock<HashMap<String, u64>>>,
 }
 
 // ---------------------------------------------------------------------------
 // Request body types
 // ---------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize)]
+pub struct AuthRequest {
+    pub pin: Option<String>,
+    pub password: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct AuthResponse {
+    pub success: bool,
+    pub token: Option<String>,
+    pub error: Option<String>,
+}
 
 /// Body for `POST /gui/launch`.
 #[derive(Debug, Deserialize)]
@@ -252,6 +270,155 @@ async fn runtime_capture_set_handler(
     }))
 }
 
+async fn auth_handler(
+    State(state): State<GuiServerState>,
+    Json(req): Json<AuthRequest>,
+) -> Json<AuthResponse> {
+    let pin = state.pairing_pin.read().unwrap().clone();
+    let password = state.pairing_password.read().unwrap().clone();
+
+    let success = if let Some(req_pin) = req.pin {
+        !pin.is_empty() && req_pin == pin
+    } else if let Some(req_pass) = req.password {
+        !password.is_empty() && req_pass == password
+    } else {
+        false
+    };
+
+    if success {
+        let token = uuid::Uuid::new_v4().to_string();
+        let expiry = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+            + 86400; // 24 hours
+
+        state.valid_tokens.write().unwrap().insert(token.clone(), expiry);
+
+        Json(AuthResponse {
+            success: true,
+            token: Some(token),
+            error: None,
+        })
+    } else {
+        Json(AuthResponse {
+            success: false,
+            token: None,
+            error: Some("Invalid PIN or password".to_string()),
+        })
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Gateway / Proxy handlers
+// ---------------------------------------------------------------------------
+
+async fn dashboard_proxy_handler(
+    State(state): State<GuiServerState>,
+    mut req: Request<Body>,
+) -> Response {
+    // 1. Get dashboard port (default 3459)
+    let port = 3459; // TODO: get from config if dynamic
+    let path = req.uri().path().replace("/gateway/dashboard", "");
+    let query = req.uri().query().map(|q| format!("?{}", q)).unwrap_or_default();
+    let target_url = format!("http://127.0.0.1:{}{}{}", port, path, query);
+
+    let client = reqwest::Client::new();
+    
+    // Copy headers (excluding host)
+    let mut headers = reqwest::header::HeaderMap::new();
+    for (name, value) in req.headers().iter() {
+        if name != reqwest::header::HOST {
+            headers.insert(name.clone(), value.clone());
+        }
+    }
+
+    let method = req.method().clone();
+    let body = req.into_body();
+
+    let resp = match client.request(method, &target_url)
+        .headers(headers)
+        .body(reqwest::Body::wrap_stream(axum::body::BodyDataStream::new(body)))
+        .send()
+        .await {
+            Ok(r) => r,
+            Err(e) => return (StatusCode::BAD_GATEWAY, e.to_string()).into_response(),
+        };
+
+    let mut builder = Response::builder().status(resp.status());
+    for (name, value) in resp.headers().iter() {
+        builder = builder.header(name, value);
+    }
+
+    builder.body(Body::from_stream(resp.bytes_stream())).unwrap()
+}
+
+use axum::extract::ws::{WebSocket, WebSocketUpgrade, Message as WsMessage};
+
+async fn terminal_ws_proxy_handler(
+    ws: WebSocketUpgrade,
+    State(_state): State<GuiServerState>,
+    req: Request<Body>,
+) -> Response {
+    let path = req.uri().path().replace("/gateway/terminal/ws", "");
+    let query = req.uri().query().map(|q| format!("?{}", q)).unwrap_or_default();
+    let target_url = format!("ws://127.0.0.1:3458{}{}", path, query);
+
+    ws.on_upgrade(move |source_ws| async move {
+        let (mut target_ws, _) = match tokio_tungstenite::connect_async(&target_url).await {
+            Ok(pair) => pair,
+            Err(e) => {
+                eprintln!("[gateway] WS connection failed: {e}");
+                return;
+            }
+        };
+
+        let (mut src_tx, mut src_rx) = source_ws.split();
+        let (mut tgt_tx, mut tgt_rx) = target_ws.split();
+
+        let client_to_target = async {
+            while let Some(Ok(msg)) = src_rx.next().await {
+                let t_msg = match msg {
+                    WsMessage::Text(s) => tokio_tungstenite::tungstenite::Message::Text(s.into()),
+                    WsMessage::Binary(b) => tokio_tungstenite::tungstenite::Message::Binary(b.into()),
+                    WsMessage::Ping(b) => tokio_tungstenite::tungstenite::Message::Ping(b.into()),
+                    WsMessage::Pong(b) => tokio_tungstenite::tungstenite::Message::Pong(b.into()),
+                    WsMessage::Close(c) => {
+                        let frame = c.map(|cf| tokio_tungstenite::tungstenite::protocol::CloseFrame {
+                            code: cf.code.into(),
+                            reason: cf.reason.into(),
+                        });
+                        tokio_tungstenite::tungstenite::Message::Close(frame)
+                    }
+                };
+                if tgt_tx.send(t_msg).await.is_err() { break; }
+            }
+        };
+
+        let target_to_client = async {
+            while let Some(Ok(msg)) = tgt_rx.next().await {
+                let a_msg = match msg {
+                    tokio_tungstenite::tungstenite::Message::Text(s) => WsMessage::Text(s.to_string()),
+                    tokio_tungstenite::tungstenite::Message::Binary(b) => WsMessage::Binary(b.into()),
+                    tokio_tungstenite::tungstenite::Message::Ping(b) => WsMessage::Ping(b.into()),
+                    tokio_tungstenite::tungstenite::Message::Pong(b) => WsMessage::Pong(b.into()),
+                    tokio_tungstenite::tungstenite::Message::Close(c) => {
+                        let frame = c.map(|cf| axum::extract::ws::CloseFrame {
+                            code: cf.code.into(),
+                            reason: cf.reason.into(),
+                        });
+                        WsMessage::Close(frame)
+                    }
+                    _ => continue,
+                };
+                if src_tx.send(a_msg).await.is_err() { break; }
+            }
+        };
+
+        tokio::join!(client_to_target, target_to_client);
+    })
+}
+
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 // File browser handlers
@@ -365,10 +532,8 @@ async fn files_browse_handler(
 // Router
 // ---------------------------------------------------------------------------
 
-pub fn build_router(state: GuiServerState, api_key: Option<String>) -> Router {
-    let key_state = Arc::new(api_key);
-
-    // Protected routes — require X-PM-API-Key header.
+pub fn build_router(state: GuiServerState) -> Router {
+    // Protected routes — require X-PM-API-Key or X-PM-Session-Token.
     let protected = Router::new()
         .route("/gui/launch", post(launch_handler))
         .route("/gui/continue", post(continue_handler))
@@ -381,13 +546,14 @@ pub fn build_router(state: GuiServerState, api_key: Option<String>) -> Router {
         .route("/gui/files/roots", get(files_roots_handler))
         .route("/gui/files/browse", get(files_browse_handler))
         .layer(axum::middleware::from_fn_with_state(
-            key_state,
+            state.clone(),
             crate::auth_middleware::require_api_key,
         ));
 
     // Public routes — no auth required.
     Router::new()
         .route("/gui/ping", get(ping_handler))
+        .route("/gui/auth", post(auth_handler))
         // Terminal launch routes are local-only (127.0.0.1) so no key needed.
         .route("/terminal/launch-claude", post(terminal_launch_claude_handler))
         .merge(protected)
@@ -414,6 +580,8 @@ pub async fn start(
     mcp_base_url: String,
     monitor_allowed_paths: Vec<String>,
     api_key: Option<String>,
+    pairing_pin: Arc<RwLock<String>>,
+    pairing_password: Arc<RwLock<String>>,
 ) -> anyhow::Result<()> {
     let addr = format!("{bind_address}:{port}");
     let listener = tokio::net::TcpListener::bind(&addr).await?;
@@ -425,8 +593,12 @@ pub async fn start(
         mcp_base_url,
         monitor_allowed_paths: Arc::new(monitor_allowed_paths),
         chat_live_logs: Arc::new(RwLock::new(HashMap::new())),
+        api_key,
+        pairing_pin,
+        pairing_password,
+        valid_tokens: Arc::new(RwLock::new(HashMap::new())),
     };
-    axum::serve(listener, build_router(state, api_key)).await?;
+    axum::serve(listener, build_router(state.clone())).await?;
     Ok(())
 }
 

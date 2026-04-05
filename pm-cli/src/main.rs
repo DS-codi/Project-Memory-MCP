@@ -8,12 +8,12 @@ mod install_config;
 mod install_menu;
 mod launch_menu;
 mod output_viewer;
+mod stop_menu;
 mod utils;
 mod warning_summary;
 
 use animations::{AnimStyle, BannerRenderer};
 use command_registry::CommandRegistry;
-use fallback::powershell::PowerShellFallback;
 
 use crossterm::{
     cursor,
@@ -40,6 +40,7 @@ const MENU_ITEMS: &[&str] = &[
     "Launch Application",
     "Lint QML Files",
     "Stream Command Output",
+    "Stop Running Components",
     "Quit",
 ];
 
@@ -202,24 +203,34 @@ fn handle_action(
     match action {
         0 => install_menu::show_install_submenu(terminal, anim_style)?,
         1 => {
-            let args = PowerShellFallback::build_args("scripts/test.ps1", &[]);
+            let exe = std::env::current_exe()
+                .unwrap_or_else(|_| std::path::PathBuf::from("pm-cli"))
+                .to_string_lossy()
+                .to_string();
+            let args = vec![exe, "build-tests".to_string()];
             let refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
             output_viewer::run_streaming_command(terminal, "Run Tests", &refs, anim_style)?;
         }
         2 => launch_menu::show_launch_submenu(terminal, anim_style)?,
         3 => {
-            let args = PowerShellFallback::build_args("scripts/qmllint.ps1", &[]);
-            let refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-            output_viewer::run_streaming_command(terminal, "QML Lint", &refs, anim_style)?;
-        }
-        4 => {
-            let args = PowerShellFallback::build_args(
-                "scripts/cli-qmllint.ps1",
-                &["-Component", "all"],
-            );
+            let exe = std::env::current_exe()
+                .unwrap_or_else(|_| std::path::PathBuf::from("pm-cli"))
+                .to_string_lossy()
+                .to_string();
+            let args = vec![exe, "build-qml-lint-all".to_string()];
             let refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
             output_viewer::run_streaming_command(terminal, "QML Lint (all)", &refs, anim_style)?;
         }
+        4 => {
+            let exe = std::env::current_exe()
+                .unwrap_or_else(|_| std::path::PathBuf::from("pm-cli"))
+                .to_string_lossy()
+                .to_string();
+            let args = vec![exe, "build-qml-lint-all".to_string()];
+            let refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+            output_viewer::run_streaming_command(terminal, "QML Lint (all)", &refs, anim_style)?;
+        }
+        5 => stop_menu::show_stop_submenu(terminal, anim_style)?,
         _ => {}
     }
     Ok(())

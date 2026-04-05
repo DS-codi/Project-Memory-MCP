@@ -14,13 +14,13 @@ use tachyonfx::{fx, Effect, Interpolation};
 // ─── Banner / Palette constants ───────────────────────────────────────────────
 
 pub const BANNER: &[&str] = &[
-    r"  ____  __  __     ____  _     ___  ",
-    r" |  _ \|  \/  |   / ___|| |   |_ _| ",
-    r" | |_) | |\/| |  | |    | |    | |  ",
-    r" |  __/| |  | |  | |___ | |___ | |  ",
-    r" |_|   |_|  |_|   \____||_____|___| ",
-    r"",
-    r"  Project Memory MCP — command line launcher",
+    r"  ██████╗ ███╗   ███╗     ██████╗██╗     ██╗",
+    r"  ██╔══██╗████╗ ████║    ██╔════╝██║     ██║",
+    r"  ██████╔╝██╔████╔██║    ██║     ██║     ██║",
+    r"  ██╔═══╝ ██║╚██╔╝██║    ██║     ██║     ██║",
+    r"  ██║     ██║ ╚═╝ ██║    ╚██████╗███████╗██║",
+    r"  ╚═╝     ╚═╝     ╚═╝     ╚═════╝╚══════╝╚═╝",
+    r"  ─── Project Memory MCP  ·  command line launcher",
 ];
 
 pub const PALETTE_DEFAULT: [Color; 6] = [

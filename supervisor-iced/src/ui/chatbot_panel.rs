@@ -2,7 +2,7 @@
 /// Ported from supervisor/qml/ChatbotPanel.qml.
 
 use iced::{
-    widget::{button, column, container, row, scrollable, text, text_input, Space, Column},
+    widget::{button, column, container, row, scrollable, text, text_input, tooltip, Space, Column},
     Alignment, Background, Border, Color, Element, Length, Padding,
 };
 
@@ -22,6 +22,8 @@ pub fn view<'a, Message>(
     on_save_settings:   Message,
     // Fired when the user clicks the ↗ pop-out or ↙ pop-in button.
     on_popout:          Message,
+    // Fired when the user clicks the collapse (▼) button to hide to a horizontal strip.
+    on_collapse:        Message,
 ) -> Element<'a, Message>
 where
     Message: Clone + 'a,
@@ -33,12 +35,24 @@ where
         } else {
             Color::from_rgb8(0xe3, 0xb3, 0x41)
         };
-        let key_dot = container(Space::new(8.0, 8.0))
+        let key_dot_tip = if state.chat_key_configured { "API key configured" } else { "No API key" };
+        let key_dot_inner = container(Space::new(8.0, 8.0))
             .style(move |_| iced::widget::container::Style {
                 background: Some(Background::Color(key_dot_color)),
                 border: Border { radius: 4.0.into(), ..Default::default() },
                 ..Default::default()
             });
+        let key_dot = tooltip(
+            key_dot_inner,
+            container(text(key_dot_tip).size(11).color(theme::TEXT_PRIMARY))
+                .padding(Padding::from([4, 8]))
+                .style(|_| iced::widget::container::Style {
+                    background: Some(Background::Color(Color::from_rgb8(0x1c, 0x21, 0x28))),
+                    border: Border { color: theme::BORDER_SUBTLE, width: 1.0, radius: 4.0.into() },
+                    ..Default::default()
+                }),
+            tooltip::Position::Right,
+        );
         return container(
             column![
                 button(text("↙").size(14)).on_press(on_popout),
@@ -81,12 +95,29 @@ where
                 border: Border { radius: 4.0.into(), ..Default::default() },
                 ..Default::default()
             });
-        let key_dot = container(Space::new(8.0, 8.0))
+
+        let key_dot_tooltip_text = if state.chat_key_configured {
+            "API key configured"
+        } else {
+            "No API key — click ◄ to expand and add one"
+        };
+        let key_dot_inner = container(Space::new(8.0, 8.0))
             .style(move |_| iced::widget::container::Style {
                 background: Some(Background::Color(key_dot_color)),
                 border: Border { radius: 4.0.into(), ..Default::default() },
                 ..Default::default()
             });
+        let key_dot = tooltip(
+            key_dot_inner,
+            container(text(key_dot_tooltip_text).size(11).color(theme::TEXT_PRIMARY))
+                .padding(Padding::from([4, 8]))
+                .style(|_| iced::widget::container::Style {
+                    background: Some(Background::Color(Color::from_rgb8(0x1c, 0x21, 0x28))),
+                    border: Border { color: theme::BORDER_SUBTLE, width: 1.0, radius: 4.0.into() },
+                    ..Default::default()
+                }),
+            tooltip::Position::Right,
+        );
 
         return container(
             column![
@@ -143,6 +174,34 @@ where
         button(text("►").size(12)).on_press(on_toggle).into()
     };
 
+    // Collapse-to-strip button: hidden in standalone mode.
+    let collapse_btn: Element<'a, Message> = if standalone {
+        Space::new(0.0, 0.0).into()
+    } else {
+        tooltip(
+            button(text("▼").size(12))
+                .on_press(on_collapse)
+                .style(|_, status| iced::widget::button::Style {
+                    background: if matches!(status, iced::widget::button::Status::Hovered) {
+                        Some(Background::Color(Color::from_rgb8(0x1c, 0x21, 0x28)))
+                    } else {
+                        None
+                    },
+                    border: Border::default(),
+                    ..Default::default()
+                }),
+            container(text("Collapse to strip").size(11).color(theme::TEXT_PRIMARY))
+                .padding(Padding::from([4, 8]))
+                .style(|_| iced::widget::container::Style {
+                    background: Some(Background::Color(Color::from_rgb8(0x1c, 0x21, 0x28))),
+                    border: Border { color: theme::BORDER_SUBTLE, width: 1.0, radius: 4.0.into() },
+                    ..Default::default()
+                }),
+            tooltip::Position::Bottom,
+        )
+        .into()
+    };
+
     // Pop-out / pop-in button: ↗ opens new window; only shown when not standalone.
     let popout_btn: Element<'a, Message> = if standalone {
         Space::new(0.0, 0.0).into()
@@ -160,6 +219,7 @@ where
             .width(Length::Fill),
         provider_badge,
         busy_widget,
+        collapse_btn,
         popout_btn,
         button(text("⚙").size(13)).on_press(on_show_settings),
         button(text("⎚").size(13))
@@ -346,6 +406,94 @@ where
                 ..Default::default()
             },
             ..Default::default()
+        })
+        .into()
+}
+
+/// Collapsed horizontal strip — shown when `state.chatbot_collapsed == true`.
+///
+/// Renders a full-width ~32 px bar with a "🤖 Chatbot" label and a status dot
+/// that pulses when an API key is configured. Clicking anywhere expands the panel.
+pub fn collapsed_strip<'a, Message>(
+    state: &'a AppState,
+    on_expand: Message,
+) -> Element<'a, Message>
+where
+    Message: Clone + 'a,
+{
+    // Dot colour & pulse opacity
+    let dot_alpha = if state.chatbot_api_key_dot_visible {
+        // Breathe between 40 % and 100 % opacity using the pulse value
+        0.4 + 0.6 * state.chatbot_strip_pulse
+    } else {
+        0.5
+    };
+    let dot_color = if state.chatbot_api_key_dot_visible {
+        Color { a: dot_alpha, ..theme::CLR_RUNNING }   // green, pulsing
+    } else {
+        Color { r: 0.47, g: 0.47, b: 0.47, a: dot_alpha }   // grey, dim
+    };
+
+    let dot_inner = container(Space::new(10.0, 10.0))
+        .style(move |_| iced::widget::container::Style {
+            background: Some(Background::Color(dot_color)),
+            border: Border { radius: 5.0.into(), ..Default::default() },
+            ..Default::default()
+        });
+
+    let dot_tip = if state.chatbot_api_key_dot_visible {
+        "API key configured"
+    } else {
+        "No API key configured"
+    };
+    let dot = tooltip(
+        dot_inner,
+        container(text(dot_tip).size(11).color(theme::TEXT_PRIMARY))
+            .padding(Padding::from([4, 8]))
+            .style(|_| iced::widget::container::Style {
+                background: Some(Background::Color(Color::from_rgb8(0x1c, 0x21, 0x28))),
+                border: Border { color: theme::BORDER_SUBTLE, width: 1.0, radius: 4.0.into() },
+                ..Default::default()
+            }),
+        tooltip::Position::Top,
+    );
+
+    let key_label = if state.chatbot_api_key_dot_visible {
+        text("API key configured").size(10).color(theme::TEXT_SECONDARY)
+    } else {
+        text("No API key").size(10).color(Color::from_rgb8(0xe3, 0xb3, 0x41))
+    };
+
+    let strip_content = row![
+        text("🤖 Chatbot")
+            .size(12)
+            .color(theme::TEXT_PRIMARY)
+            .width(Length::Fill),
+        key_label,
+        dot,
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center)
+    .padding(Padding::from([0u16, 4]))
+    .width(Length::Fill);
+
+    button(strip_content)
+        .on_press(on_expand)
+        .width(Length::Fill)
+        .padding(Padding::from([6u16, 10]))
+        .style(|_theme, status| iced::widget::button::Style {
+            background: Some(Background::Color(if matches!(status, iced::widget::button::Status::Hovered) {
+                Color::from_rgb8(0x10, 0x16, 0x1e)
+            } else {
+                theme::BG_PANEL
+            })),
+            text_color: theme::TEXT_PRIMARY,
+            border: Border {
+                color: theme::CLR_BLUE,
+                width: 1.0,
+                ..Default::default()
+            },
+            shadow: iced::Shadow::default(),
         })
         .into()
 }

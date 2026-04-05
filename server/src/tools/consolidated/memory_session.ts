@@ -16,7 +16,8 @@
 import { randomBytes } from 'crypto';
 import * as store from '../../storage/db-store.js';
 import { deployForTask } from '../agent-deploy.js';
-import { getWorkspaceInstructionsWithContent, getInstruction } from '../../db/instruction-db.js';
+import { getWorkspaceInstructionsWithContent, getInstruction, getAutoSurfaceInstructions } from '../../db/instruction-db.js';
+import { markInstructionsSurfaced, registerLiveSession } from '../session-live-store.js';
 import { getWorkspaceSkillsWithContent, getSkill } from '../../db/skill-db.js';
 import { getImportantResponseContext } from '../../utils/important-response-context.js';
 import { isSupervisorRunning } from '../orchestration/supervisor-client.js';
@@ -42,7 +43,7 @@ import type {
 // Types
 // ---------------------------------------------------------------------------
 
-export type SessionAction = 'prep' | 'deploy_and_prep' | 'list_sessions' | 'get_session' | 'prep_claude';
+export type SessionAction = 'prep' | 'deploy_and_prep' | 'list_sessions' | 'get_session' | 'prep_claude' | 'session_start';
 
 export interface MemorySessionParams {
     action: SessionAction;
@@ -100,6 +101,10 @@ export interface MemorySessionParams {
     context_summary?: string;
     skills_to_load?: string[];
     instructions_to_load?: string[];
+
+    // Instrumentation / proxy session tracking
+    _session_id?: string;
+    _client_type?: string;
 }
 
 interface PrepResult {
@@ -1140,6 +1145,55 @@ async function handlePrepClaude(params: MemorySessionParams) {
 }
 
 // ---------------------------------------------------------------------------
+// session_start — proxy-initiated session registration with instruction surfacing
+// ---------------------------------------------------------------------------
+
+/**
+ * Called by client-proxy on the first tools/call after initialize.
+ * Fetches auto_surface instructions for the workspace and marks them surfaced
+ * so the per-call withLogging injection does not repeat them.
+ * Returns the instructions for the proxy to inject into the first tool response.
+ */
+async function handleSessionStart(params: MemorySessionParams) {
+    const workspaceId = params.workspace_id;
+    const sessionId = params._session_id ?? `proxy-${Date.now().toString(36)}`;
+
+    if (!workspaceId) {
+        return ok('session_start', {
+            session_registered: true,
+            workspace_id: null,
+            priority_instructions: [],
+            notice: 'No workspace_id provided — instruction surfacing skipped.',
+        });
+    }
+
+    // Pre-register proxy session in live store so it shows up in /admin/connections.
+    const rawClientType = params._client_type;
+    const clientType: 'cli' | 'vscode' | 'unknown' =
+        rawClientType === 'cli' || rawClientType === 'vscode' ? rawClientType : 'unknown';
+    registerLiveSession(sessionId, undefined, { workspaceId, clientType });
+
+    let priorityInstructions: Array<{ filename: string; content: string; priority: string }> = [];
+    try {
+        priorityInstructions = getAutoSurfaceInstructions(workspaceId);
+        if (priorityInstructions.length > 0) {
+            markInstructionsSurfaced(sessionId, workspaceId);
+        }
+    } catch {
+        // Non-fatal: missing migration or DB issue — return empty instructions.
+    }
+
+    return ok('session_start', {
+        session_registered: true,
+        workspace_id: workspaceId,
+        priority_instructions: priorityInstructions,
+        ...(priorityInstructions.length > 0 && {
+            notice: 'PRIORITY: These workspace instructions must be followed for all work in this session.',
+        }),
+    });
+}
+
+// ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
 
@@ -1155,6 +1209,8 @@ export async function memorySession(params: MemorySessionParams) {
             return handleGetSession(params);
         case 'prep_claude':
             return handlePrepClaude(params);
+        case 'session_start':
+            return handleSessionStart(params);
         default:
             return err(`Unknown action: ${(params as any).action}`);
     }

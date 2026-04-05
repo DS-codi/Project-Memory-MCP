@@ -22,6 +22,7 @@ import {
   getWorkspace, getPlansByWorkspace, getPlan, getPlanPhases, getPlanSteps,
   getPlanSessions, getPlanLineage, getPlanNotes, getBuildScripts, getPlanContext,
   getProgramChildPlans, listPrograms, getWorkflowMode, setWorkflowMode,
+  deletePlanFromDb, archivePlanInDb,
 } from '../db/queries.js';
 import { emitEvent } from '../events/emitter.js';
 import { makeDbRef } from '../types/db-ref.types.js';
@@ -229,9 +230,14 @@ plansRouter.get('/workspace/:workspaceId', (req, res) => {
       };
     });
 
-    // Also include programs from the dedicated programs table
+    // Also include programs from the dedicated programs table,
+    // but skip any that already appeared in the plans query (dedup by title+workspace)
+    const planIds = new Set(planSummaries.map(p => p.id));
+    const planTitles = new Set(planSummaries.map(p => p.title));
     const programs = listPrograms(req.params.workspaceId);
-    const programSummaries = programs.map(prog => {
+    const programSummaries = programs
+      .filter(prog => !planIds.has(prog.id) && !planTitles.has(prog.title))
+      .map(prog => {
       const childPlansCount = getProgramChildPlans(prog.id).length;
       return {
         id: prog.id,
@@ -963,6 +969,9 @@ plansRouter.post('/:workspaceId/:planId/archive', async (req, res) => {
     
     await fs.writeFile(statePath, JSON.stringify(state, null, 2));
     
+    // Update SQLite DB
+    try { archivePlanInDb(planId); } catch (e) { console.warn('Could not update plan in DB:', e); }
+    
     // Update workspace meta: remove from active_plans, add to archived_plans
     const metaPath = path.join(globalThis.MBS_DATA_ROOT, workspaceId, 'workspace.meta.json');
     try {
@@ -1062,9 +1071,13 @@ plansRouter.delete('/:workspaceId/:planId', async (req, res) => {
       await fs.mkdir(archiveDir, { recursive: true });
       const archivePath = path.join(archiveDir, planId);
       await fs.rename(planDir, archivePath);
+      // Update DB: mark as archived
+      try { archivePlanInDb(planId); } catch (e) { console.warn('Could not archive plan in DB:', e); }
     } else {
       // Permanently delete
       await fs.rm(planDir, { recursive: true, force: true });
+      // Update DB: remove plan and related records
+      try { deletePlanFromDb(planId); } catch (e) { console.warn('Could not delete plan from DB:', e); }
     }
     
     // Remove from active_plans in workspace meta

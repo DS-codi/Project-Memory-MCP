@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["supervisor", "supervisor-iced", "pm-gui-forms", "pm-brainstorm-gui", "pm-approval-gui", "pm-install-gui", "interactive-terminal/pty-host", "crates/cartographer-core", "pm-cli", "client-server"]
+members = ["supervisor", "supervisor-iced", "pm-gui-forms", "pm-brainstorm-gui", "pm-approval-gui", "pm-install-gui", "interactive-terminal/pty-host", "crates/cartographer-core", "pm-cli", "pm-cli-fast", "client-server", "interactive-terminal-iced"]
 exclude = ["interactive-terminal"]
 
 [workspace.dependencies]
@@ -18,10 +18,16 @@ anyhow = "1"
 rand = "0.8"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "native-tls", "stream"] }
 axum = { version = "0.7", features = ["http2"] }
+axum-extra = { version = "0.9", features = ["typed-header"] }
+hyper = { version = "1", features = ["full"] }
 hyper-util = { version = "0.1", features = ["full"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["full"] }
 bytes = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tokio-tungstenite = "0.21"
+futures-util = "0.3"
 
 [profile.release]
 opt-level = 3

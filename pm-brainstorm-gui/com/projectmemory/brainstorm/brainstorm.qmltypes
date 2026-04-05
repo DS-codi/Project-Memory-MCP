@@ -1,0 +1,73 @@
+import QtQuick.tooling 1.2
+
+// Stub type description for qmllint static analysis (pre-build).
+// Source of truth: pm-brainstorm-gui/src/cxxqt_bridge/mod.rs
+// At runtime the real types come from the compiled CxxQt plugin.
+// Keep in sync with #[qproperty] / #[qinvokable] declarations in mod.rs.
+
+Module {
+    dependencies: []
+    Component {
+        name: "FormApp"
+        accessSemantics: "reference"
+        prototype: "QObject"
+        exports: ["com.projectmemory.brainstorm/FormApp 1.0"]
+        exportMetaObjectRevisions: [256]
+
+        // ── Properties ──────────────────────────────────────────────────────
+        Property { name: "title";                 type: "QString"; isReadonly: false }
+        Property { name: "description";           type: "QString"; isReadonly: false }
+        Property { name: "questionsJson";         type: "QString"; isReadonly: false }
+        Property { name: "answersJson";           type: "QString"; isReadonly: false }
+        Property { name: "remainingSeconds";      type: "int";     isReadonly: false }
+        Property { name: "totalSeconds";          type: "int";     isReadonly: false }
+        Property { name: "timerPaused";           type: "bool";    isReadonly: false }
+        Property { name: "formSubmitted";         type: "bool";    isReadonly: false }
+        Property { name: "refinementPending";     type: "bool";    isReadonly: false }
+        Property { name: "refinedQuestionsJson";  type: "QString"; isReadonly: false }
+        Property { name: "refinementCount";       type: "int";     isReadonly: false }
+
+        // ── Signals ─────────────────────────────────────────────────────────
+        Signal { name: "titleChanged" }
+        Signal { name: "descriptionChanged" }
+        Signal { name: "questionsJsonChanged" }
+        Signal { name: "answersJsonChanged" }
+        Signal { name: "remainingSecondsChanged" }
+        Signal { name: "totalSecondsChanged" }
+        Signal { name: "timerPausedChanged" }
+        Signal { name: "formSubmittedChanged" }
+        Signal { name: "refinementPendingChanged" }
+        Signal { name: "refinedQuestionsJsonChanged" }
+        Signal { name: "refinementCountChanged" }
+        Signal { name: "timerExpired" }
+        Signal { name: "formCompleted" }
+        Signal { name: "refinementCompleted" }
+
+        // ── Invokable methods ────────────────────────────────────────────────
+        Method {
+            name: "setAnswer"
+            Parameter { name: "question_id";  type: "QString" }
+            Parameter { name: "answer_json";  type: "QString" }
+        }
+        Method { name: "submitForm" }
+        Method { name: "cancelForm" }
+        Method { name: "useAllRecommendations" }
+        Method {
+            name: "toggleRefinement"
+            Parameter { name: "question_id"; type: "QString" }
+        }
+        Method {
+            name: "setRefinementFeedback"
+            Parameter { name: "question_id"; type: "QString" }
+            Parameter { name: "feedback";    type: "QString" }
+        }
+        Method { name: "requestRefinement" }
+        Method {
+            name: "requestRefinementForQuestion"
+            Parameter { name: "question_id"; type: "QString" }
+            Parameter { name: "feedback";    type: "QString" }
+        }
+        Method { name: "pauseTimer" }
+        Method { name: "resumeTimer" }
+    }
+}

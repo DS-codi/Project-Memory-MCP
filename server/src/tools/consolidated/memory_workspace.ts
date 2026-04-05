@@ -414,25 +414,36 @@ async function handleListFocusedWorkspaces(
 // CLI MCP config injection helpers
 // ---------------------------------------------------------------------------
 
-const CLI_MCP_ENTRY_KEY = 'project-memory-cli';
+// The single MCP entry written to workspace .mcp.json files.
+// client-proxy sits between Claude Code and the supervisor, routing all tool
+// calls upstream and falling back to local SQLite for a subset of tools when
+// the supervisor is unreachable.  Points at index-claude.ts (port 3467) — the
+// curated Claude Code hub-and-spoke profile.
+const CLI_MCP_ENTRY_KEY = 'pmmcp';
+// Legacy keys written by earlier versions — removed when the new entry is written.
+const LEGACY_MCP_ENTRY_KEYS = ['project-memory-cli', 'project-memory-claude'];
 
 /**
- * Resolve the CLI MCP port from params, env var, or default.
+ * Resolve the Claude MCP port from params, env var, or default.
  */
 function resolveCliMcpPort(override?: number): number {
   if (override && override > 0 && override < 65536) return override;
-  const fromEnv = parseInt(process.env.PM_CLI_MCP_PORT ?? '', 10);
+  const fromEnv = parseInt(process.env.PM_CLAUDE_MCP_PORT ?? process.env.PM_CLI_MCP_PORT ?? '', 10);
   if (!isNaN(fromEnv) && fromEnv > 0 && fromEnv < 65536) return fromEnv;
-  return 3466;
+  return 3467;
 }
 
 /**
  * Write or update `.mcp.json` at the workspace root so that Claude Code
- * agents running inside that workspace automatically discover the CLI MCP
- * server.  Existing entries in the file are preserved — only the
- * `project-memory-cli` key is touched.
+ * agents running inside that workspace automatically discover the MCP server
+ * via client-proxy.  The proxy routes all tool calls to the supervisor's
+ * Claude profile (index-claude.ts, port 3467) and falls back to local SQLite
+ * when the supervisor is unreachable.
  *
- * @returns `'written'` (new file), `'updated'` (key added/port changed),
+ * Existing entries in the file are preserved — only the `project-memory-claude`
+ * key is touched and any legacy `project-memory-cli` key is removed.
+ *
+ * @returns `'written'` (new file), `'updated'` (key added/changed),
  *          or `'skipped'` (entry already correct).
  */
 async function injectCliMcpConfig(
@@ -463,13 +474,19 @@ async function injectCliMcpConfig(
 
   // Check if already correct.
   const entry = servers[CLI_MCP_ENTRY_KEY] as Record<string, unknown> | undefined;
-  const alreadyCorrect = proxyPath
+  const hasLegacy = LEGACY_MCP_ENTRY_KEYS.some(k => servers[k]);
+  const alreadyCorrect = !hasLegacy && (proxyPath
     ? entry?.['type'] === 'stdio'
       && (entry?.['env'] as Record<string, string> | undefined)?.['PM_MCP_URL'] === targetUrl
-    : entry?.['url'] === targetUrl;
+    : entry?.['url'] === targetUrl);
 
   if (alreadyCorrect) {
     return 'skipped'; // Already correct
+  }
+
+  // Remove legacy entries if present.
+  for (const legacyKey of LEGACY_MCP_ENTRY_KEYS) {
+    if (servers[legacyKey]) delete servers[legacyKey];
   }
 
   servers[CLI_MCP_ENTRY_KEY] = newEntry;

@@ -110,6 +110,10 @@ pub struct McpConnectionEntry {
     pub linked_client_id: Option<String>,
     /// Port of the MCP instance serving this session.
     pub instance_port: u16,
+    /// Client type reported by client-proxy: "cli", "vscode", or "unknown".
+    pub client_type: Option<String>,
+    /// Workspace ID reported by the session (if available).
+    pub workspace_id: Option<String>,
 }
 
 
@@ -150,7 +154,7 @@ impl Registry {
     /// each initialised to [`ServiceStatus::Stopped`].
     pub fn new() -> Self {
         let mut services = HashMap::new();
-        for name in &["mcp", "interactive_terminal", "dashboard", "fallback_api", "cli_mcp"] {
+        for name in &["mcp", "interactive_terminal", "dashboard", "fallback_api"] {
             services.insert(name.to_string(), Self::default_service_state(name.to_string()));
         }
         Self {

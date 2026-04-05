@@ -49,6 +49,8 @@ pub fn run_build_component(
             "Dashboard",
             "Extension",
             "Cartographer",
+            "ClientProxy",
+            "GlobalClaude",
         ]
     } else {
         vec![component]

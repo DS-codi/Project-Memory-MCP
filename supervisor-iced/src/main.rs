@@ -24,7 +24,7 @@ static TRAY_RX: std::sync::OnceLock<
 > = std::sync::OnceLock::new();
 
 use app_state::{AppState, ServiceStatus, ActivityEntry, SessionEntry,
-                PlanEntry, WorkspaceEntry, ChatMessage, Overlay};
+                PlanEntry, WorkspaceEntry, ChatMessage, Overlay, ProxySessionEntry};
 use backend::process_manager::{ProcessManager, ServiceSpec};
 
 const APP_ICON_PNG: &[u8] =
@@ -58,6 +58,8 @@ pub enum Message {
     // ── Tick / polling results ────────────────────────────────────────────────
     StatusTick,
     StatusUpdated(Result<StatusPayload, String>),
+    ProxySessionsTick,
+    ProxySessionsUpdated(Result<Vec<ProxySessionEntry>, String>),
     ActivityLoaded(Result<Vec<ActivityEntry>, String>),
     SessionsLoaded(Result<Vec<SessionEntry>, String>),
 
@@ -108,6 +110,10 @@ pub enum Message {
     ChatApiKeyChanged(String),
     ChatSaveSettings,
     ChatReplyReceived(Result<String, String>),
+    /// Toggle the chatbot between full panel and collapsed strip.
+    ChatbotToggleCollapsed,
+    /// Drive the collapsed-strip dot pulse animation.
+    ChatbotStripPulse(f32),
 
     // ── Service actions ───────────────────────────────────────────────────────
     RestartService(String),
@@ -125,9 +131,64 @@ pub enum Message {
     ClosePairingDialog,
     RefreshPairingQr,
     PairingQrGenerated(Option<String>),
+    PairingToggleApp(String),
+    PairingMonitorSelected(i32),
+    PairingMonitorsLoaded(Vec<String>),
+    PairingPasswordChanged(String),
 
     // ── Settings category navigation ──────────────────────────────────────────
     SettingsCategorySelected(usize),
+
+    // ── Settings Panel — load / save / field changes ──────────────────────────
+    SettingsOpenLoad,
+    SettingsLoaded(serde_json::Value),
+    SettingsLoadFailed(String),
+    SettingsLogLevelChanged(String),
+    SettingsBindAddressChanged(String),
+    SettingsShowChatbotToggled(bool),
+    SettingsMcpEnabledToggled(bool),
+    SettingsMcpPortChanged(String),
+    SettingsTerminalEnabledToggled(bool),
+    SettingsTerminalPortChanged(String),
+    SettingsDashboardEnabledToggled(bool),
+    SettingsDashboardPortChanged(String),
+    SettingsDashboardRequiresMcpToggled(bool),
+    SettingsDashboardVariantChanged(String),
+    SettingsEventsEnabledToggled(bool),
+    SettingsEventsPortChanged(String),
+    SettingsHealthTimeoutChanged(String),
+    SettingsMcpMaxInstancesChanged(String),
+    SettingsMcpMaxConnsChanged(String),
+    SettingsInstancePoolChanged(String),
+    SettingsReconnectIntervalChanged(String),
+    SettingsReconnectInitialDelayChanged(String),
+    SettingsReconnectMaxDelayChanged(String),
+    SettingsReconnectMultiplierChanged(String),
+    SettingsReconnectMaxAttemptsChanged(String),
+    SettingsReconnectJitterRatioChanged(String),
+    SettingsApprovalCountdownChanged(String),
+    SettingsTimeoutActionChanged(String),
+    SettingsAlwaysOnTopToggled(bool),
+    SettingsVscodeMcpPortChanged(String),
+    SettingsVscodeApiPortChanged(String),
+    SettingsVscodeTerminalPortChanged(String),
+    SettingsVscodeDataPathChanged(String),
+    SettingsVscodeNotificationsToggled(bool),
+    SettingsVscodeAutoDeployToggled(bool),
+    SettingsVscodeAgentsRootChanged(String),
+    SettingsVscodeSkillsRootChanged(String),
+    SettingsVscodeInstructionsRootChanged(String),
+    SettingsVscodeAgentHandoffsToggled(bool),
+    SettingsVscodePlanCompleteToggled(bool),
+    SettingsVscodeStepBlockedToggled(bool),
+    SettingsVscodeContainerModeChanged(String),
+    SettingsVscodeStartupModeChanged(String),
+    SettingsVscodeLauncherPathChanged(String),
+    SettingsVscodeDetectTimeoutChanged(String),
+    SettingsVscodeStartupTimeoutChanged(String),
+    SettingsSave,
+    SettingsSaved,
+    SettingsSaveError(String),
 
     // ── Config editor ─────────────────────────────────────────────────────────
     OpenRawConfigEditor,
@@ -151,6 +212,18 @@ pub enum Message {
     MinimizeToTray,
     TrayRestartServices,
     TrayQuit,
+    /// Navigate to the dashboard panel from the tray menu.
+    TrayOpenDashboard,
+    /// Navigate to the plans panel from the tray menu.
+    TrayOpenPlans,
+    /// Navigate to the sprints panel from the tray menu.
+    TrayOpenSprints,
+    /// Open the settings overlay from the tray menu.
+    TrayOpenSettings,
+    /// Toggle event broadcast from the tray menu.
+    TrayToggleBroadcast,
+    /// Trigger an upgrade check from the tray menu.
+    TrayCheckUpgrade,
 
     // ── Window lifecycle ──────────────────────────────────────────────────────
     /// User pressed the OS window-close button — intercepted to hide-to-tray.
@@ -161,6 +234,62 @@ pub enum Message {
     ChatPopoutOpened(iced::window::Id),
     /// User clicked "pop-in" in the collapsed inline placeholder.
     ChatPopoutClosed,
+
+    // ── Sessions Live Panel ───────────────────────────────────────────────────
+    SessionsLiveTabChanged(usize),
+    /// Sub-tab within the Components tab sessions area (0=Proxy, 1=Active, 2=Activity).
+    ComponentsSessionsTabSelected(usize),
+    SessionsLivePollPlans,
+    SessionsLivePlansLoaded(Result<Vec<serde_json::Value>, String>),
+    SessionsLivePollCommands,
+    SessionsLiveCommandsLoaded(Result<Vec<serde_json::Value>, String>),
+    SessionsLivePollDirs,
+    SessionsLiveDirsLoaded(Result<Vec<String>, String>),
+
+    // ── About Panel — Upgrade Report Card ────────────────────────────────────
+    AboutCheckUpgrade,
+    AboutUpgradeLoaded(Result<serde_json::Value, String>),
+
+    // ── Sprints Panel — Create Sprint + Add Goal ──────────────────────────────
+    SprintsNewTitleChanged(String),
+    SprintsNewGoalChanged(String),
+    SprintsCreate,
+    SprintsCreated(Result<serde_json::Value, String>),
+    SprintsSelectSprint(String),
+    SprintsAddGoal,
+    SprintsGoalAdded(Result<serde_json::Value, String>),
+
+    // ── Plans Toolbar — Register WS + Backup ─────────────────────────────────
+    PlansRegisterWsPathChanged(String),
+    PlansRegisterWsNameChanged(String),
+    PlansRegisterWsToggleOpen,
+    PlansRegisterWorkspace,
+    PlansWorkspaceRegistered(Result<serde_json::Value, String>),
+    PlansBackupNow,
+    PlansBackupComplete(Result<String, String>),
+    PlansProviderInputChanged(String),
+    PlansSetProvider,
+    PlansProviderSet(Result<serde_json::Value, String>),
+
+    // ── My Sessions Bookmark Panels ──────────────────────────────────────────
+    /// Start adding to a panel: 1=pinned plans, 2=saved commands, 3=dirs.
+    BookmarkStartAdd(u8),
+    BookmarkAddInputChanged(String),
+    BookmarkConfirmAdd,
+    BookmarkCancelAdd,
+    /// Delete item at index from panel (1/2/3).
+    BookmarkDelete(u8, usize),
+    BookmarkCopy(String),
+    BookmarksLoad,
+    BookmarksLoaded(Option<serde_json::Value>),
+
+    // ── Error dismissal ───────────────────────────────────────────────────────
+    SettingsDismissError,
+    SprintsDismissCreateError,
+    SprintsDismissGoalError,
+    PlansRegisterDismissError,
+    PlansBackupDismissError,
+    AboutDismissError,
 
     // ── Misc ──────────────────────────────────────────────────────────────────
     Noop,
@@ -174,9 +303,10 @@ pub struct StatusPayload {
     pub mcp_status:       Option<String>,
     pub terminal_status:  Option<String>,
     pub dashboard_status: Option<String>,
-    pub fallback_status:  Option<String>,
-    pub cli_mcp_status:   Option<String>,
-    pub mcp_port:         Option<i32>,
+    pub fallback_status:       Option<String>,
+    pub proxy_session_count:   Option<i32>,
+    pub proxy_sessions_json:   Option<String>,
+    pub mcp_port:              Option<i32>,
     pub mcp_pid:          Option<i32>,
     pub mcp_uptime_secs:  Option<i32>,
     pub mcp_runtime:      Option<String>,
@@ -221,6 +351,8 @@ fn init(mcp_port: i32, dashboard_port: i32) -> (AppState, Task<Message>) {
         window_visible:           true,
         supervisor_version:       env!("CARGO_PKG_VERSION").to_owned(),
         main_window_id:           Some(main_id),
+        pairing_api_key:          uuid::Uuid::new_v4().to_string(),
+        pairing_pin:              format!("{:06}", rand::random::<u32>() % 1_000_000),
         // Both sidebars start fully collapsed.
         plans_panel_width:        44.0,
         plans_panel_width_target: 44.0,
@@ -234,7 +366,9 @@ fn init(mcp_port: i32, dashboard_port: i32) -> (AppState, Task<Message>) {
     (state, Task::batch([
         open_task,
         Task::done(Message::StatusTick),
+        Task::done(Message::ProxySessionsTick),
         Task::done(Message::TrayPoll),
+        Task::done(Message::BookmarksLoad),
     ]))
 }
 
@@ -271,6 +405,34 @@ fn update(state: &mut AppState, msg: Message) -> Task<Message> {
                 async {
                     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
                     Message::StatusTick
+                },
+                |m| m,
+            );
+        }
+
+        // ── Proxy sessions polling ────────────────────────────────────────────
+        Message::ProxySessionsTick => {
+            return Task::perform(
+                async { fetch_proxy_sessions().await },
+                Message::ProxySessionsUpdated,
+            );
+        }
+        Message::ProxySessionsUpdated(Ok(sessions)) => {
+            state.proxy_session_count = sessions.len() as i32;
+            state.proxy_sessions = sessions;
+            return Task::perform(
+                async {
+                    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+                    Message::ProxySessionsTick
+                },
+                |m| m,
+            );
+        }
+        Message::ProxySessionsUpdated(Err(_)) => {
+            return Task::perform(
+                async {
+                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                    Message::ProxySessionsTick
                 },
                 |m| m,
             );
@@ -564,6 +726,7 @@ fn update(state: &mut AppState, msg: Message) -> Task<Message> {
         Message::ChatSaveSettings => {
             if !state.chat_api_key_input.trim().is_empty() {
                 state.chat_key_configured = true;
+                state.chatbot_api_key_dot_visible = true;
             }
             state.chat_show_settings = false;
             // Persist the API key to the chatbot state sidecar file.
@@ -575,6 +738,14 @@ fn update(state: &mut AppState, msg: Message) -> Task<Message> {
                 ..backend::config::ChatbotSection::default()
             };
             backend::config::save_chatbot_state(&state_path, &chatbot);
+        }
+
+        Message::ChatbotToggleCollapsed => {
+            state.chatbot_collapsed = !state.chatbot_collapsed;
+        }
+
+        Message::ChatbotStripPulse(v) => {
+            state.chatbot_strip_pulse = v;
         }
 
         // ── Plans extras ──────────────────────────────────────────────────────
@@ -635,6 +806,7 @@ fn update(state: &mut AppState, msg: Message) -> Task<Message> {
         // ── Overlays ──────────────────────────────────────────────────────────
         Message::ShowSettings => {
             state.overlay = Overlay::Settings;
+            return Task::done(Message::SettingsOpenLoad);
         }
         Message::CloseSettings => {
             state.overlay = Overlay::None;
@@ -647,17 +819,49 @@ fn update(state: &mut AppState, msg: Message) -> Task<Message> {
         }
         Message::ShowPairingDialog => {
             state.overlay = Overlay::PairingDialog;
-            return update(state, Message::RefreshPairingQr);
+            return Task::batch([
+                update(state, Message::RefreshPairingQr),
+                Task::perform(
+                    async { backend::monitor::get_monitors() },
+                    Message::PairingMonitorsLoaded,
+                ),
+            ]);
         }
         Message::ClosePairingDialog => {
             state.overlay = Overlay::None;
         }
+        Message::PairingToggleApp(app) => {
+            if let Some(pos) = state.pairing_allowed_apps.iter().position(|a| a == &app) {
+                state.pairing_allowed_apps.remove(pos);
+            } else {
+                state.pairing_allowed_apps.push(app);
+            }
+            return update(state, Message::RefreshPairingQr);
+        }
+        Message::PairingMonitorSelected(idx) => {
+            state.pairing_selected_monitor = idx;
+            return update(state, Message::RefreshPairingQr);
+        }
+        Message::PairingMonitorsLoaded(monitors) => {
+            state.available_monitors = monitors;
+        }
+        Message::PairingPasswordChanged(password) => {
+            state.pairing_password = password.clone();
+            *supervisor::PAIRING_PASSWORD.write().unwrap() = password;
+        }
         Message::RefreshPairingQr => {
             let key = state.pairing_api_key.clone();
+            let pin = state.pairing_pin.clone();
             let mcp_port = state.mcp.port;
+            let apps = state.pairing_allowed_apps.join(",");
+            let monitor = state.pairing_selected_monitor;
             return Task::perform(
                 async move {
-                    let data = format!("http://127.0.0.1:{}/pair?key={}", mcp_port, key);
+                    // Use pmobile:// custom protocol for mobile app deep-linking
+                    let data = format!(
+                        "pmobile://127.0.0.1:{}?key={}&pin={}&apps={}&monitor={}",
+                        mcp_port, key, pin, apps, monitor
+                    );
                     ui::pairing_dialog::generate_qr_svg(&data)
                 },
                 Message::PairingQrGenerated,
@@ -745,10 +949,15 @@ fn update(state: &mut AppState, msg: Message) -> Task<Message> {
                 if let Ok(rx) = rx_mutex.try_lock() {
                     while let Ok(action) = rx.try_recv() {
                         let msg = match action {
-                            TrayAction::Show           => Message::TrayShow,
-                            TrayAction::Minimize       => Message::MinimizeToTray,
-                            TrayAction::RestartServices => Message::TrayRestartServices,
-                            TrayAction::Quit           => Message::TrayQuit,
+                            TrayAction::Show             => Message::TrayShow,
+                            TrayAction::Minimize         => Message::MinimizeToTray,
+                            TrayAction::RestartServices  => Message::TrayRestartServices,
+                            TrayAction::OpenPlans        => Message::TrayOpenPlans,
+                            TrayAction::OpenSprints      => Message::TrayOpenSprints,
+                            TrayAction::OpenSettings     => Message::TrayOpenSettings,
+                            TrayAction::ToggleBroadcast  => Message::TrayToggleBroadcast,
+                            TrayAction::CheckUpgrade     => Message::TrayCheckUpgrade,
+                            TrayAction::Quit             => Message::TrayQuit,
                         };
                         pending.push(Task::done(msg));
                     }
@@ -792,6 +1001,51 @@ fn update(state: &mut AppState, msg: Message) -> Task<Message> {
             if let Some(id) = state.main_window_id {
                 return iced::window::close(id);
             }
+        }
+
+        // ── Tray navigation / action messages ────────────────────────────────
+        Message::TrayOpenDashboard => {
+            state.tray_last_action = Some("Open Dashboard".to_owned());
+            state.window_visible = true;
+            if let Some(id) = state.main_window_id {
+                return iced::window::change_mode(id, iced::window::Mode::Windowed);
+            }
+        }
+
+        Message::TrayOpenPlans => {
+            state.tray_last_action = Some("Open Plans".to_owned());
+            state.plans_panel_expanded = true;
+            state.window_visible = true;
+            if let Some(id) = state.main_window_id {
+                return iced::window::change_mode(id, iced::window::Mode::Windowed);
+            }
+        }
+
+        Message::TrayOpenSprints => {
+            state.tray_last_action = Some("Open Sprints".to_owned());
+            state.window_visible = true;
+            if let Some(id) = state.main_window_id {
+                return iced::window::change_mode(id, iced::window::Mode::Windowed);
+            }
+        }
+
+        Message::TrayOpenSettings => {
+            state.tray_last_action = Some("Open Settings".to_owned());
+            state.overlay = Overlay::Settings;
+            state.window_visible = true;
+            if let Some(id) = state.main_window_id {
+                return iced::window::change_mode(id, iced::window::Mode::Windowed);
+            }
+        }
+
+        Message::TrayToggleBroadcast => {
+            state.tray_last_action = Some("Toggle Broadcast".to_owned());
+            state.event_broadcast_enabled = !state.event_broadcast_enabled;
+        }
+
+        Message::TrayCheckUpgrade => {
+            state.tray_last_action = Some("Check for Upgrade".to_owned());
+            return Task::done(Message::AboutCheckUpgrade);
         }
 
         // ── Window close interception ─────────────────────────────────────────
@@ -850,6 +1104,625 @@ fn update(state: &mut AppState, msg: Message) -> Task<Message> {
             }
         }
 
+        // ── Settings Panel ────────────────────────────────────────────────────
+        Message::SettingsOpenLoad => {
+            state.settings_loading = true;
+            return Task::perform(
+                async { fetch_settings_config().await },
+                |r| match r {
+                    Ok(v)  => Message::SettingsLoaded(v),
+                    Err(e) => Message::SettingsLoadFailed(e),
+                },
+            );
+        }
+
+        Message::SettingsLoaded(json) => {
+            state.settings_loading = false;
+            // General
+            if let Some(v) = json["supervisor"]["log_level"].as_str()    { state.settings_log_level    = v.to_owned(); }
+            if let Some(v) = json["supervisor"]["bind_address"].as_str() { state.settings_bind_address = v.to_owned(); }
+            if let Some(v) = json["supervisor"]["show_chatbot_panel"].as_bool() { state.settings_show_chatbot = v; }
+            // MCP
+            if let Some(v) = json["mcp"]["enabled"].as_bool() { state.settings_mcp_enabled = v; }
+            if let Some(v) = json["mcp"]["port"].as_u64()     { state.settings_mcp_port    = v as u16; }
+            if let Some(v) = json["mcp"]["health_timeout_ms"].as_u64()     { state.settings_health_timeout    = v as u32; }
+            if let Some(v) = json["mcp"]["pool"]["max_instances"].as_u64()  { state.settings_mcp_max_instances = v as u32; }
+            if let Some(v) = json["mcp"]["pool"]["max_connections"].as_u64(){ state.settings_mcp_max_conns     = v as u32; }
+            if let Some(v) = json["mcp"]["pool"]["min_instances"].as_u64()  { state.settings_instance_pool     = v as u32; }
+            // Terminal
+            if let Some(v) = json["interactive_terminal"]["enabled"].as_bool() { state.settings_terminal_enabled = v; }
+            if let Some(v) = json["interactive_terminal"]["port"].as_u64()     { state.settings_terminal_port    = v as u16; }
+            // Dashboard
+            if let Some(v) = json["dashboard"]["enabled"].as_bool() { state.settings_dashboard_enabled = v; }
+            if let Some(v) = json["dashboard"]["port"].as_u64()     { state.settings_dashboard_port    = v as u16; }
+            if let Some(v) = json["dashboard"]["requires_mcp"].as_bool() { state.settings_dashboard_requires_mcp = v; }
+            if let Some(v) = json["dashboard"]["variant"].as_str() { state.settings_dashboard_variant = v.to_string(); }
+            // Events
+            if let Some(v) = json["events"]["enabled"].as_bool() { state.settings_events_enabled = v; }
+            // Reconnect
+            if let Some(v) = json["reconnect"]["initial_delay_ms"].as_u64() { state.settings_reconnect_initial_delay = v as u32; }
+            if let Some(v) = json["reconnect"]["max_delay_ms"].as_u64()     { state.settings_reconnect_max_delay     = v as u32; }
+            if let Some(v) = json["reconnect"]["multiplier"].as_f64()       { state.settings_reconnect_multiplier    = format!("{}", v); }
+            if let Some(v) = json["reconnect"]["max_attempts"].as_u64()     { state.settings_reconnect_max_attempts  = v as u32; }
+            if let Some(v) = json["reconnect"]["jitter_ratio"].as_f64()     { state.settings_reconnect_jitter_ratio  = format!("{}", v); }
+            // Approval
+            if let Some(v) = json["approval"]["default_countdown_seconds"].as_u64() { state.settings_approval_countdown = v as u32; }
+            if let Some(v) = json["approval"]["default_on_timeout"].as_str()         { state.settings_timeout_action     = v.to_owned(); }
+            if let Some(v) = json["approval"]["always_on_top"].as_bool()             { state.settings_always_on_top      = v; }
+            // VS Code
+            if let Some(v) = json["vscode"]["mcp_port"].as_u64()      { state.settings_vscode_mcp_port      = v as u16; }
+            if let Some(v) = json["vscode"]["api_port"].as_u64()      { state.settings_vscode_api_port      = v as u16; }
+            if let Some(v) = json["vscode"]["terminal_port"].as_u64() { state.settings_vscode_terminal_port = v as u16; }
+            if let Some(v) = json["vscode"]["data_path"].as_str()     { state.settings_vscode_data_path     = v.to_owned(); }
+            if let Some(v) = json["vscode"]["notifications"]["enabled"].as_bool() { state.settings_vscode_notifications_enabled = v; }
+            if let Some(v) = json["vscode"]["auto_deploy"].as_bool()               { state.settings_vscode_auto_deploy           = v; }
+            if let Some(v) = json["vscode"]["agents_root"].as_str()                { state.settings_vscode_agents_root           = v.to_owned(); }
+            if let Some(v) = json["vscode"]["skills_root"].as_str()                { state.settings_vscode_skills_root           = v.to_owned(); }
+            if let Some(v) = json["vscode"]["instructions_root"].as_str()          { state.settings_vscode_instructions_root     = v.to_owned(); }
+            if let Some(v) = json["vscode"]["notifications"]["agent_handoffs"].as_bool() { state.settings_vscode_agent_handoffs = v; }
+            if let Some(v) = json["vscode"]["notifications"]["plan_complete"].as_bool()  { state.settings_vscode_plan_complete  = v; }
+            if let Some(v) = json["vscode"]["notifications"]["step_blocked"].as_bool()   { state.settings_vscode_step_blocked   = v; }
+            if let Some(v) = json["vscode"]["container_mode"].as_str()  { state.settings_vscode_container_mode  = v.to_owned(); }
+            if let Some(v) = json["vscode"]["startup_mode"].as_str()    { state.settings_vscode_startup_mode    = v.to_owned(); }
+            if let Some(v) = json["vscode"]["launcher_path"].as_str()   { state.settings_vscode_launcher_path   = v.to_owned(); }
+            if let Some(v) = json["vscode"]["detect_timeout_ms"].as_u64()  { state.settings_vscode_detect_timeout  = v as u32; }
+            if let Some(v) = json["vscode"]["startup_timeout_ms"].as_u64() { state.settings_vscode_startup_timeout = v as u32; }
+            state.settings_dirty = false;
+        }
+
+        Message::SettingsLoadFailed(e) => {
+            state.settings_loading    = false;
+            state.settings_save_error = Some(format!("Load failed: {}", e));
+        }
+
+        // Field changes — update state field, mark dirty
+        Message::SettingsLogLevelChanged(s)    => { state.settings_log_level    = s; state.settings_dirty = true; }
+        Message::SettingsBindAddressChanged(s) => { state.settings_bind_address = s; state.settings_dirty = true; }
+        Message::SettingsShowChatbotToggled(b) => { state.settings_show_chatbot = b; state.settings_dirty = true; }
+
+        Message::SettingsMcpEnabledToggled(b)      => { state.settings_mcp_enabled       = b; state.settings_dirty = true; }
+        Message::SettingsMcpPortChanged(s)         => { if let Ok(v) = s.parse() { state.settings_mcp_port          = v; } state.settings_dirty = true; }
+        Message::SettingsHealthTimeoutChanged(s)   => { if let Ok(v) = s.parse() { state.settings_health_timeout    = v; } state.settings_dirty = true; }
+        Message::SettingsMcpMaxInstancesChanged(s) => { if let Ok(v) = s.parse() { state.settings_mcp_max_instances = v; } state.settings_dirty = true; }
+        Message::SettingsMcpMaxConnsChanged(s)     => { if let Ok(v) = s.parse() { state.settings_mcp_max_conns     = v; } state.settings_dirty = true; }
+
+        Message::SettingsTerminalEnabledToggled(b) => { state.settings_terminal_enabled = b; state.settings_dirty = true; }
+        Message::SettingsTerminalPortChanged(s)    => { if let Ok(v) = s.parse() { state.settings_terminal_port = v; } state.settings_dirty = true; }
+
+        Message::SettingsDashboardEnabledToggled(b)      => { state.settings_dashboard_enabled      = b; state.settings_dirty = true; }
+        Message::SettingsDashboardPortChanged(s)         => { if let Ok(v) = s.parse() { state.settings_dashboard_port = v; } state.settings_dirty = true; }
+        Message::SettingsDashboardRequiresMcpToggled(b)  => { state.settings_dashboard_requires_mcp = b; state.settings_dirty = true; }
+
+        Message::SettingsDashboardVariantChanged(s) => {
+            let changed = state.settings_dashboard_variant != s;
+            state.settings_dashboard_variant = s;
+            state.settings_dirty = true;
+            if changed {
+                // Trigger dashboard restart so the new variant takes effect immediately.
+                return Task::done(Message::RestartService("dashboard".to_owned()));
+            }
+        }
+
+        Message::SettingsEventsEnabledToggled(b) => { state.settings_events_enabled = b; state.settings_dirty = true; }
+        Message::SettingsEventsPortChanged(s)    => { if let Ok(v) = s.parse() { state.settings_events_port = v; } state.settings_dirty = true; }
+
+        Message::SettingsInstancePoolChanged(s)         => { if let Ok(v) = s.parse() { state.settings_instance_pool         = v; } state.settings_dirty = true; }
+        Message::SettingsReconnectIntervalChanged(s)    => { if let Ok(v) = s.parse() { state.settings_reconnect_interval    = v; } state.settings_dirty = true; }
+
+        Message::SettingsReconnectInitialDelayChanged(s)  => { if let Ok(v) = s.parse() { state.settings_reconnect_initial_delay = v; } state.settings_dirty = true; }
+        Message::SettingsReconnectMaxDelayChanged(s)      => { if let Ok(v) = s.parse() { state.settings_reconnect_max_delay     = v; } state.settings_dirty = true; }
+        Message::SettingsReconnectMultiplierChanged(s)    => { state.settings_reconnect_multiplier    = s; state.settings_dirty = true; }
+        Message::SettingsReconnectMaxAttemptsChanged(s)   => { if let Ok(v) = s.parse() { state.settings_reconnect_max_attempts  = v; } state.settings_dirty = true; }
+        Message::SettingsReconnectJitterRatioChanged(s)   => { state.settings_reconnect_jitter_ratio  = s; state.settings_dirty = true; }
+
+        Message::SettingsApprovalCountdownChanged(s) => { if let Ok(v) = s.parse() { state.settings_approval_countdown = v; } state.settings_dirty = true; }
+        Message::SettingsTimeoutActionChanged(s)     => { state.settings_timeout_action = s; state.settings_dirty = true; }
+        Message::SettingsAlwaysOnTopToggled(b)       => { state.settings_always_on_top  = b; state.settings_dirty = true; }
+
+        Message::SettingsVscodeMcpPortChanged(s)      => { if let Ok(v) = s.parse() { state.settings_vscode_mcp_port      = v; } state.settings_dirty = true; }
+        Message::SettingsVscodeApiPortChanged(s)      => { if let Ok(v) = s.parse() { state.settings_vscode_api_port      = v; } state.settings_dirty = true; }
+        Message::SettingsVscodeTerminalPortChanged(s) => { if let Ok(v) = s.parse() { state.settings_vscode_terminal_port = v; } state.settings_dirty = true; }
+        Message::SettingsVscodeDataPathChanged(s)     => { state.settings_vscode_data_path             = s; state.settings_dirty = true; }
+        Message::SettingsVscodeNotificationsToggled(b)=> { state.settings_vscode_notifications_enabled = b; state.settings_dirty = true; }
+        Message::SettingsVscodeAutoDeployToggled(b)   => { state.settings_vscode_auto_deploy           = b; state.settings_dirty = true; }
+        Message::SettingsVscodeAgentsRootChanged(s)       => { state.settings_vscode_agents_root           = s; state.settings_dirty = true; }
+        Message::SettingsVscodeSkillsRootChanged(s)       => { state.settings_vscode_skills_root           = s; state.settings_dirty = true; }
+        Message::SettingsVscodeInstructionsRootChanged(s) => { state.settings_vscode_instructions_root     = s; state.settings_dirty = true; }
+        Message::SettingsVscodeAgentHandoffsToggled(b)    => { state.settings_vscode_agent_handoffs         = b; state.settings_dirty = true; }
+        Message::SettingsVscodePlanCompleteToggled(b)     => { state.settings_vscode_plan_complete          = b; state.settings_dirty = true; }
+        Message::SettingsVscodeStepBlockedToggled(b)      => { state.settings_vscode_step_blocked           = b; state.settings_dirty = true; }
+        Message::SettingsVscodeContainerModeChanged(s)  => { state.settings_vscode_container_mode  = s; state.settings_dirty = true; }
+        Message::SettingsVscodeStartupModeChanged(s)    => { state.settings_vscode_startup_mode    = s; state.settings_dirty = true; }
+        Message::SettingsVscodeLauncherPathChanged(s)   => { state.settings_vscode_launcher_path   = s; state.settings_dirty = true; }
+        Message::SettingsVscodeDetectTimeoutChanged(s)  => { if let Ok(v) = s.parse() { state.settings_vscode_detect_timeout  = v; } state.settings_dirty = true; }
+        Message::SettingsVscodeStartupTimeoutChanged(s) => { if let Ok(v) = s.parse() { state.settings_vscode_startup_timeout = v; } state.settings_dirty = true; }
+
+        Message::SettingsSave => {
+            let json = serde_json::json!({
+                "supervisor": {
+                    "log_level":          state.settings_log_level,
+                    "bind_address":       state.settings_bind_address,
+                    "show_chatbot_panel": state.settings_show_chatbot,
+                },
+                "mcp": {
+                    "enabled": state.settings_mcp_enabled,
+                    "port":    state.settings_mcp_port,
+                    "health_timeout_ms": state.settings_health_timeout,
+                    "pool": {
+                        "min_instances":    state.settings_instance_pool,
+                        "max_instances":    state.settings_mcp_max_instances,
+                        "max_connections":  state.settings_mcp_max_conns,
+                    },
+                },
+                "interactive_terminal": {
+                    "enabled": state.settings_terminal_enabled,
+                    "port":    state.settings_terminal_port,
+                },
+                "dashboard": {
+                    "enabled":      state.settings_dashboard_enabled,
+                    "port":         state.settings_dashboard_port,
+                    "requires_mcp": state.settings_dashboard_requires_mcp,
+                    "variant":      state.settings_dashboard_variant,
+                },
+                "events": {
+                    "enabled": state.settings_events_enabled,
+                },
+                "reconnect": {
+                    "initial_delay_ms": state.settings_reconnect_initial_delay,
+                    "max_delay_ms":     state.settings_reconnect_max_delay,
+                    "multiplier":       state.settings_reconnect_multiplier.parse::<f64>().unwrap_or(2.0),
+                    "max_attempts":     state.settings_reconnect_max_attempts,
+                    "jitter_ratio":     state.settings_reconnect_jitter_ratio.parse::<f64>().unwrap_or(0.2),
+                },
+                "approval": {
+                    "default_countdown_seconds": state.settings_approval_countdown,
+                    "default_on_timeout":        state.settings_timeout_action,
+                    "always_on_top":             state.settings_always_on_top,
+                },
+                "vscode": {
+                    "mcp_port":       state.settings_vscode_mcp_port,
+                    "api_port":       state.settings_vscode_api_port,
+                    "terminal_port":  state.settings_vscode_terminal_port,
+                    "data_path":      state.settings_vscode_data_path,
+                    "agents_root":    state.settings_vscode_agents_root,
+                    "skills_root":    state.settings_vscode_skills_root,
+                    "instructions_root": state.settings_vscode_instructions_root,
+                    "auto_deploy":    state.settings_vscode_auto_deploy,
+                    "container_mode": state.settings_vscode_container_mode,
+                    "startup_mode":   state.settings_vscode_startup_mode,
+                    "launcher_path":  state.settings_vscode_launcher_path,
+                    "detect_timeout_ms":  state.settings_vscode_detect_timeout,
+                    "startup_timeout_ms": state.settings_vscode_startup_timeout,
+                    "notifications": {
+                        "enabled":        state.settings_vscode_notifications_enabled,
+                        "agent_handoffs": state.settings_vscode_agent_handoffs,
+                        "plan_complete":  state.settings_vscode_plan_complete,
+                        "step_blocked":   state.settings_vscode_step_blocked,
+                    },
+                },
+            });
+            return Task::perform(
+                async move { post_settings_config(json).await },
+                |r| match r {
+                    Ok(())  => Message::SettingsSaved,
+                    Err(e)  => Message::SettingsSaveError(e),
+                },
+            );
+        }
+
+        Message::SettingsSaved => {
+            state.settings_save_error = None;
+            state.settings_dirty      = false;
+        }
+
+        Message::SettingsSaveError(e) => {
+            state.settings_save_error = Some(e);
+        }
+
+        // ── Sessions Live Panel ───────────────────────────────────────────────
+        Message::SessionsLiveTabChanged(tab) => {
+            state.sessions_tab = tab;
+        }
+
+        Message::ComponentsSessionsTabSelected(idx) => {
+            state.components_sessions_tab = idx;
+        }
+
+        // ── My Sessions Bookmark Panels ───────────────────────────────────────
+        Message::BookmarksLoad => {
+            return load_bookmarks_task();
+        }
+
+        Message::BookmarksLoaded(v) => {
+            if let Some(json) = v {
+                if let Some(arr) = json.get("pinned_plans").and_then(|a| a.as_array()) {
+                    state.bookmarks_pinned_plans = arr.iter()
+                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                        .collect();
+                }
+                if let Some(arr) = json.get("saved_commands").and_then(|a| a.as_array()) {
+                    state.bookmarks_saved_commands = arr.iter()
+                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                        .collect();
+                }
+                if let Some(arr) = json.get("dirs").and_then(|a| a.as_array()) {
+                    state.bookmarks_dirs = arr.iter()
+                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                        .collect();
+                }
+            }
+        }
+
+        Message::BookmarkStartAdd(panel) => {
+            state.bookmarks_add_panel = panel;
+            state.bookmarks_add_input = String::new();
+        }
+
+        Message::BookmarkAddInputChanged(s) => {
+            state.bookmarks_add_input = s;
+        }
+
+        Message::BookmarkCancelAdd => {
+            state.bookmarks_add_panel = 0;
+            state.bookmarks_add_input = String::new();
+        }
+
+        Message::BookmarkConfirmAdd => {
+            let v = state.bookmarks_add_input.trim().to_string();
+            if !v.is_empty() {
+                match state.bookmarks_add_panel {
+                    1 => state.bookmarks_pinned_plans.push(v),
+                    2 => state.bookmarks_saved_commands.push(v),
+                    3 => state.bookmarks_dirs.push(v),
+                    _ => {}
+                }
+            }
+            state.bookmarks_add_panel = 0;
+            state.bookmarks_add_input = String::new();
+            return save_bookmarks_task(state);
+        }
+
+        Message::BookmarkDelete(panel, idx) => {
+            match panel {
+                1 => { if idx < state.bookmarks_pinned_plans.len() { state.bookmarks_pinned_plans.remove(idx); } }
+                2 => { if idx < state.bookmarks_saved_commands.len() { state.bookmarks_saved_commands.remove(idx); } }
+                3 => { if idx < state.bookmarks_dirs.len() { state.bookmarks_dirs.remove(idx); } }
+                _ => {}
+            }
+            return save_bookmarks_task(state);
+        }
+
+        Message::BookmarkCopy(text) => {
+            return iced::clipboard::write(text);
+        }
+
+        Message::SessionsLivePollPlans => {
+            state.sessions_live_loading = true;
+            return Task::perform(
+                async {
+                    let url = "http://127.0.0.1:3465/api/workspaces/active-plans";
+                    match reqwest::get(url).await {
+                        Ok(r) => match r.json::<Vec<serde_json::Value>>().await {
+                            Ok(v)  => Ok(v),
+                            Err(e) => Err(e.to_string()),
+                        },
+                        Err(e) => Err(e.to_string()),
+                    }
+                },
+                Message::SessionsLivePlansLoaded,
+            );
+        }
+
+        Message::SessionsLivePlansLoaded(Ok(plans)) => {
+            state.sessions_live_loading = false;
+            state.sessions_live_error   = None;
+            state.sessions_live_active_plans = plans;
+        }
+        Message::SessionsLivePlansLoaded(Err(e)) => {
+            state.sessions_live_loading = false;
+            state.sessions_live_error   = Some(e);
+        }
+
+        Message::SessionsLivePollCommands => {
+            state.sessions_live_loading = true;
+            return Task::perform(
+                async {
+                    let url = "http://127.0.0.1:3465/api/sessions/commands";
+                    match reqwest::get(url).await {
+                        Ok(r) => match r.json::<Vec<serde_json::Value>>().await {
+                            Ok(v)  => Ok(v),
+                            Err(e) => Err(e.to_string()),
+                        },
+                        Err(e) => Err(e.to_string()),
+                    }
+                },
+                Message::SessionsLiveCommandsLoaded,
+            );
+        }
+
+        Message::SessionsLiveCommandsLoaded(Ok(cmds)) => {
+            state.sessions_live_loading = false;
+            state.sessions_live_error   = None;
+            state.sessions_live_commands = cmds;
+        }
+        Message::SessionsLiveCommandsLoaded(Err(e)) => {
+            state.sessions_live_loading = false;
+            state.sessions_live_error   = Some(e);
+        }
+
+        Message::SessionsLivePollDirs => {
+            state.sessions_live_loading = true;
+            return Task::perform(
+                async {
+                    let url = "http://127.0.0.1:3465/api/sessions/dirs";
+                    match reqwest::get(url).await {
+                        Ok(r) => match r.json::<Vec<String>>().await {
+                            Ok(v)  => Ok(v),
+                            Err(e) => Err(e.to_string()),
+                        },
+                        Err(e) => Err(e.to_string()),
+                    }
+                },
+                Message::SessionsLiveDirsLoaded,
+            );
+        }
+
+        Message::SessionsLiveDirsLoaded(Ok(dirs)) => {
+            state.sessions_live_loading = false;
+            state.sessions_live_error   = None;
+            state.sessions_live_dirs    = dirs;
+        }
+        Message::SessionsLiveDirsLoaded(Err(e)) => {
+            state.sessions_live_loading = false;
+            state.sessions_live_error   = Some(e);
+        }
+
+        // ── About Panel — Upgrade Report Card ─────────────────────────────────
+        Message::AboutCheckUpgrade => {
+            state.about_upgrade_loading = true;
+            state.about_upgrade_status  = Some("checking".to_owned());
+            return Task::perform(
+                async {
+                    let url = "http://127.0.0.1:3465/api/upgrade/check";
+                    match reqwest::get(url).await {
+                        Ok(r) => match r.json::<serde_json::Value>().await {
+                            Ok(v)  => Ok(v),
+                            Err(e) => Err(e.to_string()),
+                        },
+                        Err(e) => Err(e.to_string()),
+                    }
+                },
+                Message::AboutUpgradeLoaded,
+            );
+        }
+
+        Message::AboutUpgradeLoaded(Ok(json)) => {
+            state.about_upgrade_loading = false;
+            state.about_upgrade_error   = None;
+            if let Some(s) = json["status"].as_str()        { state.about_upgrade_status  = Some(s.to_owned()); }
+            if let Some(v) = json["latest_version"].as_str(){ state.about_upgrade_version = Some(v.to_owned()); }
+            if let Some(n) = json["release_notes"].as_str() { state.about_upgrade_notes   = Some(n.to_owned()); }
+            if let Some(t) = json["checked_at"].as_str()    { state.about_last_checked    = Some(t.to_owned()); }
+        }
+        Message::AboutUpgradeLoaded(Err(e)) => {
+            state.about_upgrade_loading = false;
+            state.about_upgrade_error   = Some(e);
+            state.about_upgrade_status  = None;
+        }
+
+        // ── Sprints Panel — Create Sprint + Add Goal ───────────────────────────
+        Message::SprintsNewTitleChanged(s) => {
+            state.sprints_new_title = s;
+        }
+
+        Message::SprintsNewGoalChanged(s) => {
+            state.sprints_new_goal = s;
+        }
+
+        Message::SprintsCreate => {
+            if state.sprints_creating || state.sprints_new_title.trim().is_empty() {
+                return Task::none();
+            }
+            state.sprints_creating     = true;
+            state.sprints_create_error = None;
+            let title = state.sprints_new_title.trim().to_owned();
+            return Task::perform(
+                async move {
+                    let client = reqwest::Client::new();
+                    let body = serde_json::json!({ "title": title });
+                    match client.post("http://127.0.0.1:3465/api/sprints")
+                        .json(&body).send().await
+                    {
+                        Ok(r) => match r.json::<serde_json::Value>().await {
+                            Ok(v)  => Ok(v),
+                            Err(e) => Err(e.to_string()),
+                        },
+                        Err(e) => Err(e.to_string()),
+                    }
+                },
+                Message::SprintsCreated,
+            );
+        }
+
+        Message::SprintsCreated(Ok(_)) => {
+            state.sprints_creating  = false;
+            state.sprints_new_title = String::new();
+            return update(state, Message::SprintsRefresh);
+        }
+        Message::SprintsCreated(Err(e)) => {
+            state.sprints_creating     = false;
+            state.sprints_create_error = Some(e);
+        }
+
+        Message::SprintsSelectSprint(id) => {
+            state.sprints_selected_id = if state.sprints_selected_id.as_deref() == Some(&id) {
+                None
+            } else {
+                Some(id)
+            };
+        }
+
+        Message::SprintsAddGoal => {
+            let sprint_id = match &state.sprints_selected_id {
+                Some(id) => id.clone(),
+                None     => return Task::none(),
+            };
+            if state.sprints_adding_goal || state.sprints_new_goal.trim().is_empty() {
+                return Task::none();
+            }
+            state.sprints_adding_goal    = true;
+            state.sprints_add_goal_error = None;
+            let goal = state.sprints_new_goal.trim().to_owned();
+            return Task::perform(
+                async move {
+                    let client = reqwest::Client::new();
+                    let url    = format!("http://127.0.0.1:3465/api/sprints/{}/goals", sprint_id);
+                    let body   = serde_json::json!({ "description": goal });
+                    match client.post(&url).json(&body).send().await {
+                        Ok(r) => match r.json::<serde_json::Value>().await {
+                            Ok(v)  => Ok(v),
+                            Err(e) => Err(e.to_string()),
+                        },
+                        Err(e) => Err(e.to_string()),
+                    }
+                },
+                Message::SprintsGoalAdded,
+            );
+        }
+
+        Message::SprintsGoalAdded(Ok(_)) => {
+            state.sprints_adding_goal = false;
+            state.sprints_new_goal    = String::new();
+            return update(state, Message::SprintsRefresh);
+        }
+        Message::SprintsGoalAdded(Err(e)) => {
+            state.sprints_adding_goal    = false;
+            state.sprints_add_goal_error = Some(e);
+        }
+
+        // ── Plans Toolbar — Register WS + Backup ──────────────────────────────
+        Message::PlansRegisterWsPathChanged(s) => {
+            state.plans_register_ws_path = s;
+        }
+
+        Message::PlansRegisterWsNameChanged(s) => {
+            state.plans_register_ws_name = s;
+        }
+
+        Message::PlansRegisterWsToggleOpen => {
+            state.plans_register_ws_open = !state.plans_register_ws_open;
+        }
+
+        Message::PlansRegisterWorkspace => {
+            if state.plans_registering_ws { return Task::none(); }
+            state.plans_registering_ws    = true;
+            state.plans_register_ws_error = None;
+            let path = state.plans_register_ws_path.trim().to_owned();
+            let name = state.plans_register_ws_name.trim().to_owned();
+            return Task::perform(
+                async move {
+                    let client = reqwest::Client::new();
+                    let body   = serde_json::json!({ "workspace_path": path, "display_name": name });
+                    match client.post("http://127.0.0.1:3465/api/workspaces/register")
+                        .json(&body).send().await
+                    {
+                        Ok(r) => match r.json::<serde_json::Value>().await {
+                            Ok(v)  => Ok(v),
+                            Err(e) => Err(e.to_string()),
+                        },
+                        Err(e) => Err(e.to_string()),
+                    }
+                },
+                Message::PlansWorkspaceRegistered,
+            );
+        }
+
+        Message::PlansWorkspaceRegistered(Ok(_)) => {
+            state.plans_registering_ws   = false;
+            state.plans_register_ws_open = false;
+            // Refresh workspace list
+            let base = state.mcp_base_url();
+            return Task::perform(
+                async move { fetch_workspaces(&base).await },
+                Message::PlansWorkspacesLoaded,
+            );
+        }
+        Message::PlansWorkspaceRegistered(Err(e)) => {
+            state.plans_registering_ws    = false;
+            state.plans_register_ws_error = Some(e);
+        }
+
+        Message::PlansBackupNow => {
+            if state.plans_backup_running { return Task::none(); }
+            state.plans_backup_running = true;
+            state.plans_backup_error   = None;
+            return Task::perform(
+                async {
+                    let client = reqwest::Client::new();
+                    match client.post("http://127.0.0.1:3465/api/backup")
+                        .json(&serde_json::json!({})).send().await
+                    {
+                        Ok(r) => match r.text().await {
+                            Ok(t)  => Ok(t),
+                            Err(e) => Err(e.to_string()),
+                        },
+                        Err(e) => Err(e.to_string()),
+                    }
+                },
+                Message::PlansBackupComplete,
+            );
+        }
+
+        Message::PlansBackupComplete(Ok(result)) => {
+            state.plans_backup_running     = false;
+            state.plans_backup_error       = None;
+            state.plans_backup_last_result = Some(result);
+        }
+        Message::PlansBackupComplete(Err(e)) => {
+            state.plans_backup_running = false;
+            state.plans_backup_error   = Some(e);
+        }
+
+        Message::PlansProviderInputChanged(s) => {
+            state.plans_provider_input = s;
+        }
+
+        Message::PlansSetProvider => {
+            let provider = state.plans_provider_input.trim().to_owned();
+            if provider.is_empty() { return Task::none(); }
+            return Task::perform(
+                async move {
+                    let client = reqwest::Client::new();
+                    let body   = serde_json::json!({ "provider": provider });
+                    match client.post("http://127.0.0.1:3465/api/provider")
+                        .json(&body).send().await
+                    {
+                        Ok(r) => match r.json::<serde_json::Value>().await {
+                            Ok(v)  => Ok(v),
+                            Err(e) => Err(e.to_string()),
+                        },
+                        Err(e) => Err(e.to_string()),
+                    }
+                },
+                Message::PlansProviderSet,
+            );
+        }
+
+        Message::PlansProviderSet(Ok(json)) => {
+            if let Some(p) = json["provider"].as_str() {
+                state.plans_provider_active = Some(p.to_owned());
+            }
+        }
+        Message::PlansProviderSet(Err(_)) => {}
+
+        // ── Error dismissal ──────────────────────────────────────────────────
+        Message::SettingsDismissError      => { state.settings_save_error    = None; }
+        Message::SprintsDismissCreateError => { state.sprints_create_error   = None; }
+        Message::SprintsDismissGoalError   => { state.sprints_add_goal_error = None; }
+        Message::PlansRegisterDismissError => { state.plans_register_ws_error = None; }
+        Message::PlansBackupDismissError   => { state.plans_backup_error     = None; }
+        Message::AboutDismissError         => { state.about_upgrade_error    = None; }
+
         Message::Noop => {}
     }
 
@@ -870,9 +1743,39 @@ fn subscription(state: &AppState) -> iced::Subscription<Message> {
         );
     }
 
+    // Chatbot strip pulse — 50 ms tick, sine wave on wall-clock time.
+    if state.settings_show_chatbot && state.chatbot_collapsed && state.chatbot_api_key_dot_visible {
+        subs.push(
+            iced::time::every(std::time::Duration::from_millis(50))
+                .map(|_| {
+                    let ms = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_millis() as f32)
+                        .unwrap_or(0.0);
+                    // 1.5-second sine cycle → 0.0 .. 1.0
+                    let v = 0.5 * (1.0 + (ms / 1500.0 * std::f32::consts::TAU).sin());
+                    Message::ChatbotStripPulse(v)
+                }),
+        );
+    }
+
     // Intercept window-close requests (hide-to-tray instead of exit).
     subs.push(
         iced::window::close_requests().map(Message::WindowCloseRequested),
+    );
+
+    // Sessions Live — periodic polls for the My Sessions tab.
+    subs.push(
+        iced::time::every(std::time::Duration::from_secs(10))
+            .map(|_| Message::SessionsLivePollPlans),
+    );
+    subs.push(
+        iced::time::every(std::time::Duration::from_secs(3))
+            .map(|_| Message::SessionsLivePollCommands),
+    );
+    subs.push(
+        iced::time::every(std::time::Duration::from_secs(5))
+            .map(|_| Message::SessionsLivePollDirs),
     );
 
     iced::Subscription::batch(subs)
@@ -897,6 +1800,7 @@ fn view(state: &AppState, window: iced::window::Id) -> Element<'_, Message> {
             |s| Message::ChatApiKeyChanged(s),
             Message::ChatSaveSettings,
             Message::Noop, // no pop-out button inside the popout
+            Message::Noop, // no collapse button inside the popout
         );
 
         return iced::widget::container(chat)
@@ -917,7 +1821,7 @@ fn view_main(state: &AppState) -> Element<'_, Message> {
     use ui::{
         service_card::{view as card_view, ServiceCardConfig},
         service_icon::ServiceIconKind,
-        activity_panel, sessions_panel, mcp_proxy_panel, event_broadcast_panel,
+        activity_panel, sessions_live_panel, mcp_proxy_panel, event_broadcast_panel,
         cartographer_panel, chatbot_panel, plans_panel, about_panel,
         settings_panel::{view as settings_view, SettingsState},
         pairing_dialog,
@@ -975,34 +1879,7 @@ fn view_main(state: &AppState) -> Element<'_, Message> {
         runtime_strip_value:    "--",
     });
 
-    let cli_mcp_card = card_view(ServiceCardConfig {
-        service_name:           "CLI MCP Server",
-        status:                 &state.cli_mcp.status,
-        accent_color:           Color::from_rgb8(0x26, 0xc6, 0xda),
-        icon_kind:              ServiceIconKind::CliMcpServer,
-        icon_bg_color:          Color::from_rgb8(0x0a, 0x1e, 0x25),
-        info_line1:             "Port: 3466".to_owned(),
-        info_line2:             "HTTP-only · CLI agents".to_owned(),
-        info_always:            if !matches!(state.cli_mcp.status, ServiceStatus::Running) {
-                                    "http://127.0.0.1:3466/mcp"
-                                } else { "" },
-        offline_text:           "Service offline",
-        primary_action_label:   "Restart",
-        primary_action_enabled: true,
-        on_primary_action:      Message::RestartService("cli_mcp".to_owned()),
-        secondary_action_label: None,
-        secondary_action_enabled: false,
-        on_secondary_action:    None::<Message>,
-        show_runtime_strip:     false,
-        runtime_strip_label:    "",
-        runtime_strip_value:    "",
-    });
-
-    let mcp_grid = row![mcp_card, cli_mcp_card]
-        .spacing(8)
-        .width(Length::Fill);
-
-    // ── Services grid ─────────────────────────────────────────────────────────
+    // ── Services grid — row 1: MCP Server + Dashboard ─────────────────────────
     let terminal_label = if matches!(state.terminal.status, ServiceStatus::Running) {
         "Stop"
     } else {
@@ -1083,19 +1960,125 @@ fn view_main(state: &AppState) -> Element<'_, Message> {
         runtime_strip_value:    "",
     });
 
-    let services_grid = row![terminal_card, dashboard_card]
+    // Row 1: MCP Server + Dashboard
+    let service_row1 = row![mcp_card, dashboard_card]
         .spacing(8)
         .width(Length::Fill);
 
-    // Fallback sits alone in its own row for now (or could be 2-column)
-    let services_row2 = row![fallback_card]
+    // Row 2: Interactive Terminal + Fallback API
+    let service_row2 = row![terminal_card, fallback_card]
         .spacing(8)
         .width(Length::Fill);
 
-    // ── Sessions + Activity row ───────────────────────────────────────────────
-    let sessions = sessions_panel::view(state, |key| Message::StopSession(key));
-    let activity = activity_panel::view(state);
-    let sessions_activity = row![sessions, activity].spacing(8).width(Length::Fill);
+    // ── Sessions sub-tab widget ───────────────────────────────────────────────
+    // Four tabs: Proxy Sessions | Active Sessions | Recent Activity | My Sessions
+    let sessions_tab_labels = ["Proxy Sessions", "Active Sessions", "Recent Activity", "My Sessions"];
+    let mut sessions_tab_bar = row![].spacing(0);
+    for (i, label) in sessions_tab_labels.iter().enumerate() {
+        let is_active = state.components_sessions_tab == i;
+        let fg = if is_active { theme::TEXT_PRIMARY } else { theme::TEXT_SECONDARY };
+        let bg = if is_active { theme::BG_CARD } else { theme::BG_PANEL };
+        let btn = button(
+            container(text(*label).size(11).color(fg))
+                .padding(iced::Padding::from([5, 12]))
+                .style(move |_| iced::widget::container::Style {
+                    background: Some(Background::Color(bg)),
+                    ..Default::default()
+                }),
+        )
+        .on_press(Message::ComponentsSessionsTabSelected(i))
+        .style(|_, _| iced::widget::button::Style {
+            background: None,
+            border: Border::default(),
+            ..Default::default()
+        });
+        sessions_tab_bar = sessions_tab_bar.push(btn);
+    }
+
+    let sessions_tab_header = container(sessions_tab_bar.width(Length::Fill))
+        .width(Length::Fill)
+        .style(|_| iced::widget::container::Style {
+            background: Some(Background::Color(theme::BG_PANEL)),
+            border: Border {
+                color: theme::BORDER_SUBTLE,
+                width: 1.0,
+                radius: 8.0.into(),
+            },
+            ..Default::default()
+        });
+
+    let sessions_tab_body: Element<'_, Message> = match state.components_sessions_tab {
+        0 => {
+            // Proxy Sessions
+            let rows: Vec<Element<Message>> = if state.proxy_sessions.is_empty() {
+                vec![
+                    text("No active proxy sessions")
+                        .size(12)
+                        .style(|_theme: &Theme| text::Style {
+                            color: Some(Color::from_rgba8(0xff, 0xff, 0xff, 0.35)),
+                        })
+                        .into(),
+                ]
+            } else {
+                state.proxy_sessions.iter().map(|s| {
+                    let type_color = match s.client_type.as_str() {
+                        "cli"    => Color::from_rgb8(0x80, 0xcb, 0xc4),
+                        "vscode" => Color::from_rgb8(0x82, 0xaa, 0xff),
+                        _        => Color::from_rgb8(0x9e, 0x9e, 0x9e),
+                    };
+                    let ws_label = s.workspace_id.as_deref()
+                        .and_then(|w| w.split(['/', '\\']).next_back())
+                        .unwrap_or("—");
+                    row![
+                        text(&s.client_type).size(11).style(move |_: &Theme| text::Style { color: Some(type_color) }),
+                        Space::with_width(8),
+                        text(ws_label).size(11).style(|_: &Theme| text::Style {
+                            color: Some(Color::from_rgba8(0xff, 0xff, 0xff, 0.70)),
+                        }),
+                        Space::with_width(Length::Fill),
+                        text(format!("{} calls", s.call_count)).size(11).style(|_: &Theme| text::Style {
+                            color: Some(Color::from_rgba8(0xff, 0xff, 0xff, 0.45)),
+                        }),
+                    ]
+                    .align_y(iced::Alignment::Center)
+                    .into()
+                }).collect()
+            };
+            container(
+                column(rows).spacing(4).padding(iced::Padding::from([8, 10])),
+            )
+            .width(Length::Fill)
+            .into()
+        }
+        1 => {
+            // Active Sessions
+            sessions_live_panel::components_tab_view(state)
+        }
+        2 => {
+            // Recent Activity
+            activity_panel::view(state)
+        }
+        _ => {
+            // My Sessions — bookmark panels
+            sessions_live_panel::my_sessions_view(state)
+        }
+    };
+
+    let sessions_widget = container(
+        column![sessions_tab_header, sessions_tab_body]
+            .spacing(0)
+            .width(Length::Fill),
+    )
+    .style(|_| iced::widget::container::Style {
+        background: Some(Background::Color(theme::BG_CARD)),
+        border: Border {
+            color: theme::BORDER_SUBTLE,
+            width: 1.0,
+            radius: 8.0.into(),
+        },
+        ..Default::default()
+    })
+    .width(Length::Fill);
 
     // ── Cartographer + Proxy + Events row ─────────────────────────────────────
     let carto = cartographer_panel::view(
@@ -1125,12 +2108,9 @@ fn view_main(state: &AppState) -> Element<'_, Message> {
     // ── Scrollable content column ─────────────────────────────────────────────
     let content = scrollable(
         column![
-            text("MCP SERVERS").size(10).color(theme::TEXT_SECONDARY),
-            mcp_grid,
-            text("SERVICES").size(10).color(theme::TEXT_SECONDARY),
-            services_grid,
-            services_row2,
-            sessions_activity,
+            service_row1,
+            service_row2,
+            sessions_widget,
             carto_row,
             feedback,
         ]
@@ -1155,30 +2135,76 @@ fn view_main(state: &AppState) -> Element<'_, Message> {
         |ws, p| Message::LaunchAgent(ws, p),
         Message::PlansOpenInIde,
         Message::PlansCreatePlan,
+        // Toolbar: Register Workspace
+        Message::PlansRegisterWsToggleOpen,
+        |s| Message::PlansRegisterWsPathChanged(s),
+        |s| Message::PlansRegisterWsNameChanged(s),
+        Message::PlansRegisterWorkspace,
+        // Toolbar: Backup
+        Message::PlansBackupNow,
+        // Toolbar: Provider
+        |s| Message::PlansProviderInputChanged(s),
+        Message::PlansSetProvider,
+        // Sprints
         |id| Message::SprintSelected(id),
         Message::SprintsRefresh,
         |sid, gid, done| Message::ToggleGoal(sid, gid, done),
+        // Sprints — Create Sprint form
+        |s| Message::SprintsNewTitleChanged(s),
+        Message::SprintsCreate,
+        // Sprints — Add Goal form
+        |id| Message::SprintsSelectSprint(id),
+        |s| Message::SprintsNewGoalChanged(s),
+        Message::SprintsAddGoal,
+        // Error dismissal
+        Message::PlansRegisterDismissError,
+        Message::PlansBackupDismissError,
+        Message::SprintsDismissCreateError,
+        Message::SprintsDismissGoalError,
     );
 
-    // ── Chatbot panel (right sidebar) ─────────────────────────────────────────
-    let chat = chatbot_panel::view(
-        state,
-        false, // sidebar mode
-        Message::ChatToggle,
-        |s| Message::ChatInputChanged(s),
-        Message::ChatSend,
-        Message::ChatClear,
-        Message::ChatShowSettings,
-        |s| Message::ChatApiKeyChanged(s),
-        Message::ChatSaveSettings,
-        Message::OpenChatPopout,
-    );
-
-    // ── Center area = plans | scroll | chat ───────────────────────────────────
-    let main_area = row![plans, content, chat]
+    // ── Chatbot panel (right sidebar) or collapsed strip ─────────────────────
+    let main_area: Element<'_, Message> = if !state.settings_show_chatbot {
+        // Chatbot hidden: full width content, no strip.
+        row![plans, content]
+            .spacing(0)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into()
+    } else if state.chatbot_collapsed {
+        // Collapsed: strip at the bottom of the content area, content goes full width.
+        let strip = chatbot_panel::collapsed_strip(state, Message::ChatbotToggleCollapsed);
+        column![
+            row![plans, content]
+                .spacing(0)
+                .width(Length::Fill)
+                .height(Length::Fill),
+            strip,
+        ]
         .spacing(0)
         .width(Length::Fill)
-        .height(Length::Fill);
+        .height(Length::Fill)
+        .into()
+    } else {
+        let chat = chatbot_panel::view(
+            state,
+            false, // sidebar mode
+            Message::ChatToggle,
+            |s| Message::ChatInputChanged(s),
+            Message::ChatSend,
+            Message::ChatClear,
+            Message::ChatShowSettings,
+            |s| Message::ChatApiKeyChanged(s),
+            Message::ChatSaveSettings,
+            Message::OpenChatPopout,
+            Message::ChatbotToggleCollapsed,
+        );
+        row![plans, content, chat]
+            .spacing(0)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into()
+    };
 
     // ── Footer ────────────────────────────────────────────────────────────────
     let footer = row![
@@ -1230,7 +2256,7 @@ fn view_main(state: &AppState) -> Element<'_, Message> {
                 state,
                 &ss,
                 Message::CloseSettings,
-                Message::SaveConfig,
+                Message::SettingsSave,
                 Message::OpenRawConfigEditor,
                 |cat| Message::SettingsCategorySelected(cat),
             ));
@@ -1431,11 +2457,48 @@ fn main() -> iced::Result {
         if let Some(wd) = config.dashboard.working_dir.clone() {
             let mut env = config.dashboard.env.clone();
             env.insert("PORT".to_string(), config.dashboard.port.to_string());
+            // Resolve command/args/working_dir based on the configured variant.
+            let (dash_cmd, dash_args, dash_wd) =
+                match config.dashboard.variant {
+                    backend::config::DashboardVariant::Solid => {
+                        // Serve the pre-built SolidJS SPA from dashboard-solid/dist/
+                        let solid_wd = {
+                            let wd_str = wd.to_string_lossy();
+                            if wd_str.contains("dashboard") {
+                                // Strip to project root and re-join with the solid dist path.
+                                let root = wd.ancestors()
+                                    .find(|p| {
+                                        let s = p.to_string_lossy();
+                                        !s.contains("dashboard")
+                                    })
+                                    .unwrap_or(&wd)
+                                    .to_path_buf();
+                                root.join("dashboard-solid").join("dist")
+                            } else {
+                                wd.join("dashboard-solid").join("dist")
+                            }
+                        };
+                        let port_str = config.dashboard.port.to_string();
+                        (
+                            "npx".to_string(),
+                            vec!["serve".to_string(), "-s".to_string(), ".".to_string(),
+                                 "-l".to_string(), port_str],
+                            solid_wd,
+                        )
+                    }
+                    backend::config::DashboardVariant::Classic => {
+                        (
+                            config.dashboard.command.clone(),
+                            config.dashboard.args.clone(),
+                            wd,
+                        )
+                    }
+                };
             specs.push(ServiceSpec {
                 name: "dashboard".to_string(),
-                command: config.dashboard.command.clone(),
-                args: config.dashboard.args.clone(),
-                working_dir: Some(wd),
+                command: dash_cmd,
+                args: dash_args,
+                working_dir: Some(dash_wd),
                 env,
             });
         }
@@ -1536,7 +2599,7 @@ fn main() -> iced::Result {
     let (tray_tx, tray_rx) = std::sync::mpsc::sync_channel::<TrayAction>(64);
     TRAY_RX.set(std::sync::Mutex::new(tray_rx)).ok();
     // Keep the TrayIcon alive for the entire process lifetime.
-    let _tray_icon = tray::init_tray(tray_tx);
+    let _tray_icon = tray::init_tray(tray_tx, false);
 
     let result = iced::daemon("Project Memory Supervisor", update, view)
         .theme(|_state: &AppState, _window| Theme::Dark)
@@ -1557,7 +2620,10 @@ fn apply_status_payload(state: &mut AppState, p: &StatusPayload) {
     if let Some(s) = &p.terminal_status  { state.terminal.status  = ServiceStatus::from_str(s); }
     if let Some(s) = &p.dashboard_status { state.dashboard.status = ServiceStatus::from_str(s); }
     if let Some(s) = &p.fallback_status  { state.fallback.status  = ServiceStatus::from_str(s); }
-    if let Some(s) = &p.cli_mcp_status   { state.cli_mcp.status   = ServiceStatus::from_str(s); }
+    if let Some(n) = p.proxy_session_count { state.proxy_session_count = n; }
+    if let Some(j) = &p.proxy_sessions_json {
+        state.proxy_sessions = serde_json::from_str(j).unwrap_or_default();
+    }
 
     macro_rules! opt_set {
         ($field:expr, $src:expr) => { if let Some(v) = $src { $field = v; } };
@@ -1600,6 +2666,52 @@ fn apply_status_payload(state: &mut AppState, p: &StatusPayload) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// My Sessions bookmark persistence helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+fn bookmarks_path() -> std::path::PathBuf {
+    #[cfg(windows)]
+    let base = std::env::var("APPDATA").unwrap_or_else(|_| "C:\\Users\\Default\\AppData\\Roaming".into());
+    #[cfg(not(windows))]
+    let base = std::env::var("HOME")
+        .map(|h| format!("{h}/.local/share"))
+        .unwrap_or_else(|_| "/tmp".into());
+    std::path::PathBuf::from(base).join("ProjectMemory").join("bookmarks.json")
+}
+
+fn save_bookmarks_task(state: &AppState) -> Task<Message> {
+    let plans = state.bookmarks_pinned_plans.clone();
+    let cmds  = state.bookmarks_saved_commands.clone();
+    let dirs  = state.bookmarks_dirs.clone();
+    Task::perform(
+        async move {
+            let json = serde_json::json!({
+                "pinned_plans":    plans,
+                "saved_commands":  cmds,
+                "dirs":            dirs,
+            });
+            let path = bookmarks_path();
+            if let Some(parent) = path.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            let _ = std::fs::write(&path, serde_json::to_string_pretty(&json).unwrap_or_default());
+        },
+        |()| Message::Noop,
+    )
+}
+
+fn load_bookmarks_task() -> Task<Message> {
+    Task::perform(
+        async {
+            let path = bookmarks_path();
+            let content = std::fs::read_to_string(&path).ok()?;
+            serde_json::from_str::<serde_json::Value>(&content).ok()
+        },
+        Message::BookmarksLoaded,
+    )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Async HTTP helpers
 // ─────────────────────────────────────────────────────────────────────────────
 async fn fetch_status() -> Result<StatusPayload, String> {
@@ -1607,6 +2719,13 @@ async fn fetch_status() -> Result<StatusPayload, String> {
     let resp = reqwest::get(url).await.map_err(|e| e.to_string())?;
     let text = resp.text().await.map_err(|e| e.to_string())?;
     serde_json::from_str(&text).map_err(|e| e.to_string())
+}
+
+async fn fetch_proxy_sessions() -> Result<Vec<ProxySessionEntry>, String> {
+    let url = "http://127.0.0.1:3457/admin/connections";
+    let resp = reqwest::get(url).await.map_err(|e| e.to_string())?;
+    let text = resp.text().await.map_err(|e| e.to_string())?;
+    serde_json::from_str::<Vec<ProxySessionEntry>>(&text).map_err(|e| e.to_string())
 }
 
 async fn fetch_workspaces(mcp_base: &str) -> Result<Vec<WorkspaceEntry>, String> {
@@ -1796,6 +2915,30 @@ async fn launch_agent(mcp_base: &str, ws_id: &str, plan_id: &str) -> Result<(), 
         .await
         .map_err(|e| e.to_string())?;
     Ok(())
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Settings config HTTP helpers
+// ─────────────────────────────────────────────────────────────────────────────
+async fn fetch_settings_config() -> Result<serde_json::Value, String> {
+    let url = "http://127.0.0.1:3465/api/config";
+    let resp = reqwest::get(url).await.map_err(|e| e.to_string())?;
+    resp.json().await.map_err(|e| e.to_string())
+}
+
+async fn post_settings_config(json: serde_json::Value) -> Result<(), String> {
+    let url = "http://127.0.0.1:3465/api/config";
+    let client = reqwest::Client::new();
+    let resp = client.post(url)
+        .json(&json)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if resp.status().is_success() {
+        Ok(())
+    } else {
+        Err(format!("HTTP {}", resp.status()))
+    }
 }
 
 async fn save_config(port: u16, toml_content: &str) -> Result<(), String> {

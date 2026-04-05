@@ -54,6 +54,12 @@ Rectangle {
     property string runtimeStripLabel: "runtime"
     property string runtimeStripValue: "--"
 
+    // ── Optional variant picker strip (e.g. Dashboard) ──────────────────────
+    property bool   showVariantPicker:   false
+    property var    variantPickerModel:  []
+    property int    currentVariantIndex: 0
+    signal          variantPickerChanged(string variant)
+
     // ── Appearance ────────────────────────────────────────────────────────────
     color:        "#161b22"
     radius:       10
@@ -166,6 +172,27 @@ Rectangle {
                     font.pixelSize: 11; color: "#c9d1d9"; font.family: "Consolas"
                     Layout.fillWidth: true; elide: Text.ElideRight
                 }
+            }
+        }
+
+        // ── Variant picker strip (optional) ──────────────────────────────────
+        RowLayout {
+            visible: card.showVariantPicker
+            Layout.fillWidth: true
+            spacing: 8
+
+            Label {
+                text: "Variant:"
+                font.pixelSize: 11; color: "#8b949e"
+            }
+            ComboBox {
+                id: _variantCombo
+                model: card.variantPickerModel
+                currentIndex: card.currentVariantIndex
+                implicitHeight: 28
+                font.pixelSize: 11
+                Layout.preferredWidth: 100
+                onActivated: card.variantPickerChanged(currentText)
             }
         }
     }

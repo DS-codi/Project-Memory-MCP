@@ -14,7 +14,7 @@ use std::time::Duration;
 use anyhow::Context as _;
 use async_trait::async_trait;
 
-use crate::config::DashboardSection;
+use crate::config::{DashboardSection, DashboardVariant};
 use crate::control::registry::ServiceStatus;
 use crate::runner::{HealthStatus, ServiceRunner};
 
@@ -109,6 +109,69 @@ impl DashboardRunner {
             DashboardState::Stopped => None,
         }
     }
+
+    /// Update the active variant. Takes effect on the next `start()` call.
+    pub fn set_variant(&mut self, variant: DashboardVariant) {
+        self.config.variant = variant;
+    }
+
+    // -----------------------------------------------------------------------
+    // Private helpers
+    // -----------------------------------------------------------------------
+
+    /// Resolve the effective launch parameters based on the configured variant.
+    ///
+    /// Returns `(command, args, working_dir)`.
+    fn resolved_command(&self) -> (String, Vec<String>, Option<std::path::PathBuf>) {
+        match self.config.variant {
+            DashboardVariant::Classic => (
+                self.config.command.clone(),
+                self.config.args.clone(),
+                self.config.working_dir.clone(),
+            ),
+            DashboardVariant::Solid => {
+                // Derive the project root so we can locate `dashboard-solid/dist`.
+                // Strategy: if `working_dir` is set and contains "dashboard" in its
+                // path, walk up until we exit any "dashboard" component, then
+                // re-anchor at project root.  If derivation is impossible, fall back
+                // to a relative path (works when the supervisor is launched from the
+                // project root).
+                let working_dir = if let Some(ref wd) = self.config.working_dir {
+                    let wd_str = wd.to_string_lossy();
+                    if wd_str.contains("dashboard") {
+                        // Strip components until we are above the dashboard sub-tree.
+                        let mut path = wd.clone();
+                        while path.to_string_lossy().contains("dashboard") {
+                            match path.parent() {
+                                Some(p) => path = p.to_path_buf(),
+                                None => break,
+                            }
+                        }
+                        Some(path.join("dashboard-solid").join("dist"))
+                    } else {
+                        // working_dir is set but not dashboard-scoped; treat it as
+                        // the project root.
+                        Some(wd.join("dashboard-solid").join("dist"))
+                    }
+                } else {
+                    // No working_dir configured — relative path from CWD.
+                    Some(std::path::PathBuf::from("dashboard-solid/dist"))
+                };
+
+                (
+                    "npx".to_string(),
+                    vec![
+                        "serve".to_string(),
+                        "-s".to_string(),
+                        ".".to_string(),
+                        "-l".to_string(),
+                        self.config.port.to_string(),
+                    ],
+                    working_dir,
+                )
+            }
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -119,21 +182,22 @@ impl DashboardRunner {
 impl ServiceRunner for DashboardRunner {
     /// Spawn the dashboard process from `config.command` / `args`.
     async fn start(&mut self) -> anyhow::Result<()> {
-        let mut cmd = tokio::process::Command::new(&self.config.command);
-        cmd.args(&self.config.args);
-        cmd.stdin(Stdio::null());
-        cmd.stdout(Stdio::piped());
-        cmd.stderr(Stdio::piped());
+        let (cmd, args, working_dir) = self.resolved_command();
+        let mut cmd_proc = tokio::process::Command::new(&cmd);
+        cmd_proc.args(&args);
+        cmd_proc.stdin(Stdio::null());
+        cmd_proc.stdout(Stdio::piped());
+        cmd_proc.stderr(Stdio::piped());
 
-        if let Some(ref dir) = self.config.working_dir {
-            cmd.current_dir(dir);
+        if let Some(ref dir) = working_dir {
+            cmd_proc.current_dir(dir);
         }
 
-        cmd.envs(&self.config.env);
+        cmd_proc.envs(&self.config.env);
 
-        let mut child = cmd
+        let mut child = cmd_proc
             .spawn()
-            .with_context(|| format!("failed to spawn dashboard process: {}", self.config.command))?;
+            .with_context(|| format!("failed to spawn dashboard process: {}", cmd))?;
 
         let pid = child
             .id()
@@ -148,7 +212,7 @@ impl ServiceRunner for DashboardRunner {
         crate::runtime_output::emit(
             "dashboard",
             "status",
-            format!("started pid={pid} port={}", self.config.port),
+            format!("started pid={pid} port={} variant={:?}", self.config.port, self.config.variant),
         );
 
         // Assign to the supervisor job object so the OS kills this process

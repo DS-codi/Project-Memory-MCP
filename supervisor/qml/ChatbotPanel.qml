@@ -21,6 +21,14 @@ Rectangle {
     property string aiModel:    ""
     property bool   keyConfigured: false
     property bool   showSettings:  false
+    /// Reflects the bridge's chatApiKeyConfigured at startup so the collapsed
+    /// strip shows the correct dot before the panel is first expanded.
+    property bool   chatApiKeyConfigured: false
+    /// Initialise the key dot from the bridge property so the collapsed strip
+    /// shows the correct state before the panel is first expanded and fetchConfig runs.
+    onChatApiKeyConfiguredChanged: {
+        if (!panel.expanded) panel.keyConfigured = chatApiKeyConfigured
+    }
     // Live tool-call tracking
     property string currentRequestId:   ""
     property int    shownToolCallCount: 0

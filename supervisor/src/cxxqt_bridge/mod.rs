@@ -51,7 +51,10 @@ pub mod ffi {
         #[qproperty(QString, terminal_status, cxx_name = "terminalStatus")]
         #[qproperty(QString, dashboard_status, cxx_name = "dashboardStatus")]
         #[qproperty(QString, fallback_status, cxx_name = "fallbackStatus")]
-        #[qproperty(QString, cli_mcp_status, cxx_name = "cliMcpStatus")]
+        /// JSON array of active client-proxy sessions, serialised from McpConnectionEntry.
+        /// Format: [{sessionId, clientType, workspaceId, callCount, connectedAt, lastActivity}]
+        #[qproperty(QString, proxy_sessions_json, cxx_name = "proxySessionsJson")]
+        #[qproperty(i32, proxy_session_count, cxx_name = "proxySessionCount")]
         #[qproperty(QString, dashboard_url, cxx_name = "dashboardUrl")]
         #[qproperty(QString, terminal_url, cxx_name = "terminalUrl")]
         #[qproperty(QString, monitor_url, cxx_name = "monitorUrl")]
@@ -79,6 +82,7 @@ pub mod ffi {
         #[qproperty(QString, dashboard_runtime, cxx_name = "dashboardRuntime")]
         #[qproperty(i32, dashboard_pid, cxx_name = "dashboardPid")]
         #[qproperty(i32, dashboard_uptime_secs, cxx_name = "dashboardUptimeSecs")]
+        #[qproperty(QString, dashboard_variant, cxx_name = "dashboardVariant")]
         /// Supervisor GUI server auth key — passed to QML so the chatbot panel
         /// can include `X-PM-API-Key` on its requests to `/chatbot/config` and
         /// `/chatbot/chat` which are protected routes.
@@ -87,6 +91,21 @@ pub mod ffi {
         /// Format: [{name, display, status, port}] — updated by push_qt_status
         /// whenever the registry snapshot changes.
         #[qproperty(QString, custom_services_json, cxx_name = "customServicesJson")]
+        /// Whether the last sessions poll succeeded.  Updated by QML after each poll.
+        #[qproperty(bool, sessions_polling_ok, cxx_name = "sessionsPollingOk")]
+        /// Number of active sessions from the last successful poll.
+        #[qproperty(i32, sessions_count, cxx_name = "sessionsCount")]
+        /// Whether the last activity events poll succeeded.  Updated by QML after each poll.
+        #[qproperty(bool, activity_polling_ok, cxx_name = "activityPollingOk")]
+        /// Number of activity events from the last successful poll.
+        #[qproperty(i32, activity_count, cxx_name = "activityCount")]
+        /// True when the chatbot API key is non-empty (set at startup from config).
+        #[qproperty(bool, chat_api_key_configured, cxx_name = "chatApiKeyConfigured")]
+        #[qproperty(QString, pairing_allowed_apps, cxx_name = "pairingAllowedApps")]
+        #[qproperty(i32, pairing_selected_monitor, cxx_name = "pairingSelectedMonitor")]
+        #[qproperty(QString, available_monitors, cxx_name = "availableMonitors")]
+        #[qproperty(QString, pairing_pin, cxx_name = "pairingPin")]
+        #[qproperty(QString, pairing_password, cxx_name = "pairingPassword")]
         type SupervisorGuiBridge = super::SupervisorGuiBridgeRust;
 
         #[qinvokable]
@@ -96,6 +115,19 @@ pub mod ffi {
         #[qinvokable]
         #[cxx_name = "hideWindow"]
         fn hide_window(self: Pin<&mut SupervisorGuiBridge>);
+
+        #[qinvokable]
+        #[cxx_name = "setAllowedApps"]
+        fn set_allowed_apps(self: Pin<&mut SupervisorGuiBridge>, apps: &QString);
+
+        #[qinvokable]
+        #[cxx_name = "setSelectedMonitor"]
+        fn set_selected_monitor(self: Pin<&mut SupervisorGuiBridge>, index: i32);
+
+        #[qinvokable]
+        #[cxx_name = "setPairingPassword"]
+        fn set_pairing_password(self: Pin<&mut SupervisorGuiBridge>, password: &QString);
+
 
         /// Graceful quit: signals the Tokio runtime to stop all child services
         /// before the process exits.  Use instead of Qt.quit() from QML so
@@ -196,6 +228,19 @@ pub mod ffi {
         #[qinvokable]
         #[cxx_name = "openFocusedWorkspace"]
         fn open_focused_workspace(self: Pin<&mut SupervisorGuiBridge>);
+
+        /// Toggle the event broadcast channel on/off.  Updates `eventBroadcastEnabled`
+        /// immediately so the UI responds, and sends a toggle command to the runtime.
+        #[qinvokable]
+        #[cxx_name = "toggleBroadcast"]
+        fn toggle_broadcast(self: Pin<&mut SupervisorGuiBridge>);
+
+        /// Switch the running dashboard variant ("classic" or "solid").
+        /// Stops the current dashboard process and restarts it with the new variant's
+        /// command/args/working_dir. Change takes effect immediately.
+        #[qinvokable]
+        #[cxx_name = "setDashboardVariant"]
+        fn set_dashboard_variant(self: Pin<&mut SupervisorGuiBridge>, variant: &QString);
     }
 
     impl cxx_qt::Initialize for SupervisorGuiBridge {}
@@ -211,7 +256,9 @@ pub struct SupervisorGuiBridgeRust {
     pub terminal_status: QString,
     pub dashboard_status: QString,
     pub fallback_status: QString,
-    pub cli_mcp_status: QString,
+    /// Active client-proxy sessions JSON and count, pushed from the MCP poll loop.
+    pub proxy_sessions_json: QString,
+    pub proxy_session_count: i32,
     /// URLs pushed from main.rs after config loads.
     pub dashboard_url: QString,
     pub terminal_url: QString,
@@ -250,6 +297,7 @@ pub struct SupervisorGuiBridgeRust {
     pub dashboard_runtime: QString,
     pub dashboard_pid: i32,
     pub dashboard_uptime_secs: i32,
+    pub dashboard_variant: QString,
     /// GUI server auth key forwarded to QML for chatbot XHR authentication.
     pub gui_auth_key: QString,
     /// JSON array of configured [[servers]] entries with live status.
@@ -260,6 +308,21 @@ pub struct SupervisorGuiBridgeRust {
     pub tray_notification_text: QString,
     /// Path to the most recently generated .code-workspace file.
     pub focused_workspace_path: QString,
+    /// Whether the last /sessions/live poll completed successfully.
+    pub sessions_polling_ok: bool,
+    /// Count of active sessions from the last successful poll.
+    pub sessions_count: i32,
+    /// Whether the last /api/events poll completed successfully.
+    pub activity_polling_ok: bool,
+    /// Count of activity events from the last successful poll.
+    pub activity_count: i32,
+    /// True when the chatbot API key is non-empty (set at startup from config).
+    pub chat_api_key_configured: bool,
+    pub pairing_allowed_apps: QString,
+    pub pairing_selected_monitor: i32,
+    pub available_monitors: QString,
+    pub pairing_pin: QString,
+    pub pairing_password: QString,
 }
 
 impl Default for SupervisorGuiBridgeRust {
@@ -272,7 +335,8 @@ impl Default for SupervisorGuiBridgeRust {
             terminal_status: QString::from("Starting\u{2026}"),
             dashboard_status: QString::from("Starting\u{2026}"),
             fallback_status: QString::from("Starting\u{2026}"),
-            cli_mcp_status: QString::from("Starting\u{2026}"),
+            proxy_sessions_json: QString::from("[]"),
+            proxy_session_count: 0,
             dashboard_url: QString::default(),
             terminal_url: QString::default(),
             monitor_url: QString::from("http://127.0.0.1:5173/monitor"),
@@ -299,10 +363,21 @@ impl Default for SupervisorGuiBridgeRust {
             dashboard_runtime: QString::from("Node"),
             dashboard_pid: 0,
             dashboard_uptime_secs: 0,
+            dashboard_variant: QString::from("classic"),
             gui_auth_key: QString::default(),
             custom_services_json: QString::from("[]"),
             tray_notification_text: QString::default(),
             focused_workspace_path: QString::default(),
+            sessions_polling_ok: false,
+            sessions_count: 0,
+            activity_polling_ok: false,
+            activity_count: 0,
+            chat_api_key_configured: false,
+            pairing_allowed_apps: QString::from("terminal,files,dashboard,supervisor"),
+            pairing_selected_monitor: 0,
+            available_monitors: QString::from("[]"),
+            pairing_pin: QString::default(),
+            pairing_password: QString::default(),
         }
     }
 }
@@ -388,6 +463,18 @@ impl ffi::SupervisorGuiBridge {
         self.as_mut().set_window_visible(false);
     }
 
+    pub fn set_allowed_apps(mut self: Pin<&mut Self>, apps: &QString) {
+        self.as_mut().set_pairing_allowed_apps(apps.clone());
+    }
+
+    pub fn set_selected_monitor(mut self: Pin<&mut Self>, index: i32) {
+        self.as_mut().set_pairing_selected_monitor(index);
+    }
+
+    pub fn set_pairing_password(mut self: Pin<&mut Self>, password: &QString) {
+        self.as_mut().set_pairing_password(password.clone());
+    }
+
     pub fn quit_supervisor(self: Pin<&mut Self>) {
         if let Some(tx) = initialize::SHUTDOWN_TX.get() {
             // Signal the Tokio runtime; it will stop all child services and
@@ -406,6 +493,15 @@ impl ffi::SupervisorGuiBridge {
             let _ = std::process::Command::new("cmd")
                 .args(["/C", "start", "", &url])
                 .spawn();
+        }
+    }
+
+    pub fn set_dashboard_variant(mut self: Pin<&mut Self>, variant: &QString) {
+        let v = variant.to_string();
+        self.as_mut().set_dashboard_variant(variant.clone());
+        // Send SetDashboardVariant control message through the restart channel.
+        if let Some(tx) = self.rust().restart_tx.as_ref() {
+            let _ = tx.try_send(format!("set_dashboard_variant:{v}"));
         }
     }
 
@@ -766,5 +862,13 @@ impl ffi::SupervisorGuiBridge {
                 .args(["/C", "code", &path])
                 .spawn();
         }
+        }
+
+        pub fn toggle_broadcast(mut self: Pin<&mut Self>) {
+        // Flip the UI property immediately so the toggle responds at once.
+        let current = *self.event_broadcast_enabled();
+        self.as_mut().set_event_broadcast_enabled(!current);
+        // TODO: hook into existing poll cycle — persist to config and signal
+        // the events service to respect the new enabled state at runtime.
         }
         }

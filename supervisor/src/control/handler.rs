@@ -628,6 +628,39 @@ pub async fn handle_request_with_runtime(
             }
             None => ControlResponse::err("events channel is not initialised".to_string()),
         },
+
+        // ---------------------------------------------------------------
+        // SetDashboardVariant — hot-swap the dashboard runtime variant
+        // ---------------------------------------------------------------
+        ControlRequest::SetDashboardVariant { variant } => {
+            let variant_lower = variant.trim().to_ascii_lowercase();
+            // Validate the variant string before dispatching.
+            if variant_lower != "classic" && variant_lower != "solid" {
+                return ControlResponse::err(format!(
+                    "unknown dashboard variant \"{variant}\": expected \"classic\" or \"solid\""
+                ));
+            }
+
+            if let Some(ref tx) = restart_tx {
+                let msg = format!("set_dashboard_variant:{variant_lower}");
+                match tx.send(msg).await {
+                    Ok(()) => ControlResponse::ok(json!({
+                        "dashboard_variant": variant_lower,
+                        "status": "restart_dispatched",
+                        // TODO: persist change to supervisor.toml once a save_config
+                        // mechanism is available.
+                    })),
+                    Err(e) => ControlResponse::err(format!("set_dashboard_variant dispatch failed: {e}")),
+                }
+            } else {
+                // Unit-test or no-channel context — report success without actually
+                // restarting (the test harness has no runner to drive).
+                ControlResponse::ok(json!({
+                    "dashboard_variant": variant_lower,
+                    "status": "accepted_no_channel",
+                }))
+            }
+        }
     }
 }
 

@@ -22,9 +22,9 @@ Rectangle {
     // Stores up to 40 samples of totalConnections; updated on every change.
     property var _history: []
 
-    onTotalConnectionsChanged: {
+    onActiveInstancesChanged: {
         var h = _history.slice()
-        h.push(totalConnections)
+        h.push(activeInstances)
         if (h.length > 40) h = h.slice(h.length - 40)
         _history = h
         sparklineCanvas.requestPaint()
@@ -75,16 +75,17 @@ Rectangle {
                     ctx.clearRect(0, 0, width, height)
 
                     var h = proxyPanel._history
-                    ctx.strokeStyle = "#58a6ff"
-                    ctx.lineWidth   = 1.5
 
                     if (h.length < 2) {
                         // Not enough data yet — draw a dim flat baseline
                         ctx.globalAlpha = 0.25
+                        ctx.strokeStyle = "#58a6ff"
+                        ctx.lineWidth   = 1.5
                         ctx.beginPath()
                         ctx.moveTo(0, height / 2)
                         ctx.lineTo(width, height / 2)
                         ctx.stroke()
+                        ctx.globalAlpha = 1.0
                         return
                     }
 
@@ -92,13 +93,33 @@ Rectangle {
                     var maxVal = Math.max.apply(null, h)
                     if (maxVal === 0) maxVal = 1
 
+                    var x0 = 0
+                    var y0 = (1.0 - h[0] / maxVal) * (height - 4) + 2
+
+                    // Fill area under line (drawn first so stroke appears on top)
                     ctx.beginPath()
-                    for (var i = 0; i < h.length; i++) {
-                        var px = i * width  / (h.length - 1)
-                        var py = (1.0 - h[i] / maxVal) * (height - 4) + 2
-                        if (i === 0) ctx.moveTo(px, py)
-                        else         ctx.lineTo(px, py)
+                    ctx.moveTo(x0, y0)
+                    for (var i = 1; i < h.length; i++) {
+                        var fx = i * width / (h.length - 1)
+                        var fy = (1.0 - h[i] / maxVal) * (height - 4) + 2
+                        ctx.lineTo(fx, fy)
                     }
+                    ctx.lineTo(width, height)
+                    ctx.lineTo(x0, height)
+                    ctx.closePath()
+                    ctx.fillStyle = Qt.rgba(0.345, 0.651, 1.0, 0.15)
+                    ctx.fill()
+
+                    // Draw stroke on top of fill
+                    ctx.beginPath()
+                    ctx.moveTo(x0, y0)
+                    for (var j = 1; j < h.length; j++) {
+                        var sx = j * width / (h.length - 1)
+                        var sy = (1.0 - h[j] / maxVal) * (height - 4) + 2
+                        ctx.lineTo(sx, sy)
+                    }
+                    ctx.strokeStyle = "#58a6ff"
+                    ctx.lineWidth   = 1.5
                     ctx.stroke()
                 }
             }

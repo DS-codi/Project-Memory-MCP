@@ -1,0 +1,80 @@
+import QtQuick.tooling 1.2
+
+// Stub type description for qmllint static analysis (pre-build).
+// Source of truth: pm-approval-gui/src/cxxqt_bridge/mod.rs
+// At runtime the real types come from the compiled CxxQt plugin.
+// Keep in sync with #[qproperty] / #[qinvokable] declarations in mod.rs.
+
+Module {
+    dependencies: []
+    Component {
+        name: "ApprovalApp"
+        accessSemantics: "reference"
+        prototype: "QObject"
+        exports: ["com.projectmemory.approval/ApprovalApp 1.0"]
+        exportMetaObjectRevisions: [256]
+
+        // ── Properties ──────────────────────────────────────────────────────
+        Property { name: "title";               type: "QString"; isReadonly: false }
+        Property { name: "planTitle";           type: "QString"; isReadonly: false }
+        Property { name: "phase";               type: "QString"; isReadonly: false }
+        Property { name: "stepTask";            type: "QString"; isReadonly: false }
+        Property { name: "stepIndex";           type: "int";     isReadonly: false }
+        Property { name: "urgency";             type: "QString"; isReadonly: false }
+        Property { name: "remainingSeconds";    type: "int";     isReadonly: false }
+        Property { name: "totalSeconds";        type: "int";     isReadonly: false }
+        Property { name: "timerPaused";         type: "bool";    isReadonly: false }
+        Property { name: "formSubmitted";       type: "bool";    isReadonly: false }
+        Property { name: "multipleChoiceMode";  type: "bool";    isReadonly: false }
+        Property { name: "decisionLabel";       type: "QString"; isReadonly: false }
+        Property { name: "decisionDescription"; type: "QString"; isReadonly: false }
+        Property { name: "decisionQuestionId";  type: "QString"; isReadonly: false }
+        Property { name: "approveLabel";        type: "QString"; isReadonly: false }
+        Property { name: "rejectLabel";         type: "QString"; isReadonly: false }
+        Property { name: "allowNotes";          type: "bool";    isReadonly: false }
+        Property { name: "notesPlaceholder";    type: "QString"; isReadonly: false }
+        Property { name: "choiceOptionsJson";   type: "QString"; isReadonly: false }
+        Property { name: "selectedOptionId";    type: "QString"; isReadonly: false }
+        Property { name: "allowFreeText";       type: "bool";    isReadonly: false }
+
+        // ── Signals ─────────────────────────────────────────────────────────
+        Signal { name: "titleChanged" }
+        Signal { name: "planTitleChanged" }
+        Signal { name: "phaseChanged" }
+        Signal { name: "stepTaskChanged" }
+        Signal { name: "stepIndexChanged" }
+        Signal { name: "urgencyChanged" }
+        Signal { name: "remainingSecondsChanged" }
+        Signal { name: "totalSecondsChanged" }
+        Signal { name: "timerPausedChanged" }
+        Signal { name: "formSubmittedChanged" }
+        Signal { name: "multipleChoiceModeChanged" }
+        Signal { name: "decisionLabelChanged" }
+        Signal { name: "decisionDescriptionChanged" }
+        Signal { name: "decisionQuestionIdChanged" }
+        Signal { name: "approveLabelChanged" }
+        Signal { name: "rejectLabelChanged" }
+        Signal { name: "allowNotesChanged" }
+        Signal { name: "notesPlaceholderChanged" }
+        Signal { name: "choiceOptionsJsonChanged" }
+        Signal { name: "selectedOptionIdChanged" }
+        Signal { name: "allowFreeTextChanged" }
+        Signal { name: "timerExpired" }
+        Signal { name: "formCompleted" }
+
+        // ── Invokable methods ────────────────────────────────────────────────
+        Method { name: "approve" }
+        Method { name: "reject" }
+        Method {
+            name: "setNotes"
+            Parameter { name: "notes"; type: "QString" }
+        }
+        Method {
+            name: "setSelectedOption"
+            Parameter { name: "option_id"; type: "QString" }
+        }
+        Method { name: "submitSelection" }
+        Method { name: "pauseTimer" }
+        Method { name: "resumeTimer" }
+    }
+}

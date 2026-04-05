@@ -160,6 +160,14 @@ pub enum ControlRequest {
         #[serde(skip_serializing_if = "Option::is_none")]
         timeout_seconds: Option<u64>,
     },
+
+    /// Switch the dashboard runtime variant between `"classic"` (Node.js server)
+    /// and `"solid"` (npx serve static SolidJS SPA from `dashboard-solid/dist`).
+    ///
+    /// The running dashboard process is stopped and restarted with the new
+    /// variant immediately.  Changes are in-memory only (not persisted to
+    /// `supervisor.toml`).
+    SetDashboardVariant { variant: String },
 }
 
 /// Body of the `WhoAmI` request.

@@ -2,6 +2,7 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Controls.Material 2.15
 import QtQuick.Layouts 1.15
+import Qt.labs.settings 1.1
 
 /// Full-window settings overlay — replaces the raw TOML editor with
 /// organised toggles, sliders, spinboxes, and VS Code extension controls.
@@ -26,6 +27,15 @@ Rectangle {
 
     // ── Active category index (0-4) ───────────────────────────────────────────
     property int activeCat: 0
+
+    // ── Persisted UI preferences (not stored in TOML config) ─────────────────
+    Settings {
+        id: _uiPrefs
+        category: "supervisor_ui"
+        property bool showChatbotPanel: true
+    }
+    /// Whether the AI chatbot panel is visible. Persisted across restarts.
+    property alias showChatbotPanel: _uiPrefs.showChatbotPanel
 
     // ── Auto-load on show ─────────────────────────────────────────────────────
     onVisibleChanged: { if (visible) _loadSettings() }
@@ -67,6 +77,7 @@ Rectangle {
         dashSwitch.checked       = dash.enabled !== false
         dashPortSpin.value       = dash.port || 3459
         dashMcpSwitch.checked    = dash.requires_mcp !== false
+        dashVariantCombo.currentIndex = Math.max(0, ["classic","solid"].indexOf(dash.variant || "classic"))
 
         // Events
         evtsSwitch.checked       = evts.enabled !== false
@@ -127,7 +138,7 @@ Rectangle {
                 }
             },
             interactive_terminal: { enabled: termSwitch.checked,  port: termPortSpin.value },
-            dashboard:            { enabled: dashSwitch.checked,   port: dashPortSpin.value, requires_mcp: dashMcpSwitch.checked },
+            dashboard:            { enabled: dashSwitch.checked,   port: dashPortSpin.value, requires_mcp: dashMcpSwitch.checked, variant: dashVariantCombo.currentText },
             events:               { enabled: evtsSwitch.checked },
             reconnect: {
                 initial_delay_ms: rcInitSpin.value,
@@ -283,6 +294,12 @@ Rectangle {
                                 }
                                 Label { text: "HTTP bind address for the supervisor REST API"; color: "#8b949e"; font.pixelSize: 11; Layout.fillWidth: true; wrapMode: Text.Wrap }
                             }
+                            RowLayout {
+                                Layout.fillWidth: true; implicitHeight: 44; spacing: 8
+                                Label { text: "Show AI Chatbot"; color: "#c9d1d9"; font.pixelSize: 13; Layout.preferredWidth: 180 }
+                                Switch { id: chatbotPanelSwitch; checked: _uiPrefs.showChatbotPanel; onCheckedChanged: _uiPrefs.showChatbotPanel = checked }
+                                Label { text: "Show the AI chatbot sidebar panel"; color: "#8b949e"; font.pixelSize: 11; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                            }
                             Item { implicitHeight: 8 }
                         }
                     }
@@ -386,6 +403,16 @@ Rectangle {
                                 Label { text: "Requires MCP"; color: "#c9d1d9"; font.pixelSize: 13; Layout.preferredWidth: 180 }
                                 Switch { id: dashMcpSwitch; checked: true }
                                 Label { text: "Enter degraded mode when MCP becomes unavailable"; color: "#8b949e"; font.pixelSize: 11; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true; implicitHeight: 44; spacing: 8
+                                Label { text: "Variant"; color: "#c9d1d9"; font.pixelSize: 13; Layout.preferredWidth: 180 }
+                                ComboBox {
+                                    id: dashVariantCombo
+                                    model: ["classic", "solid"]
+                                    implicitHeight: 32
+                                }
+                                Label { text: "Dashboard variant to run (classic = Node server, solid = Vite/SolidJS build)"; color: "#8b949e"; font.pixelSize: 11; Layout.fillWidth: true; wrapMode: Text.Wrap }
                             }
 
                             // ─ Event Broadcast ────────────────────────────────

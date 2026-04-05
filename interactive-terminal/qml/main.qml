@@ -888,7 +888,7 @@ ApplicationWindow {
                         // Key status for the selected provider
                         Text {
                             text: root.selectedCliProvider === "gemini"
-                                ? (terminalApp.geminiKeyPresent ? "\u2714 key" : "free tier")
+                                ? (terminalApp.geminiKeyPresent ? "\u2714 key" : "oauth")
                                 : root.selectedCliProvider === "claude"
                                     ? (terminalApp.claudeKeyPresent ? "\u2714 key" : "not set")
                                     : (terminalApp.copilotKeyPresent ? "\u2714 active" : "not set")
@@ -1189,7 +1189,7 @@ ApplicationWindow {
                     text: "Copy All"
                     font.pixelSize: root.uiControlFontPx
                     Layout.preferredHeight: 28
-                    palette.buttonText: "#e5e7eb"
+                    Material.foreground: "#e5e7eb"
                     onClicked: terminalApp.copyCurrentOutput()
                 }
 
@@ -1197,7 +1197,7 @@ ApplicationWindow {
                     text: "Copy Last"
                     font.pixelSize: root.uiControlFontPx
                     Layout.preferredHeight: 28
-                    palette.buttonText: "#e5e7eb"
+                    Material.foreground: "#e5e7eb"
                     enabled: root.hasActiveTerminalSession
                     onClicked: terminalApp.copyLastCommandOutput()
                 }
@@ -1206,7 +1206,7 @@ ApplicationWindow {
                     text: "Restart"
                     font.pixelSize: root.uiControlFontPx
                     Layout.preferredHeight: 28
-                    palette.buttonText: "#e5e7eb"
+                    Material.foreground: "#e5e7eb"
                     enabled: root.hasActiveTerminalSession
                     onClicked: {
                         if (root.hasActiveTerminalSession) {

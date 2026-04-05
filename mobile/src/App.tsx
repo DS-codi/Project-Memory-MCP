@@ -9,6 +9,7 @@ const DashboardScreen = lazy(() => import("./screens/DashboardScreen"));
 const ChatScreen      = lazy(() => import("./screens/ChatScreen"));
 const TerminalScreen  = lazy(() => import("./screens/TerminalScreen"));
 const MonitorScreen   = lazy(() => import("./screens/MonitorScreen"));
+const AuthScreen      = lazy(() => import("./screens/AuthScreen"));
 
 const Loading = () => <div class="screen"><p>Loading…</p></div>;
 
@@ -21,6 +22,7 @@ export default function App() {
           window.location.replace("/discovery");
           return <Loading />;
         }} />
+        <Route path="/auth"      component={AuthScreen} />
         <Route path="/setup"     component={() => <AppShell><SetupScreen /></AppShell>} />
         <Route path="/discovery" component={() => <AppShell><DiscoveryScreen /></AppShell>} />
         <Route path="/pairing"   component={() => <AppShell><PairingScreen /></AppShell>} />

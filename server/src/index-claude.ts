@@ -1,11 +1,10 @@
-// Claude-profile MCP server — simplified tool set for Claude Code hub-and-spoke.
+// pmmcp — MCP server for Claude Code hub-and-spoke sessions.
 //
-// Registers the same tool surface as the CLI server but:
-//   - Omits memory_filesystem (Claude Code has native Read/Glob/Grep)
-//   - Omits memory_brainstorm (absorbed into memory_agent for Claude profile)
-//   - Adds prep_claude action on memory_session
+// Full tool surface: all tools from the main server, accessed via client-proxy
+// which routes upstream to this server (port 3467) and falls back to local
+// SQLite for workspace/plan/steps/instructions when the supervisor is down.
 //
-// Default port: 3467  (same as CLI profile — single process, same DB)
+// Default port: 3467
 // Supervisor component name: claude-mcp
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -118,10 +117,11 @@ async function withLogging<T>(
 // CLI Argument Parsing
 // =============================================================================
 
-function parseCliArgs(): { transport: TransportType; port: number } {
+function parseCliArgs(): { transport: TransportType; port: number; cliPort: number | null } {
   const args = process.argv.slice(2);
   let transport: TransportType = 'stdio';
   let port = 3467;
+  let cliPort: number | null = null;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--transport' && args[i + 1]) {
@@ -140,10 +140,17 @@ function parseCliArgs(): { transport: TransportType; port: number } {
         process.exit(1);
       }
       i++;
+    } else if (args[i] === '--cli-port' && args[i + 1]) {
+      cliPort = parseInt(args[i + 1], 10);
+      if (isNaN(cliPort) || cliPort < 1 || cliPort > 65535) {
+        console.error(`Invalid --cli-port: ${args[i + 1]}`);
+        process.exit(1);
+      }
+      i++;
     }
   }
 
-  return { transport, port };
+  return { transport, port, cliPort };
 }
 
 // =============================================================================
@@ -177,7 +184,7 @@ const PrioritySchema = z.enum(['low', 'medium', 'high', 'critical']);
 export function createClaudeMcpServer(): McpServer {
 
 const server = new McpServer({
-  name: 'project-memory-claude',
+  name: 'pmmcp',
   version: '1.0.0'
 });
 
@@ -356,7 +363,7 @@ server.tool(
   'memory_session',
   'Agent session management and spawn preparation. Actions: prep_claude (Claude-native spoke prep — pre-embeds instructions and skills, returns enriched_prompt ready for Agent tool), prep (legacy: mint session ID + enrich prompt), list_sessions (query sessions from plan state), get_session (find a specific session by ID).',
   {
-    action: z.enum(['prep_claude', 'prep', 'deploy_and_prep', 'list_sessions', 'get_session']).describe('The action to perform. Use prep_claude for Claude Code hub-and-spoke.'),
+    action: z.enum(['prep_claude', 'prep', 'deploy_and_prep', 'list_sessions', 'get_session', 'session_start']).describe('The action to perform. Use prep_claude for Claude Code hub-and-spoke. Use session_start for proxy-initiated session registration.'),
     workspace_id: z.string().optional().describe('Workspace ID'),
     plan_id: z.string().optional().describe('Plan ID'),
     // prep_claude params
@@ -514,6 +521,63 @@ server.tool(
 );
 
 // =============================================================================
+// memory_filesystem
+// =============================================================================
+
+server.tool(
+  'memory_filesystem',
+  'Workspace-scoped filesystem operations with safety boundaries. Actions: read (read file content), write (write/create a file), search (find files by glob/regex), discover_codebase (derive keywords from prompt/task text and return ranked related code file paths only), list (directory listing), tree (recursive directory tree), delete (delete file/empty directory; requires confirm), move (move/rename path), copy (copy file), append (append to existing file), exists (check existence and type).',
+  {
+    action: z.enum(['read', 'write', 'search', 'discover_codebase', 'list', 'tree', 'delete', 'move', 'copy', 'append', 'exists']).describe('The action to perform'),
+    workspace_id: z.string().describe('Workspace ID — all paths are resolved relative to the workspace root'),
+    path: z.string().optional().describe('File or directory path relative to workspace root'),
+    content: z.string().optional().describe('File content (for write/append)'),
+    create_dirs: z.boolean().optional().describe('Auto-create parent directories (for write). Default true'),
+    pattern: z.string().optional().describe('Glob pattern (for search)'),
+    regex: z.string().optional().describe('Regex pattern (for search, alternative to glob)'),
+    include: z.string().optional().describe('File include filter, e.g. "*.ts" (for search)'),
+    prompt_text: z.string().optional().describe('Prompt text used to derive discovery keywords (for discover_codebase)'),
+    task_text: z.string().optional().describe('Optional task text appended to prompt text before keyword derivation (for discover_codebase)'),
+    limit: z.number().optional().describe('Maximum number of ranked results for discover_codebase (default 20, max 100)'),
+    recursive: z.boolean().optional().describe('Recurse into subdirectories (for list)'),
+    max_depth: z.number().optional().describe('Maximum tree depth (for tree). Default 3, max 10'),
+    confirm: z.boolean().optional().describe('Explicit confirmation for destructive operations (required for delete)'),
+    dry_run: z.boolean().optional().describe('Preview destructive operation without side effects (delete/move)'),
+    source: z.string().optional().describe('Source path for move/copy actions'),
+    destination: z.string().optional().describe('Destination path for move/copy actions'),
+    overwrite: z.boolean().optional().describe('Overwrite destination when it exists (move/copy). Default false'),
+    _session_id: z.string().optional().describe('Session ID for instrumentation tracking')
+  },
+  async (params) => {
+    const result = await withLogging('memory_filesystem', params, () =>
+      consolidatedTools.memoryFilesystem(params as consolidatedTools.MemoryFilesystemParams)
+    );
+    return { content: [{ type: 'text', text: JSON.stringify(result) }] };
+  }
+);
+
+// =============================================================================
+// memory_brainstorm
+// =============================================================================
+
+server.tool(
+  'memory_brainstorm',
+  'Consolidated agent lifecycle and deployment tool. Actions: route (send FormRequest to GUI via Supervisor), route_with_fallback (send to GUI; when GUI is unavailable returns success:false with requires_approval:true — agent MUST call memory_terminal echo sentinel for VS Code approval before using fallback answers), refine (submit standalone FormRefinementRequest to active Brainstorm agent). GUI launches are serialised per-app: concurrent calls queue and wait rather than spawning duplicate windows.',
+  {
+    action: z.enum(['route', 'route_with_fallback', 'refine']).describe('The action to perform'),
+    form_request: z.record(z.unknown()).optional().describe('FormRequest payload (required for route and route_with_fallback actions)'),
+    refinement_request: z.record(z.unknown()).optional().describe('FormRefinementRequest payload (required for refine action)'),
+    _session_id: z.string().optional().describe('Session ID for instrumentation tracking')
+  },
+  async (params) => {
+    const result = await withLogging('memory_brainstorm', params, () =>
+      consolidatedTools.memoryBrainstorm(params as consolidatedTools.MemoryBrainstormParams)
+    );
+    return { content: [{ type: 'text', text: JSON.stringify(result) }] };
+  }
+);
+
+// =============================================================================
 // memory_task
 // =============================================================================
 
@@ -565,9 +629,9 @@ async function main() {
   await store.initDataRoot();
   void workspaceTools.syncWorkspaceRegistry();
 
-  const { transport, port } = parseCliArgs();
+  const { transport, port, cliPort } = parseCliArgs();
 
-  console.error('Project Memory MCP Server (Claude profile) starting...');
+  console.error('Project Memory MCP Server (pmmcp) starting...');
   console.error(`Data root: ${store.getDataRoot()}`);
   console.error(`Transport: ${transport}`);
 
@@ -575,7 +639,7 @@ async function main() {
     const server = createClaudeMcpServer();
     const stdioTransport = new StdioServerTransport();
     await server.connect(stdioTransport);
-    console.error('Project Memory MCP (Claude profile) running (stdio)');
+    console.error('Project Memory MCP (pmmcp) running (stdio)');
 
     const alertListener = new ContainerAlertListener();
     await alertListener.start();
@@ -591,17 +655,31 @@ async function main() {
 
     const app = createHttpApp(createClaudeMcpServer);
     const httpServer = app.listen(port, () => {
-      console.error(`Project Memory MCP (Claude profile) running (${transport}) on port ${port}`);
+      console.error(`Project Memory MCP (pmmcp) running (${transport}) on port ${port}`);
       console.error(`  Health: http://localhost:${port}/health`);
       console.error(`  MCP:    http://localhost:${port}/mcp`);
       void sendStartupAlert(port, '1.0.0', transport);
     });
+
+    // Optional CLI-agent alias port — serves the same McpServer instance on a
+    // second HTTP listener so legacy CLI agents (Gemini CLI, Copilot CLI) can
+    // connect on their expected port without a separate process.
+    let cliHttpServer: ReturnType<typeof app.listen> | null = null;
+    if (cliPort !== null) {
+      const cliApp = createHttpApp(createClaudeMcpServer);
+      cliHttpServer = cliApp.listen(cliPort, () => {
+        console.error(`Project Memory MCP (pmmcp) CLI alias running on port ${cliPort}`);
+        console.error(`  Health: http://localhost:${cliPort}/health`);
+        console.error(`  MCP:    http://localhost:${cliPort}/mcp`);
+      });
+    }
 
     const shutdown = async () => {
       console.error('Shutting down...');
       stopLivenessPolling();
       await closeAllTransports();
       httpServer.close();
+      if (cliHttpServer) cliHttpServer.close();
       try { getDb().close(); } catch { /* ignore */ }
       process.exit(0);
     };

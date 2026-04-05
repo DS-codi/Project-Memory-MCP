@@ -20,9 +20,11 @@ impl CommandRegistry {
             "supervisoriced" | "supervisor-iced"           => "SupervisorIced",
             "guiforms"                                     => "GuiForms",
             "interactiveterminal" | "interactive-terminal" => "InteractiveTerminal",
+            "interactiveterminaliced" | "interactive-terminal-iced" => "InteractiveTerminalIced",
             "server"                                       => "Server",
             "fallbackserver" | "fallback-server"           => "FallbackServer",
             "dashboard"                                    => "Dashboard",
+            "dashboardsolid" | "dashboard-solid"           => "DashboardSolid",
             "extension"                                    => "Extension",
             "cartographer"                                 => "Cartographer",
             "clientproxy" | "client-proxy"                 => "ClientProxy",
@@ -60,29 +62,27 @@ impl CommandRegistry {
             // Once Find-QtBin, Find-QmakePath, and Initialize-WinDeployQtEnvironment
             // are ported, replace the PS fallbacks below with native_phase_args calls.
             "Supervisor" => vec![
-                // TODO Phase 3 — QML Lint: needs Qt resolver port
-                ("QML Lint".to_string(),   PowerShellFallback::build_args("scripts/cli-qmllint.ps1",                    &["-Component", "supervisor"])),
-                // TODO Phase 3 — Rust Build: needs Qt resolver + windeployqt port
-                ("Rust Build".to_string(), PowerShellFallback::build_args("scripts/cli-build-supervisor.ps1",           &[])),
+                ("QML Lint".to_string(),   Self::native_phase_args("build-qml-lint-supervisor")),
+                ("Rust Build".to_string(), Self::native_phase_args("build-supervisor")),
             ],
-            // ── Phase 3 TODO: port Qt resolver ───────────────────────────────────────
+            // ── Native (GuiForms Rust Build ported) ──────────────────────────────────
             "GuiForms" => vec![
-                // TODO Phase 3 — QML Lint
-                ("QML Lint".to_string(),   PowerShellFallback::build_args("scripts/cli-qmllint.ps1",                    &["-Component", "guiforms"])),
-                // TODO Phase 3 — Rust Build: needs Qt resolver + windeployqt ×2
-                ("Rust Build".to_string(), PowerShellFallback::build_args("scripts/cli-build-guiforms.ps1",             &[])),
+                // Rust Build first: generates target\cxxqt\qml_modules type metadata so
+                // qmllint can resolve com.projectmemory.approval / com.projectmemory.brainstorm.
+                ("Rust Build".to_string(), Self::native_phase_args("build-gui-forms")),
+                ("QML Lint".to_string(),   Self::native_phase_args("build-qml-lint-guiforms")),
             ],
-            // ── Phase 3 TODO: port Qt resolver + nested build-interactive-terminal.ps1
             "InteractiveTerminal" => vec![
-                // TODO Phase 3 — QML Lint
-                ("QML Lint".to_string(),   PowerShellFallback::build_args("scripts/cli-qmllint.ps1",                    &["-Component", "interactive-terminal"])),
-                // TODO Phase 3 — Build: Qt resolver + nested PS script
-                ("Build".to_string(),      PowerShellFallback::build_args("scripts/cli-build-interactive-terminal.ps1", &["-NoWebEnginePlugin"])),
+                ("QML Lint".to_string(), Self::native_phase_args("build-qml-lint-interactive-terminal")),
+                ("Build".to_string(),    Self::native_phase_args("build-interactive-terminal")),
             ],
 
             // ── Native (Phase 2 complete) ─────────────────────────────────────────
             "SupervisorIced" => vec![
                 ("Rust Build".to_string(), Self::native_phase_args("build-supervisor-iced")),
+            ],
+            "InteractiveTerminalIced" => vec![
+                ("Rust Build".to_string(), Self::native_phase_args("build-interactive-terminal-iced")),
             ],
             "ClientProxy" => vec![
                 ("Rust Build".to_string(), Self::native_phase_args("build-client-proxy")),
@@ -95,6 +95,9 @@ impl CommandRegistry {
             ],
             "Dashboard" => vec![
                 ("Build".to_string(), Self::native_phase_args("build-dashboard")),
+            ],
+            "DashboardSolid" => vec![
+                ("Build".to_string(), Self::native_phase_args("build-dashboard-solid")),
             ],
             "Extension" => vec![
                 ("Build".to_string(), Self::native_phase_args("build-extension")),
@@ -170,7 +173,8 @@ impl CommandRegistry {
                 let targets: Vec<String> = if component == "All" {
                     vec![
                         "Supervisor", "SupervisorIced", "GuiForms", "InteractiveTerminal",
-                        "Server", "Dashboard", "Extension", "Cartographer", "ClientProxy", "GlobalClaude",
+                        "InteractiveTerminalIced", "Server", "Dashboard", "DashboardSolid",
+                        "Extension", "Cartographer", "ClientProxy", "GlobalClaude",
                     ]
                     .into_iter()
                     .map(|s| s.to_string())
@@ -247,20 +251,33 @@ impl CommandRegistry {
                             Err(e) => { eprintln!("pm-cli launch: failed to spawn supervisor-iced: {e}"); 1 }
                         }
                     }
+                    "InteractiveTerminalIced" => {
+                        let binary = config.install_dir.join("interactive-terminal-iced.exe");
+                        let binary = if binary.exists() { binary } else {
+                            std::path::PathBuf::from("target/release/interactive-terminal-iced.exe")
+                        };
+                        match std::process::Command::new(&binary)
+                            .stdin(std::process::Stdio::null())
+                            .stdout(std::process::Stdio::null())
+                            .stderr(std::process::Stdio::null())
+                            .spawn()
+                        {
+                            Ok(_)  => { println!("Launched interactive-terminal-iced from {:?}", binary); 0 }
+                            Err(e) => { eprintln!("pm-cli launch: failed to spawn interactive-terminal-iced: {e}"); 1 }
+                        }
+                    }
                     "Supervisor" => {
                         // TODO Phase 3 — port launch-supervisor.ps1 to Rust:
                         // writes supervisor.toml, detects running components,
                         // waits for ports manifest, syncs VS Code config files.
                         eprintln!("pm-cli launch: delegating QML supervisor launch to PowerShell (Phase 3 pending)");
-                        match PowerShellFallback::run_args(&PowerShellFallback::build_args(
-                            "launch-supervisor.ps1", &[]
-                        )) {
+                        match PowerShellFallback::run("launch-supervisor.ps1", &[]) {
                             Ok(s) => s.code().unwrap_or(1),
                             Err(e) => { eprintln!("pm-cli launch: {e}"); 1 }
                         }
                     }
                     _ => {
-                        eprintln!("pm-cli launch: unknown target '{target}'. Use: supervisor, supervisor-iced");
+                        eprintln!("pm-cli launch: unknown target '{target}'. Use: supervisor, supervisor-iced, interactive-terminal-iced");
                         1
                     }
                 }
@@ -270,9 +287,49 @@ impl CommandRegistry {
             // These are spawned by the TUI via build_phases → native_phase_args.
             // Each runs a build and prints progress to stdout for TUI capture.
 
+            "build-supervisor" => match crate::builds::supervisor() {
+                Ok(()) => 0,
+                Err(e) => { eprintln!("pm-cli build-supervisor: {e}"); 1 }
+            },
+
             "build-supervisor-iced" => match crate::builds::supervisor_iced() {
                 Ok(()) => 0,
                 Err(e) => { eprintln!("pm-cli build-supervisor-iced: {e}"); 1 }
+            },
+
+            "build-qml-lint-supervisor" => match crate::builds::qml_lint_component("supervisor") {
+                Ok(()) => 0,
+                Err(e) => { eprintln!("pm-cli build-qml-lint-supervisor: {e}"); 1 }
+            },
+
+            "build-qml-lint-guiforms" => match crate::builds::qml_lint_component("guiforms") {
+                Ok(()) => 0,
+                Err(e) => { eprintln!("pm-cli build-qml-lint-guiforms: {e}"); 1 }
+            },
+
+            "build-qml-lint-interactive-terminal" => match crate::builds::qml_lint_component("interactive-terminal") {
+                Ok(()) => 0,
+                Err(e) => { eprintln!("pm-cli build-qml-lint-interactive-terminal: {e}"); 1 }
+            },
+
+            "build-qml-lint-all" => match crate::builds::qml_lint_all() {
+                Ok(()) => 0,
+                Err(e) => { eprintln!("pm-cli build-qml-lint-all: {e}"); 1 }
+            },
+
+            "build-interactive-terminal" => match crate::builds::interactive_terminal() {
+                Ok(()) => 0,
+                Err(e) => { eprintln!("pm-cli build-interactive-terminal: {e}"); 1 }
+            },
+
+            "build-interactive-terminal-iced" => match crate::builds::interactive_terminal_iced() {
+                Ok(()) => 0,
+                Err(e) => { eprintln!("pm-cli build-interactive-terminal-iced: {e}"); 1 }
+            },
+
+            "build-gui-forms" => match crate::builds::gui_forms() {
+                Ok(()) => 0,
+                Err(e) => { eprintln!("pm-cli build-gui-forms: {e}"); 1 }
             },
 
             "build-client-proxy" => match crate::builds::client_proxy() {
@@ -295,7 +352,12 @@ impl CommandRegistry {
                 Err(e) => { eprintln!("pm-cli build-dashboard: {e}"); 1 }
             },
 
-            "build-extension" => match crate::builds::extension() {
+            "build-dashboard-solid" => match crate::builds::dashboard_solid() {
+                Ok(()) => 0,
+                Err(e) => { eprintln!("pm-cli build-dashboard-solid: {e}"); 1 }
+            },
+
+            "build-extension"=> match crate::builds::extension() {
                 Ok(()) => 0,
                 Err(e) => { eprintln!("pm-cli build-extension: {e}"); 1 }
             },
@@ -314,7 +376,7 @@ impl CommandRegistry {
 
             // ── shortcut <component> [--desktop] [--start-menu] ──────────────────
             "shortcut" => {
-                let raw = args.first().map(|s| s.as_str()).unwrap_or("supervisor-iced");
+                let raw = args.first().map(|s| s.as_str()).unwrap_or("supervisor");
                 let component = Self::normalize_component(raw);
                 let has_desktop    = args.iter().any(|a| a == "--desktop");
                 let has_start_menu = args.iter().any(|a| a == "--start-menu");
@@ -345,29 +407,40 @@ impl CommandRegistry {
             }
 
             // ── test ──────────────────────────────────────────────────────────────
-            // TODO Phase 3+ — port run-tests.ps1 test runner to Rust.
             "test" => {
-                eprintln!("pm-cli test: delegating to PowerShell test runner (not yet ported)");
-                match PowerShellFallback::run("scripts/test.ps1", &[]) {
-                    Ok(s) => s.code().unwrap_or(1),
-                    Err(e) => { eprintln!("pm-cli: {e}"); 1 }
+                let component = args.first().map(|s| s.as_str()).unwrap_or("all");
+                match crate::builds::run_tests(component) {
+                    Ok(()) => 0,
+                    Err(e) => { eprintln!("pm-cli test: {e}"); 1 }
+                }
+            }
+
+            // ── build-tests ───────────────────────────────────────────────────────
+            "build-tests" => {
+                let component = args.first().map(|s| s.as_str()).unwrap_or("all");
+                match crate::builds::run_tests(component) {
+                    Ok(()) => 0,
+                    Err(e) => { eprintln!("pm-cli build-tests: {e}"); 1 }
                 }
             }
 
             // ── lint [component] ──────────────────────────────────────────────────
-            // TODO Phase 3 — port cli-qt-resolve.ps1 + qmllint invocation to Rust.
             "lint" => {
                 let component = args.first().map(|s| s.as_str()).unwrap_or("all");
-                eprintln!("pm-cli lint: delegating to PowerShell qmllint wrapper (Qt resolver not yet ported)");
-                match PowerShellFallback::run("scripts/cli-qmllint.ps1", &["-Component", component]) {
-                    Ok(s) => s.code().unwrap_or(1),
-                    Err(e) => { eprintln!("pm-cli: {e}"); 1 }
+                let result = if component == "all" {
+                    crate::builds::qml_lint_all()
+                } else {
+                    crate::builds::qml_lint_component(component)
+                };
+                match result {
+                    Ok(()) => 0,
+                    Err(e) => { eprintln!("pm-cli lint: {e}"); 1 }
                 }
             }
 
             _ => {
                 eprintln!("pm-cli: unknown command '{cmd}'");
-                eprintln!("Usage: pm-cli <install|deploy|launch|shortcut|test|lint|global-claude> [args]");
+                eprintln!("Usage: pm-cli <install|deploy|launch|shortcut|test|lint|global-claude|build-supervisor|build-dashboard-solid> [args]");
                 1
             }
         }

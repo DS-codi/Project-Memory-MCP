@@ -1,11 +1,11 @@
-/// System tray icon — 4-item context menu wired to a sync channel.
+/// System tray icon — full context menu wired to a sync channel.
 ///
 /// Callers must keep the returned `TrayIcon` alive for the lifetime of the
 /// application (drop it and the tray icon disappears).
 
 use tray_icon::{
     TrayIcon, TrayIconBuilder,
-    menu::{Menu, MenuItem, MenuEvent},
+    menu::{Menu, MenuItem, PredefinedMenuItem, MenuEvent},
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -15,6 +15,11 @@ pub enum TrayAction {
     Show,
     Minimize,
     RestartServices,
+    OpenPlans,
+    OpenSprints,
+    OpenSettings,
+    ToggleBroadcast,
+    CheckUpgrade,
     Quit,
 }
 
@@ -42,29 +47,78 @@ fn make_icon() -> tray_icon::Icon {
 // ─────────────────────────────────────────────────────────────────────────────
 /// Build and register the system tray icon, wiring click events to `tx`.
 ///
+/// `broadcast_on` controls the label shown for the broadcast toggle item.
 /// Returns the `TrayIcon` handle — the caller **must** keep it alive.
-pub fn init_tray(tx: std::sync::mpsc::SyncSender<TrayAction>) -> TrayIcon {
+pub fn init_tray(
+    tx: std::sync::mpsc::SyncSender<TrayAction>,
+    broadcast_on: bool,
+) -> TrayIcon {
     let menu = Menu::new();
 
+    // ── Group 1: window visibility ────────────────────────────────────────────
     let show_item     = MenuItem::new("Show",             true, None);
     let minimize_item = MenuItem::new("Minimize to Tray", true, None);
-    let restart_item  = MenuItem::new("Restart Services", true, None);
-    let quit_item     = MenuItem::new("Quit",             true, None);
 
-    menu.append_items(&[&show_item, &minimize_item, &restart_item, &quit_item])
-        .expect("tray menu append");
+    // ── Group 2: navigation ───────────────────────────────────────────────────
+    let plans_item    = MenuItem::new("Open Plans",    true, None);
+    let sprints_item  = MenuItem::new("Open Sprints",  true, None);
+    let settings_item = MenuItem::new("Open Settings", true, None);
+
+    // ── Group 3: broadcast toggle + upgrade ───────────────────────────────────
+    let broadcast_label = if broadcast_on {
+        "Broadcast: ON"
+    } else {
+        "Broadcast: OFF"
+    };
+    let broadcast_item = MenuItem::new(broadcast_label, true, None);
+    let upgrade_item   = MenuItem::new("Check for Updates", true, None);
+
+    // ── Group 4: restart / quit ───────────────────────────────────────────────
+    let restart_item = MenuItem::new("Restart Services", true, None);
+    let quit_item    = MenuItem::new("Quit",             true, None);
+
+    menu.append_items(&[
+        &show_item,
+        &minimize_item,
+        &PredefinedMenuItem::separator(),
+        &plans_item,
+        &sprints_item,
+        &settings_item,
+        &PredefinedMenuItem::separator(),
+        &broadcast_item,
+        &upgrade_item,
+        &PredefinedMenuItem::separator(),
+        &restart_item,
+        &quit_item,
+    ])
+    .expect("tray menu append");
 
     // Clone MenuIds before they are consumed by the move closure.
-    let show_id     = show_item.id().clone();
-    let minimize_id = minimize_item.id().clone();
-    let restart_id  = restart_item.id().clone();
-    let quit_id     = quit_item.id().clone();
+    let show_id      = show_item.id().clone();
+    let minimize_id  = minimize_item.id().clone();
+    let plans_id     = plans_item.id().clone();
+    let sprints_id   = sprints_item.id().clone();
+    let settings_id  = settings_item.id().clone();
+    let broadcast_id = broadcast_item.id().clone();
+    let upgrade_id   = upgrade_item.id().clone();
+    let restart_id   = restart_item.id().clone();
+    let quit_id      = quit_item.id().clone();
 
     MenuEvent::set_event_handler(Some(move |event: MenuEvent| {
         let action = if event.id == show_id {
             TrayAction::Show
         } else if event.id == minimize_id {
             TrayAction::Minimize
+        } else if event.id == plans_id {
+            TrayAction::OpenPlans
+        } else if event.id == sprints_id {
+            TrayAction::OpenSprints
+        } else if event.id == settings_id {
+            TrayAction::OpenSettings
+        } else if event.id == broadcast_id {
+            TrayAction::ToggleBroadcast
+        } else if event.id == upgrade_id {
+            TrayAction::CheckUpgrade
         } else if event.id == restart_id {
             TrayAction::RestartServices
         } else if event.id == quit_id {

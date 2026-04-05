@@ -4,8 +4,8 @@ import QtQuick.Controls.Material 2.15
 import QtQuick.Layouts 1.15
 
 /// Event broadcast status panel — shows relay count, subscriber count, and
-/// an animated on/off toggle indicator.  Read-only; the toggle just reflects
-/// the bridge-side state (enabled/disabled).
+/// an animated on/off toggle indicator.  Clicking the toggle emits
+/// `toggleRequested()` which the parent (main.qml) routes to the bridge.
 Rectangle {
     id: evtPanel
     Material.theme: Material.Dark
@@ -13,6 +13,9 @@ Rectangle {
     property bool   enabled:         false
     property int    subscriberCount: 0
     property int    totalEmitted:    0
+
+    /// Emitted when the user clicks the animated toggle pill.
+    signal toggleRequested()
 
     color:        "#161b22"
     radius:       10
@@ -45,7 +48,7 @@ Rectangle {
             }
         }
 
-        // Animated toggle indicator (read-only)
+        // Animated toggle — click to request a broadcast state change
         Rectangle {
             Layout.preferredWidth: 40; Layout.preferredHeight: 22; radius: 11
             color: evtPanel.enabled ? "#3fb950" : "#30363d"
@@ -56,6 +59,12 @@ Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
                 x: evtPanel.enabled ? parent.width - width - 2 : 2
                 Behavior on x { NumberAnimation { duration: 150 } }
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: evtPanel.toggleRequested()
             }
         }
     }

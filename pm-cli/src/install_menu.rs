@@ -16,19 +16,21 @@ use std::io::{self, Write};
 use std::time::{Duration, Instant};
 
 const MENU_Y: u16 = 9;
-const STATUS_Y: u16 = 18;
 
 const COMPONENT_NAMES: &[&str] = &[
     "All",
     "Supervisor",
     "SupervisorIced",
+    "InteractiveTerminalIced",
     "GuiForms",
     "InteractiveTerminal",
     "Server",
     "FallbackServer",
     "Dashboard",
+    "DashboardSolid",
     "Extension",
     "Cartographer",
+    "ClientProxy",
     "Mobile",
     "Container",
     "GlobalClaude",
@@ -39,6 +41,7 @@ pub fn show_install_submenu(
     anim_style: AnimStyle,
 ) -> io::Result<()> {
     let mut selected: usize = 0;
+    let mut scroll: usize = 0;
     let mut install_cfg = install_config::load_or_default();
     let mut banner = BannerRenderer::new(anim_style);
     let mut last_frame = Instant::now();
@@ -54,37 +57,60 @@ pub fn show_install_submenu(
             banner.render_with_palette(f, elapsed, &PALETTE_DEFAULT);
             let area = f.area();
 
-            if area.height > MENU_Y {
-                let items: Vec<Line> = COMPONENT_NAMES
+            // Reserve 3 rows at bottom: header label + install dir + hint
+            let status_y = area.height.saturating_sub(3);
+
+            if area.height > MENU_Y + 1 {
+                let list_start = MENU_Y + 1;
+                let list_h = status_y.saturating_sub(list_start).max(1) as usize;
+
+                // Header: "Build & Install:" with scroll position when needed
+                let header = if COMPONENT_NAMES.len() > list_h {
+                    format!(
+                        "  Build & Install:  ({}/{})",
+                        selected + 1,
+                        COMPONENT_NAMES.len()
+                    )
+                } else {
+                    "  Build & Install:".to_string()
+                };
+                f.render_widget(
+                    Paragraph::new(Line::from(Span::styled(
+                        header,
+                        Style::default().fg(Color::DarkGray),
+                    ))),
+                    Rect::new(0, MENU_Y, area.width, 1),
+                );
+
+                let visible: Vec<Line> = COMPONENT_NAMES
                     .iter()
                     .enumerate()
+                    .skip(scroll)
+                    .take(list_h)
                     .map(|(i, &name)| {
                         if i == selected {
                             Line::from(Span::styled(
-                                format!("> Build & Install: {}", name),
+                                format!("  ❯ {}", name),
                                 Style::default()
                                     .fg(Color::Cyan)
                                     .add_modifier(Modifier::BOLD),
                             ))
                         } else {
-                            Line::from(format!("  Build & Install: {}", name))
+                            Line::from(format!("    {}", name))
                         }
                     })
                     .collect();
+
                 f.render_widget(
-                    Paragraph::new(items),
-                    Rect::new(
-                        2,
-                        MENU_Y,
-                        area.width.saturating_sub(4),
-                        COMPONENT_NAMES.len() as u16,
-                    ),
+                    Paragraph::new(visible),
+                    Rect::new(2, list_start, area.width.saturating_sub(4), list_h as u16),
                 );
             }
 
-            if area.height > STATUS_Y + 1 {
+            if area.height > 3 {
                 f.render_widget(
                     Paragraph::new(vec![
+                        Line::from(""),
                         Line::from(Span::styled(
                             format!("  Install dir: {}", dir_str),
                             Style::default().fg(Color::Cyan),
@@ -94,7 +120,7 @@ pub fn show_install_submenu(
                             Style::default().fg(Color::DarkGray),
                         )),
                     ]),
-                    Rect::new(0, STATUS_Y, area.width, 2),
+                    Rect::new(0, status_y, area.width, 3),
                 );
             }
         })?;
@@ -113,12 +139,28 @@ pub fn show_install_submenu(
                     KeyCode::Up | KeyCode::Char('k') => {
                         if selected > 0 {
                             selected -= 1;
+                            if selected < scroll {
+                                scroll = selected;
+                            }
                         } else {
                             selected = COMPONENT_NAMES.len() - 1;
+                            scroll = selected.saturating_sub(10);
                         }
                     }
                     KeyCode::Down | KeyCode::Char('j') => {
                         selected = (selected + 1) % COMPONENT_NAMES.len();
+                        // Recalculate list_h for scroll adjust (use last known terminal size)
+                        if let Ok(size) = terminal.size() {
+                            let status_y = size.height.saturating_sub(3);
+                            let list_start = MENU_Y + 1;
+                            let list_h = status_y.saturating_sub(list_start).max(1) as usize;
+                            if selected >= scroll + list_h {
+                                scroll = selected + 1 - list_h;
+                            }
+                            if selected == 0 {
+                                scroll = 0;
+                            }
+                        }
                     }
                     KeyCode::Esc | KeyCode::Char('q') => return Ok(()),
                     KeyCode::Char('d') | KeyCode::Char('D') => {

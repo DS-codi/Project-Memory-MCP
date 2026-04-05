@@ -115,6 +115,16 @@ enabled      = true
 port         = 3459
 requires_mcp = true
 
+# Which dashboard variant to run.
+#   "classic" (default) — Node.js Express server in dashboard/server/
+#                         Set command/args/working_dir below accordingly.
+#   "solid"             — Static SolidJS SPA built from dashboard-solid/.
+#                         The supervisor will serve dashboard-solid/dist/ using
+#                         `npx serve -s . -l {port}` (no working_dir override needed).
+#                         Ensure dashboard-solid/ has been built first:
+#                         pm-cli install dashboard-solid
+variant = "classic"
+
 # Dashboard backend server process (dashboard/server/ — runs Express + WebSocket).
 # This is separate from the frontend statics (dashboard/dist/) which are served
 # by the VS Code extension's webview panel.
@@ -138,26 +148,42 @@ working_dir = "C:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\server"
 # FALLBACK_API_HOST = "127.0.0.1"
 # FALLBACK_API_PORT = "3465"
 
-# ── CLI MCP server (standalone HTTP MCP for CLI agents) ──────────────────────
+# ── CLI MCP server (consolidated into claude_mcp — see below) ────────────────
+#
+# [cli_mcp] is no longer a separate process. The claude_mcp server handles both
+# port 3467 (Claude Code / client-proxy) and port 3466 (CLI agents) via the
+# --cli-port argument. Set cli_mcp.enabled = false (the default).
 
 [cli_mcp]
-# Set enabled = true to start the CLI MCP server on port 3466.
-# This is a standalone HTTP MCP server tailored for CLI agents running in
-# Interactive Terminal sessions. It shares the same SQLite database as the
-# main MCP server but omits VS Code-specific tools (memory_agent, memory_session,
-# memory_brainstorm, memory_terminal, memory_cartographer).
-enabled = true
+enabled = false
 port    = 3466
 
-# Path to the server working directory containing dist/index-cli.js
 command     = "node"
-args        = ["dist/index-cli.js"]
+args        = ["dist/index-claude.js", "--transport", "streamable-http", "--port", "3466"]
 # working_dir = "C:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\server"
 
-# Optional environment variables injected into CLI MCP process.
 # [cli_mcp.env]
-# PM_CLI_MCP_HOST = "127.0.0.1"
+# PM_PROXY_PATH   = "C:\\Users\\User\\AppData\\Roaming\\ProjectMemory\\bin\\client-proxy.exe"
 # PM_CLI_MCP_PORT = "3466"
+
+# ── Claude Code MCP server (client-proxy target for Claude Code sessions) ─────
+
+[claude_mcp]
+# Unified MCP server for both Claude Code (port 3467, via client-proxy) and
+# CLI agents (port 3466, via --cli-port).  The --cli-port flag starts a second
+# HTTP listener on the same process, sharing the same McpServer instance and
+# SQLite database.  All workspace .mcp.json files reference port 3467 through
+# client-proxy as the single "pmmcp" entry.
+enabled = true
+port    = 3467
+
+command     = "node"
+args        = ["dist/index-claude.js", "--transport", "streamable-http", "--cli-port", "3466"]
+# working_dir = "C:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\server"
+
+# [claude_mcp.env]
+# PM_PROXY_PATH      = "C:\\Users\\User\\AppData\\Roaming\\ProjectMemory\\bin\\client-proxy.exe"
+# PM_CLAUDE_MCP_PORT = "3467"
 
 # ── Runtime output capture (subprocess stdout/stderr telemetry) ─────────────
 

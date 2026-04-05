@@ -12,8 +12,8 @@ Dialog {
     id: pairingDialog
     title: "Pair Mobile Device"
     modal: true
-    width: 360
-    height: 460
+    width: 480
+    height: 520
 
     anchors.centerIn: Overlay.overlay
 
@@ -24,7 +24,7 @@ Dialog {
         color: "#1c2128"
         border.color: "#30363d"
         border.width: 1
-        radius: 6
+        radius: 8
     }
 
     // Bridge instance — provides pairingQrSvg and apiKeyText properties.
@@ -32,48 +32,106 @@ Dialog {
         id: qrPairingBridge
     }
 
+    function refreshQr() {
+        let apps = [];
+        if (checkTerminal.checked) apps.push("terminal");
+        if (checkFiles.checked) apps.push("files");
+        if (checkDash.checked) apps.push("dashboard");
+        if (checkSup.checked) apps.push("supervisor");
+        qrPairingBridge.refreshPairingQr(apps.join(","), monitorCombo.currentIndex);
+    }
+
     // Regenerate QR when dialog becomes visible so it is always fresh.
-    onOpened: qrPairingBridge.refreshPairingQr()
+    onOpened: refreshQr()
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 16
-        spacing: 12
+        anchors.margins: 20
+        spacing: 16
 
-        Label {
+        RowLayout {
             Layout.fillWidth: true
-            text: "Scan this QR code with the Project Memory mobile app"
-            wrapMode: Text.WordWrap
-            color: "#c9d1d9"
-            font.pixelSize: 13
-        }
+            spacing: 20
 
-        // QR code rendered from SVG data URI.
-        // Qt 5.15+ and Qt 6.x support inline SVG via "data:image/svg+xml,<svg...>"
-        Image {
-            id: qrImage
-            Layout.alignment: Qt.AlignHCenter
-            Layout.preferredWidth: 220
-            Layout.preferredHeight: 220
-            fillMode: Image.PreserveAspectFit
-            sourceSize.width: 220
-            sourceSize.height: 220
-            source: qrPairingBridge.pairingQrSvg.length > 0
-                ? "data:image/svg+xml," + encodeURIComponent(qrPairingBridge.pairingQrSvg)
-                : ""
-            smooth: false   // keep QR crisp — no bilinear filtering
+            // QR code rendered from SVG data URI.
+            Image {
+                id: qrImage
+                Layout.preferredWidth: 200
+                Layout.preferredHeight: 200
+                fillMode: Image.PreserveAspectFit
+                source: qrPairingBridge.pairingQrSvg.length > 0
+                    ? "data:image/svg+xml," + encodeURIComponent(qrPairingBridge.pairingQrSvg)
+                    : ""
+                smooth: false
 
-            // Fallback placeholder when SVG is not yet available.
-            Rectangle {
-                anchors.fill: parent
-                visible: parent.status !== Image.Ready
-                color: "#0d1117"
-                border.color: "#30363d"
+                Rectangle {
+                    anchors.fill: parent
+                    visible: parent.status !== Image.Ready
+                    color: "#0d1117"
+                    border.color: "#30363d"
+                    Label {
+                        anchors.centerIn: parent
+                        text: "Generating QR…"
+                        color: "#8b949e"
+                        font.pixelSize: 11
+                    }
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
                 Label {
-                    anchors.centerIn: parent
-                    text: "Generating QR…"
-                    color: "#8b949e"
-                    font.pixelSize: 11
+                    text: "Allowed Apps"
+                    color: "#c9d1d9"
+                    font.pixelSize: 12
+                    font.bold: true
+                }
+
+                CheckBox {
+                    id: checkTerminal
+                    text: "Terminal"
+                    checked: true
+                    Material.accent: Material.Blue
+                    onCheckedChanged: pairingDialog.refreshQr()
+                }
+                CheckBox {
+                    id: checkFiles
+                    text: "Files"
+                    checked: true
+                    Material.accent: Material.Blue
+                    onCheckedChanged: pairingDialog.refreshQr()
+                }
+                CheckBox {
+                    id: checkDash
+                    text: "Dashboard"
+                    checked: true
+                    Material.accent: Material.Blue
+                    onCheckedChanged: pairingDialog.refreshQr()
+                }
+                CheckBox {
+                    id: checkSup
+                    text: "Supervisor"
+                    checked: true
+                    Material.accent: Material.Blue
+                    onCheckedChanged: pairingDialog.refreshQr()
+                }
+
+                Label {
+                    text: "Remote Monitor"
+                    color: "#c9d1d9"
+                    font.pixelSize: 12
+                    font.bold: true
+                    Layout.topMargin: 8
+                }
+
+                ComboBox {
+                    id: monitorCombo
+                    Layout.fillWidth: true
+                    model: JSON.parse(supervisorGuiBridge.availableMonitors || "[]")
+                    currentIndex: 0
+                    onCurrentIndexChanged: pairingDialog.refreshQr()
                 }
             }
         }
@@ -81,11 +139,19 @@ Dialog {
         Label {
             id: keyLabel
             Layout.fillWidth: true
-            text: "API Key: " + qrPairingBridge.apiKeyText
+            text: "Key: " + qrPairingBridge.apiKeyText
             color: "#8b949e"
-            font.family: "Courier New"
-            font.pixelSize: 10
+            font.family: "Consolas"
+            font.pixelSize: 9
             wrapMode: Text.WrapAnywhere
+        }
+
+        Label {
+            text: "6-digit PIN: " + qrPairingBridge.pairingPin
+            color: "#58a6ff"
+            font.pixelSize: 14
+            font.bold: true
+            Layout.alignment: Qt.AlignHCenter
         }
 
         RowLayout {
@@ -93,10 +159,8 @@ Dialog {
             spacing: 8
 
             Button {
-                text: "Refresh Key"
-                ToolTip.visible: hovered
-                ToolTip.text: "Regenerate QR code"
-                onClicked: qrPairingBridge.refreshPairingQr()
+                text: "Refresh"
+                onClicked: refreshQr()
             }
 
             Item { Layout.fillWidth: true }

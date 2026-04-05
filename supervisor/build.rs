@@ -44,6 +44,8 @@ fn main() {
             "qml/PlansPanel.qml",
             "qml/SprintsPanel.qml",
             "qml/PairingDialog.qml",
+            "qml/MySessionsPanel.qml",
+            "qml/AboutPanel.qml",
         ]),
     )
     .qrc_resources([

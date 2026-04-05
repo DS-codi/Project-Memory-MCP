@@ -38,11 +38,11 @@ function resolveDataRoot(): string {
 }
 
 /**
- * Return (or open) the read-only SQLite connection to `project-memory.db`.
+ * Return (or open) the SQLite connection to `project-memory.db`.
  *
- * The dashboard is a read-only consumer — all writes happen through the MCP
- * server. Using `{ readonly: true }` prevents accidental mutations and allows
- * concurrent access alongside the MCP server's WAL-mode writer.
+ * Opened read-write so dashboard mutation endpoints (delete, archive, workflow
+ * mode, etc.) can update the DB. WAL mode and a busy timeout allow safe
+ * concurrent access alongside the MCP server's writer.
  */
 export function getDb(): Database.Database {
   if (_db) return _db;
@@ -50,12 +50,13 @@ export function getDb(): Database.Database {
   const dataRoot = resolveDataRoot();
   const dbPath   = path.join(dataRoot, 'project-memory.db');
 
-  _db = new Database(dbPath, { readonly: true });
+  _db = new Database(dbPath);
 
-  // FK enforcement is informational on read-only connections but costs nothing
+  _db.pragma('journal_mode = WAL');
+  _db.pragma('busy_timeout = 5000');
   _db.pragma('foreign_keys = ON');
 
-  console.log(`[db] Connected (read-only): ${dbPath}`);
+  console.log(`[db] Connected (read-write, WAL): ${dbPath}`);
   return _db;
 }
 

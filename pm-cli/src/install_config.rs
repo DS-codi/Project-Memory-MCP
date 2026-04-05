@@ -187,6 +187,13 @@ pub fn copy_binaries(config: &InstallConfig, component: &str) -> std::io::Result
                 &config.install_dir,
             )?;
         }
+        "InteractiveTerminalIced" => {
+            copy_single_binary(
+                Path::new("target/release"),
+                &binary_name("interactive-terminal-iced"),
+                &config.install_dir,
+            )?;
+        }
         "All" => {
             for sub in &[
                 "Supervisor",
@@ -195,6 +202,7 @@ pub fn copy_binaries(config: &InstallConfig, component: &str) -> std::io::Result
                 "Cartographer",
                 "ClientProxy",
                 "InteractiveTerminal",
+                "InteractiveTerminalIced",
             ] {
                 copy_binaries(config, sub)?;
             }
@@ -203,7 +211,7 @@ pub fn copy_binaries(config: &InstallConfig, component: &str) -> std::io::Result
         // copy functions (copy_node_artifacts, copy_extension_artifact,
         // copy_mobile_artifacts) or install to a different target (GlobalClaude).
         // Container builds a registry image with no file artifact to copy.
-        "Server" | "FallbackServer" | "Dashboard" | "Extension"
+        "Server" | "FallbackServer" | "Dashboard" | "DashboardSolid" | "Extension"
         | "Mobile" | "Container" | "GlobalClaude" => {}
 
         other => {
@@ -353,7 +361,7 @@ fn copy_dir_all(src: &Path, dst: &Path) -> std::io::Result<()> {
 
 /// Returns `true` when `component` requires Qt runtime libraries.
 pub fn is_qt_component(component: &str) -> bool {
-    matches!(component, "Supervisor" | "GuiForms" | "InteractiveTerminal")
+    matches!(component, "Supervisor" | "GuiForms" | "InteractiveTerminal" | "All")
 }
 
 /// Copies Qt DLL files and supporting plugin directories from the component's
@@ -361,6 +369,14 @@ pub fn is_qt_component(component: &str) -> bool {
 ///
 /// Skips any file or directory that does not exist (non-fatal).
 pub fn copy_qt_dependencies(config: &InstallConfig, component: &str) -> std::io::Result<()> {
+    // For "All", copy Qt deps for each individual Qt component.
+    if component == "All" {
+        for sub in &["Supervisor", "GuiForms", "InteractiveTerminal"] {
+            copy_qt_dependencies(config, sub)?;
+        }
+        return Ok(());
+    }
+
     let src_dir: PathBuf = if component == "InteractiveTerminal" {
         PathBuf::from("interactive-terminal/target/release")
     } else {
@@ -564,6 +580,17 @@ pub fn deploy(
 
     if matches!(component, "Mobile" | "All") {
         copy_mobile_artifacts(&config)?;
+    }
+
+    // After deploying ClientProxy, automatically update ~/.claude/settings.json
+    // so all MCP server entries point at the freshly deployed client-proxy.exe.
+    if matches!(component, "ClientProxy" | "All") {
+        println!("-- Updating ~/.claude/settings.json with client-proxy MCP entries");
+        match crate::global_claude::register_mcp_servers() {
+            Ok(true)  => println!("   [ok] settings.json updated"),
+            Ok(false) => println!("   [--] settings.json already up to date"),
+            Err(e)    => println!("   [!] Failed to update settings.json: {e}"),
+        }
     }
 
     println!(

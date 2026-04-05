@@ -400,6 +400,22 @@ impl Default for InteractiveTerminalSection {
     }
 }
 
+/// Which dashboard build to serve.
+#[derive(Debug, Clone, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DashboardVariant {
+    /// Node.js server in dashboard/server/ (default).
+    Classic,
+    /// Static SolidJS SPA in dashboard-solid/dist/.
+    Solid,
+}
+
+impl Default for DashboardVariant {
+    fn default() -> Self {
+        DashboardVariant::Classic
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct DashboardSection {
@@ -418,6 +434,9 @@ pub struct DashboardSection {
     /// When `true`, the dashboard enters degraded state if MCP becomes unavailable,
     /// but the process is NOT killed (default: `true`).
     pub requires_mcp: bool,
+    /// Which dashboard variant to run. Defaults to `classic`.
+    #[serde(default)]
+    pub variant: DashboardVariant,
     /// Restart policy for the dashboard service.
     #[serde(default)]
     pub restart_policy: RestartPolicy,
@@ -434,6 +453,7 @@ impl Default for DashboardSection {
             working_dir: None,
             env: HashMap::new(),
             requires_mcp: true,
+            variant: DashboardVariant::default(),
             restart_policy: RestartPolicy::default(),
         }
     }
@@ -472,6 +492,11 @@ impl Default for FallbackApiSection {
 }
 
 /// Configuration for the CLI MCP server (port 3466 — HTTP-only, for CLI agents).
+///
+/// Deprecated: CLI agents are now served by the claude_mcp server via its
+/// --cli-port argument.  This section is kept for backwards compatibility but
+/// defaults to disabled.  Set enabled = true only if you need a completely
+/// independent process on port 3466 (e.g. for isolation testing).
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct CliMcpSection {
@@ -479,7 +504,7 @@ pub struct CliMcpSection {
     pub port: u16,
     /// Executable to invoke (default: "node").
     pub command: String,
-    /// Arguments passed to the command (default: ["dist/index-cli.js"]).
+    /// Arguments passed to the command (default: ["dist/index-claude.js", "--transport", "streamable-http", "--port", "3466"]).
     pub args: Vec<String>,
     /// Working directory for the CLI MCP process.
     pub working_dir: Option<PathBuf>,
@@ -493,10 +518,16 @@ pub struct CliMcpSection {
 impl Default for CliMcpSection {
     fn default() -> Self {
         Self {
-            enabled: true,
+            enabled: false,
             port: 3466,
             command: "node".to_string(),
-            args: vec!["dist/index-cli.js".to_string()],
+            args: vec![
+                "dist/index-claude.js".to_string(),
+                "--transport".to_string(),
+                "streamable-http".to_string(),
+                "--port".to_string(),
+                "3466".to_string(),
+            ],
             working_dir: None,
             env: HashMap::new(),
             restart_policy: RestartPolicy::default(),
@@ -1187,7 +1218,7 @@ pub fn apply_workspace_relative_defaults(cfg: &mut SupervisorConfig, workspace_r
         server_dir.clone(),
         "dist/fallback-rest-main.js",
     );
-    assign_working_dir_if_present(&mut cfg.cli_mcp.working_dir, server_dir, "dist/index-cli.js");
+    assign_working_dir_if_present(&mut cfg.cli_mcp.working_dir, server_dir, "dist/index-claude.js");
 
     let dashboard_dir = workspace_root.join("dashboard").join("server");
     assign_working_dir_if_present(&mut cfg.dashboard.working_dir, dashboard_dir, "dist/index.js");
@@ -1242,8 +1273,8 @@ mod tests {
             "",
         )
         .expect("write fallback-rest-main.js");
-        std::fs::write(root.join("server").join("dist").join("index-cli.js"), "")
-            .expect("write index-cli.js");
+        std::fs::write(root.join("server").join("dist").join("index-claude.js"), "")
+            .expect("write index-claude.js");
         std::fs::write(
             root.join("dashboard").join("server").join("dist").join("index.js"),
             "",
@@ -1718,6 +1749,12 @@ command = "/usr/bin/node"
             cfg.command, "node",
             "command should default to 'node'"
         );
+    }
+
+    #[test]
+    fn dashboard_variant_default_is_classic() {
+        let cfg = DashboardSection::default();
+        assert_eq!(cfg.variant, DashboardVariant::Classic);
     }
 
     #[test]

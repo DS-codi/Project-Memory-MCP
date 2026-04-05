@@ -33,33 +33,53 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde_json::json;
+use crate::gui_server::GuiServerState;
 
-/// Axum middleware that enforces `X-PM-API-Key` header authentication.
-///
-/// The expected key is carried in `State<Arc<Option<String>>>`.
-/// - If the state holds `None` the middleware is a no-op (no key configured).
-/// - Otherwise the request header must exactly match the expected value.
+/// Axum middleware that enforces `X-PM-API-Key` or `X-PM-Session-Token` header authentication.
 pub async fn require_api_key(
-    State(expected_key): State<Arc<Option<String>>>,
+    State(state): State<GuiServerState>,
     request: Request<Body>,
     next: Next,
 ) -> Response {
-    if let Some(expected) = expected_key.as_ref() {
+    // 1. Check for API key (original method)
+    if let Some(expected) = &state.api_key {
         let provided = request
             .headers()
             .get("X-PM-API-Key")
             .and_then(|v| v.to_str().ok());
 
-        if provided != Some(expected.as_str()) {
-            return (
-                StatusCode::UNAUTHORIZED,
-                Json(json!({ "error": "unauthorized" })),
-            )
-                .into_response();
+        if provided == Some(expected.as_str()) {
+            return next.run(request).await;
         }
     }
 
-    next.run(request).await
+    // 2. Check for Session Token (new method)
+    let provided_token = request
+        .headers()
+        .get("X-PM-Session-Token")
+        .and_then(|v| v.to_str().ok());
+
+    if let Some(token) = provided_token {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let mut tokens = state.valid_tokens.write().unwrap();
+        if let Some(&expiry) = tokens.get(token) {
+            if expiry > now {
+                drop(tokens); // Release write lock
+                return next.run(request).await;
+            } else {
+                tokens.remove(token); // Cleanup expired token
+            }
+        }
+    }
+
+    (
+        StatusCode::UNAUTHORIZED,
+        Json(json!({ "error": "unauthorized" })),
+    ).into_response()
 }
 
 // ---------------------------------------------------------------------------

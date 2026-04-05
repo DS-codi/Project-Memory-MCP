@@ -9,7 +9,6 @@ use iced::{
 #[derive(Debug, Clone, PartialEq)]
 pub enum ServiceIconKind {
     McpServer,
-    CliMcpServer,
     Terminal,
     Dashboard,
     FallbackApi,
@@ -34,11 +33,10 @@ impl<Message> canvas::Program<Message> for ServiceIconCanvas {
     ) -> Vec<canvas::Geometry> {
         let mut frame = Frame::new(renderer, bounds.size());
         match self.kind {
-            ServiceIconKind::McpServer    => draw_mcp(&mut frame, self.color),
-            ServiceIconKind::CliMcpServer => draw_cli_mcp(&mut frame, self.color),
-            ServiceIconKind::Terminal     => draw_terminal(&mut frame, self.color),
-            ServiceIconKind::Dashboard    => draw_dashboard(&mut frame, self.color),
-            ServiceIconKind::FallbackApi  => draw_fallback(&mut frame, self.color),
+            ServiceIconKind::McpServer   => draw_mcp(&mut frame, self.color),
+            ServiceIconKind::Terminal    => draw_terminal(&mut frame, self.color),
+            ServiceIconKind::Dashboard   => draw_dashboard(&mut frame, self.color),
+            ServiceIconKind::FallbackApi => draw_fallback(&mut frame, self.color),
         }
         vec![frame.into_geometry()]
     }
@@ -75,54 +73,6 @@ fn draw_mcp(frame: &mut Frame, color: Color) {
         b.close();
     });
     frame.fill(&bolt, color);
-}
-
-// ── CLI MCP Server ────────────────────────────────────────────────────────────
-// Scale: 32/512.  Chevron >, underscore cursor, small bolt.
-fn draw_cli_mcp(frame: &mut Frame, color: Color) {
-    let s = 32.0_f32 / 512.0;
-    let w = 36.0 * s;
-
-    // Chevron >
-    let chevron = Path::new(|b| {
-        b.move_to(Point::new(80.0 * s, 140.0 * s));
-        b.line_to(Point::new(220.0 * s, 256.0 * s));
-        b.line_to(Point::new(80.0 * s, 372.0 * s));
-    });
-    frame.stroke(
-        &chevron,
-        Stroke::default()
-            .with_color(color)
-            .with_width(w)
-            .with_line_cap(LineCap::Round)
-            .with_line_join(LineJoin::Round),
-    );
-
-    // Underscore _
-    let underscore = Path::new(|b| {
-        b.move_to(Point::new(240.0 * s, 372.0 * s));
-        b.line_to(Point::new(420.0 * s, 372.0 * s));
-    });
-    frame.stroke(
-        &underscore,
-        Stroke::default()
-            .with_color(color)
-            .with_width(w)
-            .with_line_cap(LineCap::Round),
-    );
-
-    // Small bolt (alpha 0.85)
-    let dim = Color { a: color.a * 0.85, ..color };
-    let bolt = Path::new(|b| {
-        b.move_to(Point::new(370.0 * s, 60.0 * s));
-        b.line_to(Point::new(300.0 * s, 185.0 * s));
-        b.line_to(Point::new(345.0 * s, 185.0 * s));
-        b.line_to(Point::new(285.0 * s, 320.0 * s));
-        b.line_to(Point::new(440.0 * s, 175.0 * s));
-        b.line_to(Point::new(385.0 * s, 175.0 * s));
-        b.close();
-    });
-    frame.fill(&bolt, dim);
 }
 
 // ── Interactive Terminal ──────────────────────────────────────────────────────

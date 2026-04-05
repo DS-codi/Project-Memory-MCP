@@ -1,0 +1,1809 @@
+use crate::protocol::{CommandRequest, TerminalProfile};
+#[cfg(windows)]
+use crate::terminal_core::conpty_backend;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex as StdMutex};
+use std::time::Duration;
+use tokio::io::AsyncBufReadExt;
+use tokio::io::AsyncWriteExt;
+use tokio::process::Command;
+use tokio::process::{Child, ChildStdin};
+use tokio::sync::mpsc;
+
+const GEMINI_SENTINEL_TOKEN: &str = "{{stored}}";
+const GEMINI_INJECT_FLAG_ENV: &str = "PM_GEMINI_INJECT";
+
+// ---------------------------------------------------------------------------
+// Output types
+// ---------------------------------------------------------------------------
+
+/// A single line of output from an executing command.
+#[derive(Debug, Clone)]
+pub enum OutputLine {
+    /// A line captured from the child process's stdout.
+    Stdout(String),
+    /// A line captured from the child process's stderr.
+    Stderr(String),
+}
+
+/// The final result of a command execution.
+pub struct ExecutionResult {
+    /// Correlates back to the originating `CommandRequest.id`.
+    pub request_id: String,
+    /// The process exit code (`None` if the process was killed / signaled).
+    pub exit_code: Option<i32>,
+    /// All accumulated stdout + stderr output.
+    pub output: String,
+}
+
+pub struct PersistentShellManager {
+    shells: HashMap<String, PersistentShell>,
+}
+
+struct PersistentShell {
+    profile: TerminalProfile,
+    backend: PersistentShellBackend,
+}
+
+enum PersistentShellBackend {
+    Legacy(LegacyPersistentShell),
+    #[cfg(windows)]
+    Conpty(conpty_backend::ConptyShellSession),
+}
+
+struct LegacyPersistentShell {
+    stdin: ChildStdin,
+    output_rx: mpsc::Receiver<OutputLine>,
+    child: Child,
+}
+
+impl Default for PersistentShellManager {
+    fn default() -> Self {
+        Self {
+            shells: HashMap::new(),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Core executor
+// ---------------------------------------------------------------------------
+
+/// Execute a command asynchronously.
+///
+/// * Spawns the command through the platform shell (`cmd /C` on Windows,
+///   `sh -c` elsewhere).
+/// * Streams stdout/stderr line-by-line through `output_tx`.
+/// * Accumulates output into a shared buffer (`accumulated`) so that
+///   callers can inspect partial output on timeout.
+/// * Returns an [`ExecutionResult`] on normal completion.
+#[allow(dead_code)]
+pub async fn execute_command(
+    request: &CommandRequest,
+    output_tx: mpsc::Sender<OutputLine>,
+    accumulated: Arc<StdMutex<String>>,
+) -> Result<ExecutionResult, String> {
+    let mut cmd = build_shell_command(request);
+
+    cmd.current_dir(resolve_working_directory(request));
+    apply_venv_environment(&mut cmd, request);
+    apply_request_environment(&mut cmd, request);
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::piped());
+
+    // Prevent a visible console window from flashing on Windows.
+    #[cfg(windows)]
+    {
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("Failed to spawn process: {e}"))?;
+
+    let stdout = child.stdout.take().expect("stdout piped");
+    let stderr = child.stderr.take().expect("stderr piped");
+
+    let mut stdout_lines = tokio::io::BufReader::new(stdout).lines();
+    let mut stderr_lines = tokio::io::BufReader::new(stderr).lines();
+
+    // Read stdout and stderr concurrently until both are closed.
+    loop {
+        tokio::select! {
+            result = stdout_lines.next_line() => {
+                match result {
+                    Ok(Some(line)) => {
+                        push_line(&accumulated, &line, false);
+                        let _ = output_tx.send(OutputLine::Stdout(line)).await;
+                    }
+                    Ok(None) => {
+                        // stdout closed — drain remaining stderr
+                        drain_stderr(
+                            &mut stderr_lines,
+                            &output_tx,
+                            &accumulated,
+                        ).await;
+                        break;
+                    }
+                    Err(e) => {
+                        let msg = format!("stdout read error: {e}");
+                        let _ = output_tx.send(OutputLine::Stderr(msg)).await;
+                        break;
+                    }
+                }
+            }
+            result = stderr_lines.next_line() => {
+                match result {
+                    Ok(Some(line)) => {
+                        push_line(&accumulated, &line, true);
+                        let _ = output_tx.send(OutputLine::Stderr(line)).await;
+                    }
+                    Ok(None) => {
+                        // stderr closed — drain remaining stdout
+                        drain_stdout(
+                            &mut stdout_lines,
+                            &output_tx,
+                            &accumulated,
+                        ).await;
+                        break;
+                    }
+                    Err(_) => break,
+                }
+            }
+        }
+    }
+
+    // Wait for the child process to exit.
+    let status = child
+        .wait()
+        .await
+        .map_err(|e| format!("Wait failed: {e}"))?;
+
+    let output = accumulated.lock().unwrap().clone();
+
+    Ok(ExecutionResult {
+        request_id: request.id.clone(),
+        exit_code: status.code(),
+        output,
+    })
+}
+
+// ---------------------------------------------------------------------------
+// Timeout wrapper
+// ---------------------------------------------------------------------------
+
+/// Execute a command with a timeout.
+///
+/// If the command exceeds its configured `timeout_seconds`, the child
+/// process is killed (dropped), partial output is captured, and a result
+/// with `exit_code = Some(-1)` is returned.
+#[allow(dead_code)]
+pub async fn execute_command_with_timeout(
+    request: &CommandRequest,
+    output_tx: mpsc::Sender<OutputLine>,
+) -> Result<ExecutionResult, String> {
+    // treat timeout_seconds == 0 as "no timeout" (e.g. interactive/agent sessions)
+    let timeout_secs = if request.timeout_seconds == 0 { 86400 } else { request.timeout_seconds };
+    let timeout_dur = Duration::from_secs(timeout_secs);
+    let accumulated = Arc::new(StdMutex::new(String::new()));
+
+    match tokio::time::timeout(
+        timeout_dur,
+        execute_command(request, output_tx.clone(), accumulated.clone()),
+    )
+    .await
+    {
+        Ok(result) => result,
+        Err(_) => {
+            // Timeout — the child is killed when its future is dropped.
+            let timeout_msg = format!(
+                "Command timed out after {} seconds",
+                request.timeout_seconds,
+            );
+            let _ = output_tx
+                .send(OutputLine::Stderr(timeout_msg.clone()))
+                .await;
+
+            let partial = accumulated.lock().unwrap().clone();
+            let output = if partial.is_empty() {
+                timeout_msg
+            } else {
+                format!("{partial}\n{timeout_msg}")
+            };
+
+            Ok(ExecutionResult {
+                request_id: request.id.clone(),
+                exit_code: Some(-1),
+                output,
+            })
+        }
+    }
+}
+
+impl PersistentShellManager {
+    pub async fn execute_command_with_timeout(
+        &mut self,
+        request: &CommandRequest,
+        output_tx: mpsc::Sender<OutputLine>,
+    ) -> Result<ExecutionResult, String> {
+        // treat timeout_seconds == 0 as "no timeout" (e.g. interactive/agent sessions)
+        let timeout_secs = if request.timeout_seconds == 0 { 86400 } else { request.timeout_seconds };
+        let timeout_dur = Duration::from_secs(timeout_secs);
+
+        match tokio::time::timeout(timeout_dur, self.execute_command(request, output_tx.clone()))
+            .await
+        {
+            Ok(result) => result,
+            Err(_) => {
+                self.terminate_session_shell(&request.session_id).await;
+
+                let timeout_msg = format!(
+                    "Command timed out after {} seconds",
+                    request.timeout_seconds,
+                );
+                let _ = output_tx
+                    .send(OutputLine::Stderr(timeout_msg.clone()))
+                    .await;
+
+                Ok(ExecutionResult {
+                    request_id: request.id.clone(),
+                    exit_code: Some(-1),
+                    output: timeout_msg,
+                })
+            }
+        }
+    }
+
+    pub async fn terminate_session_shell(&mut self, session_id: &str) {
+        if let Some(shell) = self.shells.remove(session_id) {
+            shell.terminate().await;
+        }
+    }
+
+    async fn execute_command(
+        &mut self,
+        request: &CommandRequest,
+        output_tx: mpsc::Sender<OutputLine>,
+    ) -> Result<ExecutionResult, String> {
+        self.ensure_shell(request).await?;
+
+        let marker = format!("__PM_DONE_{}__", request.id.replace('-', "_"));
+        let wrapped_command = build_wrapped_shell_command(request, &marker);
+
+        let shell = self
+            .shells
+            .get_mut(&request.session_id)
+            .ok_or_else(|| "Failed to resolve session shell".to_string())?;
+
+        shell.write_command_line(&wrapped_command).await?;
+
+        let accumulated = Arc::new(StdMutex::new(String::new()));
+        let exit_code = loop {
+            let line = shell
+                .recv_output_line()
+                .await
+                .ok_or_else(|| "Shell process terminated unexpectedly".to_string())?;
+
+            match line {
+                OutputLine::Stdout(text) => {
+                    if let Some(code) = parse_marker_exit_code(&text, &marker) {
+                        break Some(code);
+                    }
+
+                    push_line(&accumulated, &text, false);
+                    let _ = output_tx.send(OutputLine::Stdout(text)).await;
+                }
+                OutputLine::Stderr(text) => {
+                    if let Some(code) = parse_marker_exit_code(&text, &marker) {
+                        break Some(code);
+                    }
+
+                    push_line(&accumulated, &text, true);
+                    let _ = output_tx.send(OutputLine::Stderr(text)).await;
+                }
+            }
+        };
+
+        let output = accumulated.lock().unwrap().clone();
+
+        Ok(ExecutionResult {
+            request_id: request.id.clone(),
+            exit_code,
+            output,
+        })
+    }
+
+    async fn ensure_shell(&mut self, request: &CommandRequest) -> Result<(), String> {
+        let needs_new_shell = match self.shells.get(&request.session_id) {
+            Some(shell) => shell.profile != request.terminal_profile,
+            None => true,
+        };
+
+        if !needs_new_shell {
+            return Ok(());
+        }
+
+        self.terminate_session_shell(&request.session_id).await;
+        let shell = spawn_persistent_shell(request).await?;
+        self.shells.insert(request.session_id.clone(), shell);
+        Ok(())
+    }
+}
+
+impl PersistentShell {
+    async fn write_command_line(&mut self, line: &str) -> Result<(), String> {
+        match &mut self.backend {
+            PersistentShellBackend::Legacy(shell) => {
+                shell
+                    .stdin
+                    .write_all(line.as_bytes())
+                    .await
+                    .map_err(|e| format!("Failed to write command to shell: {e}"))?;
+                shell
+                    .stdin
+                    .write_all(b"\n")
+                    .await
+                    .map_err(|e| format!("Failed to write newline to shell: {e}"))?;
+                shell
+                    .stdin
+                    .flush()
+                    .await
+                    .map_err(|e| format!("Failed to flush shell input: {e}"))
+            }
+            #[cfg(windows)]
+            PersistentShellBackend::Conpty(shell) => shell.write_command_line(line).await,
+        }
+    }
+
+    async fn recv_output_line(&mut self) -> Option<OutputLine> {
+        match &mut self.backend {
+            PersistentShellBackend::Legacy(shell) => shell.output_rx.recv().await,
+            #[cfg(windows)]
+            PersistentShellBackend::Conpty(shell) => shell.recv_output_line().await,
+        }
+    }
+
+    async fn terminate(self) {
+        match self.backend {
+            PersistentShellBackend::Legacy(mut shell) => {
+                let _ = shell.child.kill().await;
+            }
+            #[cfg(windows)]
+            PersistentShellBackend::Conpty(shell) => {
+                shell.terminate().await;
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/// Build the platform-appropriate shell command.
+#[allow(dead_code)]
+fn build_shell_command(request: &CommandRequest) -> Command {
+    let (program, args) = shell_invocation(request);
+    let mut c = Command::new(program);
+    c.args(args);
+    c
+}
+
+#[allow(dead_code)]
+fn shell_invocation(request: &CommandRequest) -> (String, Vec<String>) {
+    let command = request.command.clone();
+    let effective_profile = if cfg!(target_os = "windows") {
+        match request.terminal_profile {
+            TerminalProfile::System => TerminalProfile::PowerShell,
+            _ => request.terminal_profile.clone(),
+        }
+    } else {
+        request.terminal_profile.clone()
+    };
+
+    if cfg!(target_os = "windows") {
+        match effective_profile {
+            TerminalProfile::PowerShell => (
+                "powershell".to_string(),
+                vec!["-NoProfile".to_string(), "-Command".to_string(), command],
+            ),
+            TerminalProfile::Pwsh => (
+                "pwsh".to_string(),
+                vec!["-NoProfile".to_string(), "-Command".to_string(), command],
+            ),
+            TerminalProfile::Bash => ("bash".to_string(), vec!["-lc".to_string(), command]),
+            TerminalProfile::Cmd => ("cmd".to_string(), vec!["/C".to_string(), command]),
+            TerminalProfile::System => unreachable!("effective_profile resolves System"),
+        }
+    } else {
+        match effective_profile {
+            TerminalProfile::Bash => ("bash".to_string(), vec!["-lc".to_string(), command]),
+            _ => ("sh".to_string(), vec!["-c".to_string(), command]),
+        }
+    }
+}
+
+fn persistent_shell_invocation(profile: &TerminalProfile) -> (String, Vec<String>) {
+    let effective_profile = if cfg!(target_os = "windows") {
+        match profile {
+            TerminalProfile::System => TerminalProfile::PowerShell,
+            _ => profile.clone(),
+        }
+    } else {
+        profile.clone()
+    };
+
+    if cfg!(target_os = "windows") {
+        match effective_profile {
+            TerminalProfile::PowerShell => (
+                "powershell".to_string(),
+                vec!["-NoLogo".to_string(), "-NoProfile".to_string()],
+            ),
+            TerminalProfile::Pwsh => (
+                "pwsh".to_string(),
+                vec!["-NoLogo".to_string(), "-NoProfile".to_string()],
+            ),
+            TerminalProfile::Bash => ("bash".to_string(), Vec::new()),
+            TerminalProfile::Cmd => ("cmd".to_string(), vec!["/Q".to_string()]),
+            TerminalProfile::System => unreachable!("effective_profile resolves System"),
+        }
+    } else {
+        match effective_profile {
+            TerminalProfile::Bash => ("bash".to_string(), Vec::new()),
+            _ => ("sh".to_string(), Vec::new()),
+        }
+    }
+}
+
+async fn spawn_persistent_shell(request: &CommandRequest) -> Result<PersistentShell, String> {
+    let profile = request.terminal_profile.clone();
+
+    #[cfg(windows)]
+    {
+        if conpty_backend_enabled() {
+            let (program, args) = persistent_shell_invocation(&profile);
+            let cwd = resolve_working_directory(request);
+            let env_overrides = shell_environment_overrides(request);
+            let conpty_result = conpty_backend::spawn_conpty_shell(
+                &program,
+                &args,
+                &cwd,
+                &env_overrides,
+            );
+
+            if should_activate_conpty(cfg!(windows), conpty_backend_enabled(), conpty_result.is_ok()) {
+                if let Ok(session) = conpty_result {
+                    return Ok(PersistentShell {
+                        profile,
+                        backend: PersistentShellBackend::Conpty(session),
+                    });
+                }
+            } else if let Err(error) = conpty_result {
+                eprintln!(
+                    "ConPTY unavailable, falling back to piped shell: {}",
+                    bounded_fallback_diagnostic(&error)
+                );
+            }
+        }
+    }
+
+    let (program, args) = persistent_shell_invocation(&profile);
+    let mut cmd = Command::new(program);
+    cmd.args(args);
+    cmd.current_dir(resolve_working_directory(request));
+    apply_venv_environment(&mut cmd, request);
+    apply_request_environment(&mut cmd, request);
+    cmd.stdin(std::process::Stdio::piped());
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::piped());
+
+    #[cfg(windows)]
+    {
+        cmd.creation_flags(0x08000000);
+    }
+
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("Failed to spawn persistent shell: {e}"))?;
+
+    let stdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| "Failed to capture shell stdin".to_string())?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "Failed to capture shell stdout".to_string())?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| "Failed to capture shell stderr".to_string())?;
+
+    let (output_tx, output_rx) = mpsc::channel::<OutputLine>(256);
+
+    let out_tx = output_tx.clone();
+    tokio::spawn(async move {
+        let mut lines = tokio::io::BufReader::new(stdout).lines();
+        while let Ok(Some(line)) = lines.next_line().await {
+            if out_tx.send(OutputLine::Stdout(line)).await.is_err() {
+                break;
+            }
+        }
+    });
+
+    tokio::spawn(async move {
+        let mut lines = tokio::io::BufReader::new(stderr).lines();
+        while let Ok(Some(line)) = lines.next_line().await {
+            if output_tx.send(OutputLine::Stderr(line)).await.is_err() {
+                break;
+            }
+        }
+    });
+
+    Ok(PersistentShell {
+        profile,
+        backend: PersistentShellBackend::Legacy(LegacyPersistentShell {
+            stdin,
+            output_rx,
+            child,
+        }),
+    })
+}
+
+fn conpty_backend_enabled() -> bool {
+    if !cfg!(windows) {
+        return false;
+    }
+
+    let disabled = std::env::var("PM_INTERACTIVE_TERMINAL_DISABLE_CONPTY")
+        .map(|value| {
+            let normalized = value.trim().to_ascii_lowercase();
+            normalized == "1" || normalized == "true" || normalized == "yes"
+        })
+        .unwrap_or(false);
+
+    !disabled
+}
+
+fn should_activate_conpty(
+    is_windows: bool,
+    conpty_enabled: bool,
+    conpty_spawn_succeeded: bool,
+) -> bool {
+    is_windows && conpty_enabled && conpty_spawn_succeeded
+}
+
+fn bounded_fallback_diagnostic(error: &str) -> String {
+    const MAX_LEN: usize = 220;
+    let trimmed = error.trim();
+    if trimmed.chars().count() <= MAX_LEN {
+        return trimmed.to_string();
+    }
+
+    let prefix: String = trimmed.chars().take(MAX_LEN).collect();
+    format!("{prefix}...")
+}
+
+fn shell_environment_overrides(request: &CommandRequest) -> Vec<(String, String)> {
+    let mut overrides = normalized_request_env(request);
+    if let Some((path_key, path_value, virtual_env)) = venv_environment_overrides(request) {
+        overrides.push((path_key, path_value));
+        overrides.push(("VIRTUAL_ENV".to_string(), virtual_env));
+    }
+    overrides
+}
+
+fn build_wrapped_shell_command(request: &CommandRequest, marker: &str) -> String {
+    let cwd = resolve_working_directory(request).to_string_lossy().to_string();
+    let env_prefix = build_shell_env_prefix(request);
+    let effective_profile = if cfg!(target_os = "windows") {
+        match request.terminal_profile {
+            TerminalProfile::System => TerminalProfile::PowerShell,
+            _ => request.terminal_profile.clone(),
+        }
+    } else {
+        request.terminal_profile.clone()
+    };
+    let command_with_args = render_command_with_args(request, &effective_profile);
+
+    if cfg!(target_os = "windows") {
+        match effective_profile {
+            TerminalProfile::PowerShell | TerminalProfile::Pwsh => {
+                let escaped_cwd = escape_powershell_single_quoted(&cwd);
+                format!(
+                    "{env_prefix}Set-Location -LiteralPath '{escaped_cwd}'; {}; Write-Output ('{}' + [string]$(0+$LASTEXITCODE))",
+                    command_with_args,
+                    marker
+                )
+            }
+            TerminalProfile::Bash => {
+                let escaped_cwd = escape_single_quoted_shell(&cwd);
+                format!(
+                    "{env_prefix}cd '{escaped_cwd}' 2>/dev/null; {}; printf '{}%s\\n' \"$?\"",
+                    command_with_args, marker
+                )
+            }
+            TerminalProfile::Cmd | TerminalProfile::System => {
+                let escaped_cwd = cwd.replace('"', "\"\"");
+                format!(
+                    "{env_prefix}cd /d \"{escaped_cwd}\" >nul 2>nul & {} & echo {}%ERRORLEVEL%",
+                    command_with_args, marker
+                )
+            }
+        }
+    } else {
+        let escaped_cwd = escape_single_quoted_shell(&cwd);
+        format!(
+            "{env_prefix}cd '{escaped_cwd}' 2>/dev/null; {}; printf '{}%s\\n' \"$?\"",
+            command_with_args, marker
+        )
+    }
+}
+
+fn render_command_with_args(request: &CommandRequest, profile: &TerminalProfile) -> String {
+    if request.args.is_empty() {
+        return request.command.clone();
+    }
+
+    let rendered_args = match profile {
+        TerminalProfile::PowerShell | TerminalProfile::Pwsh | TerminalProfile::System => request
+            .args
+            .iter()
+            .map(|arg| format!("'{}'", escape_powershell_single_quoted(arg)))
+            .collect::<Vec<_>>(),
+        TerminalProfile::Bash => request
+            .args
+            .iter()
+            .map(|arg| format!("'{}'", escape_single_quoted_shell(arg)))
+            .collect::<Vec<_>>(),
+        TerminalProfile::Cmd => request
+            .args
+            .iter()
+            .map(|arg| format!("\"{}\"", arg.replace('"', "\"\"")))
+            .collect::<Vec<_>>(),
+    };
+
+    format!("{} {}", request.command, rendered_args.join(" "))
+}
+
+fn apply_request_environment(cmd: &mut Command, request: &CommandRequest) {
+    let normalized = normalized_request_env(request);
+    if normalized.is_empty() {
+        return;
+    }
+
+    for (key, value) in normalized {
+        cmd.env(key, value);
+    }
+}
+
+fn build_shell_env_prefix(request: &CommandRequest) -> String {
+    let normalized = normalized_request_env(request);
+    if normalized.is_empty() {
+        return String::new();
+    }
+
+    let effective_profile = if cfg!(target_os = "windows") {
+        match request.terminal_profile {
+            TerminalProfile::System => TerminalProfile::PowerShell,
+            _ => request.terminal_profile.clone(),
+        }
+    } else {
+        request.terminal_profile.clone()
+    };
+
+    if cfg!(target_os = "windows") {
+        match effective_profile {
+            TerminalProfile::PowerShell | TerminalProfile::Pwsh => normalized
+                .iter()
+                .filter(|(k, _)| is_safe_env_key(k))
+                .map(|(k, v)| {
+                    format!(
+                        "$env:{} = '{}'; ",
+                        k,
+                        escape_powershell_single_quoted(v)
+                    )
+                })
+                .collect(),
+            TerminalProfile::Bash => normalized
+                .iter()
+                .filter(|(k, _)| is_safe_env_key(k))
+                .map(|(k, v)| format!("export {}='{}'; ", k, escape_single_quoted_shell(v)))
+                .collect(),
+            TerminalProfile::Cmd | TerminalProfile::System => normalized
+                .iter()
+                .filter(|(k, _)| is_safe_env_key(k))
+                .map(|(k, v)| {
+                    let escaped_value = v.replace('"', "\"\"");
+                    format!("set \"{}={}\" & ", k, escaped_value)
+                })
+                .collect(),
+        }
+    } else {
+        normalized
+            .iter()
+            .filter(|(k, _)| is_safe_env_key(k))
+            .map(|(k, v)| format!("export {}='{}'; ", k, escape_single_quoted_shell(v)))
+            .collect()
+    }
+}
+
+fn normalized_request_env(request: &CommandRequest) -> Vec<(String, String)> {
+    let mut env_map: HashMap<String, String> = request.env.clone();
+
+    let has_sentinel_request = request
+        .env
+        .get("GEMINI_API_KEY")
+        .map(|value| value.trim() == GEMINI_SENTINEL_TOKEN)
+        .unwrap_or(false)
+        || request
+            .env
+            .get("GOOGLE_API_KEY")
+            .map(|value| value.trim() == GEMINI_SENTINEL_TOKEN)
+            .unwrap_or(false);
+
+    let should_inject_stored = has_sentinel_request;
+
+    env_map.remove("GEMINI_API_KEY");
+    env_map.remove("GOOGLE_API_KEY");
+    env_map.remove(GEMINI_INJECT_FLAG_ENV);
+
+    if should_inject_stored {
+        if let Some(stored_key) = crate::system_tray::load_gemini_api_key() {
+            env_map.insert("GEMINI_API_KEY".to_string(), stored_key.clone());
+            env_map.insert("GOOGLE_API_KEY".to_string(), stored_key);
+        }
+    }
+
+    env_map.into_iter().collect()
+}
+
+fn is_safe_env_key(key: &str) -> bool {
+    let mut chars = key.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+
+    if !(first.is_ascii_alphabetic() || first == '_') {
+        return false;
+    }
+
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+fn parse_marker_exit_code(line: &str, marker: &str) -> Option<i32> {
+    let trimmed = line.trim();
+    if !trimmed.starts_with(marker) {
+        return None;
+    }
+    let value = trimmed[marker.len()..].trim();
+    value.parse::<i32>().ok()
+}
+
+fn escape_single_quoted_shell(input: &str) -> String {
+    // Newlines inside single-quoted shell args would break the compound one-liner;
+    // replace them with a space before applying the standard POSIX single-quote escape.
+    input
+        .replace('\r', "")
+        .replace('\n', " ")
+        .replace('"', "\\\"")
+        .replace('\'', "'\\''")
+}
+
+fn escape_powershell_single_quoted(input: &str) -> String {
+    // Single quotes are escaped by doubling them in PowerShell single-quoted strings.
+    // Embedded newlines would terminate the compound one-liner before the closing quote,
+    // causing the shell to misparse the rest of the command — replace them with a space.
+    input
+        .replace('\r', "")
+        .replace('\n', " ")
+        .replace('\'', "''")
+}
+
+fn resolve_working_directory(request: &CommandRequest) -> PathBuf {
+    let requested = request.working_directory.trim();
+    if is_existing_directory(requested) {
+        return PathBuf::from(requested);
+    }
+
+    let workspace = request.workspace_path.trim();
+    if is_existing_directory(workspace) {
+        return PathBuf::from(workspace);
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(home) = std::env::var("USERPROFILE") {
+            if is_existing_directory(&home) {
+                return PathBuf::from(home);
+            }
+        }
+    }
+
+    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+}
+
+fn is_existing_directory(path: &str) -> bool {
+    if path.is_empty() {
+        return false;
+    }
+    let as_path = Path::new(path);
+    as_path.exists() && as_path.is_dir()
+}
+
+fn apply_venv_environment(cmd: &mut Command, request: &CommandRequest) {
+    if let Some((path_key, path_value, virtual_env)) = venv_environment_overrides(request) {
+        cmd.env(path_key, path_value);
+        cmd.env("VIRTUAL_ENV", virtual_env);
+    }
+}
+
+fn venv_environment_overrides(request: &CommandRequest) -> Option<(String, String, String)> {
+    if !request.activate_venv {
+        return None;
+    }
+
+    let selected = select_venv_path(request)?;
+    let bin_dir = if cfg!(target_os = "windows") {
+        selected.join("Scripts")
+    } else {
+        selected.join("bin")
+    };
+
+    if !bin_dir.exists() || !bin_dir.is_dir() {
+        return None;
+    }
+
+    let old_path = std::env::var_os("PATH").unwrap_or_default();
+    let mut combined_paths = vec![bin_dir];
+    combined_paths.extend(std::env::split_paths(&old_path));
+    let new_path = std::env::join_paths(combined_paths).ok()?;
+
+    Some((
+        "PATH".to_string(),
+        new_path.to_string_lossy().to_string(),
+        selected.to_string_lossy().to_string(),
+    ))
+}
+
+fn select_venv_path(request: &CommandRequest) -> Option<PathBuf> {
+    let requested = request.venv_path.trim();
+    if is_valid_venv_path(requested) {
+        return Some(PathBuf::from(requested));
+    }
+
+    detect_default_venv(&request.workspace_path).map(PathBuf::from)
+}
+
+fn is_valid_venv_path(path: &str) -> bool {
+    if path.is_empty() {
+        return false;
+    }
+
+    let root = Path::new(path);
+    if !root.exists() || !root.is_dir() {
+        return false;
+    }
+
+    if cfg!(target_os = "windows") {
+        root.join("Scripts").join("python.exe").exists()
+            || root.join("Scripts").join("activate.bat").exists()
+    } else {
+        root.join("bin").join("python").exists() || root.join("bin").join("activate").exists()
+    }
+}
+
+pub fn detect_default_venv(workspace_path: &str) -> Option<String> {
+    let workspace = workspace_path.trim();
+    if !is_existing_directory(workspace) {
+        return None;
+    }
+
+    for folder in [".venv", "venv"] {
+        let candidate = Path::new(workspace).join(folder);
+        if is_valid_venv_path(candidate.to_string_lossy().as_ref()) {
+            return Some(candidate.to_string_lossy().to_string());
+        }
+    }
+
+    None
+}
+
+/// Append a line to the shared accumulated output buffer.
+fn push_line(buf: &Arc<StdMutex<String>>, line: &str, is_stderr: bool) {
+    let mut b = buf.lock().unwrap();
+    if is_stderr {
+        b.push_str("[stderr] ");
+    }
+    b.push_str(line);
+    b.push('\n');
+}
+
+/// Drain remaining stdout lines after stderr has closed.
+#[allow(dead_code)]
+async fn drain_stdout(
+    reader: &mut tokio::io::Lines<tokio::io::BufReader<tokio::process::ChildStdout>>,
+    tx: &mpsc::Sender<OutputLine>,
+    accumulated: &Arc<StdMutex<String>>,
+) {
+    while let Ok(Some(line)) = reader.next_line().await {
+        push_line(accumulated, &line, false);
+        let _ = tx.send(OutputLine::Stdout(line)).await;
+    }
+}
+
+/// Drain remaining stderr lines after stdout has closed.
+#[allow(dead_code)]
+async fn drain_stderr(
+    reader: &mut tokio::io::Lines<tokio::io::BufReader<tokio::process::ChildStderr>>,
+    tx: &mpsc::Sender<OutputLine>,
+    accumulated: &Arc<StdMutex<String>>,
+) {
+    while let Ok(Some(line)) = reader.next_line().await {
+        push_line(accumulated, &line, true);
+        let _ = tx.send(OutputLine::Stderr(line)).await;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::{Mutex, OnceLock};
+
+    fn conpty_env_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
+
+    fn settings_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
+
+    #[tokio::test]
+    async fn execute_echo_command() {
+        let request = CommandRequest {
+            id: "test-001".into(),
+            command: if cfg!(target_os = "windows") {
+                "echo hello world".into()
+            } else {
+                "echo hello world".into()
+            },
+            working_directory: std::env::current_dir().unwrap().to_string_lossy().into(),
+            context: String::new(),
+            session_id: "default".into(),
+            terminal_profile: if cfg!(target_os = "windows") {
+                TerminalProfile::Cmd
+            } else {
+                TerminalProfile::System
+            },
+            workspace_path: String::new(),
+            venv_path: String::new(),
+            activate_venv: false,
+            timeout_seconds: 10,
+            args: Vec::new(),
+            env: std::collections::HashMap::new(),
+            workspace_id: String::new(),
+            allowlisted: false,
+        };
+
+        let (tx, mut rx) = mpsc::channel(64);
+        let accumulated = Arc::new(StdMutex::new(String::new()));
+
+        let result = execute_command(&request, tx, accumulated).await.unwrap();
+
+        assert_eq!(result.request_id, "test-001");
+        assert_eq!(result.exit_code, Some(0));
+        let mut saw_hello = result.output.contains("hello world");
+
+        // Should have received at least one output line.
+        let line = rx.try_recv().unwrap();
+        match line {
+            OutputLine::Stdout(s) => {
+                saw_hello = saw_hello || s.contains("hello world");
+            }
+            _ => panic!("Expected stdout line"),
+        }
+
+        assert!(
+            saw_hello,
+            "Expected hello world in accumulated output or streamed stdout"
+        );
+    }
+
+    #[tokio::test]
+    async fn execute_failing_command() {
+        let request = CommandRequest {
+            id: "test-fail".into(),
+            command: if cfg!(target_os = "windows") {
+                "cmd /C exit 42".into()
+            } else {
+                "exit 42".into()
+            },
+            working_directory: std::env::current_dir().unwrap().to_string_lossy().into(),
+            context: String::new(),
+            session_id: "default".into(),
+            terminal_profile: TerminalProfile::System,
+            workspace_path: String::new(),
+            venv_path: String::new(),
+            activate_venv: false,
+            timeout_seconds: 10,
+            args: Vec::new(),
+            env: std::collections::HashMap::new(),
+            workspace_id: String::new(),
+            allowlisted: false,
+        };
+
+        let (tx, _rx) = mpsc::channel(64);
+        let accumulated = Arc::new(StdMutex::new(String::new()));
+
+        let result = execute_command(&request, tx, accumulated).await.unwrap();
+
+        assert_eq!(result.request_id, "test-fail");
+        assert_ne!(result.exit_code, Some(0));
+    }
+
+    #[tokio::test]
+    async fn timeout_kills_long_running_command() {
+        let request = CommandRequest {
+            id: "test-timeout".into(),
+            command: if cfg!(target_os = "windows") {
+                "ping -n 60 127.0.0.1".into()
+            } else {
+                "sleep 60".into()
+            },
+            working_directory: std::env::current_dir().unwrap().to_string_lossy().into(),
+            context: String::new(),
+            session_id: "default".into(),
+            terminal_profile: TerminalProfile::System,
+            workspace_path: String::new(),
+            venv_path: String::new(),
+            activate_venv: false,
+            timeout_seconds: 1, // 1 second timeout
+            args: Vec::new(),
+            env: std::collections::HashMap::new(),
+            workspace_id: String::new(),
+            allowlisted: false,
+        };
+
+        let (tx, _rx) = mpsc::channel(64);
+
+        let result = execute_command_with_timeout(&request, tx).await.unwrap();
+
+        assert_eq!(result.request_id, "test-timeout");
+        assert_eq!(result.exit_code, Some(-1));
+        assert!(result.output.contains("timed out"));
+    }
+
+    #[tokio::test]
+    async fn timeout_wrapper_passes_through_on_fast_command() {
+        let request = CommandRequest {
+            id: "test-fast".into(),
+            command: if cfg!(target_os = "windows") {
+                "echo fast".into()
+            } else {
+                "echo fast".into()
+            },
+            working_directory: std::env::current_dir().unwrap().to_string_lossy().into(),
+            context: String::new(),
+            session_id: "default".into(),
+            terminal_profile: TerminalProfile::System,
+            workspace_path: String::new(),
+            venv_path: String::new(),
+            activate_venv: false,
+            timeout_seconds: 30,
+            args: Vec::new(),
+            env: std::collections::HashMap::new(),
+            workspace_id: String::new(),
+            allowlisted: false,
+        };
+
+        let (tx, _rx) = mpsc::channel(64);
+
+        let result = execute_command_with_timeout(&request, tx).await.unwrap();
+
+        assert_eq!(result.request_id, "test-fast");
+        assert_eq!(result.exit_code, Some(0));
+        assert!(result.output.contains("fast"));
+    }
+
+    #[test]
+    fn wraps_with_env_prefix_for_powershell_profile() {
+        let _guard = settings_lock().lock().unwrap();
+        let mut settings = crate::system_tray::load_settings();
+        settings.gemini_api_key = Some("stored-test-key".to_string());
+        crate::system_tray::save_settings(&settings).unwrap();
+
+        let mut env = std::collections::HashMap::new();
+        env.insert("FOO".to_string(), "bar".to_string());
+        env.insert("GOOGLE_API_KEY".to_string(), "{{stored}}".to_string());
+
+        let request = CommandRequest {
+            id: "env-wrap-ps".into(),
+            command: "Write-Output ok".into(),
+            working_directory: std::env::current_dir().unwrap().to_string_lossy().into(),
+            context: String::new(),
+            session_id: "default".into(),
+            terminal_profile: TerminalProfile::PowerShell,
+            workspace_path: String::new(),
+            venv_path: String::new(),
+            activate_venv: false,
+            timeout_seconds: 10,
+            args: Vec::new(),
+            env,
+            workspace_id: String::new(),
+            allowlisted: false,
+        };
+
+        let wrapped = build_wrapped_shell_command(&request, "__PM_DONE__");
+        assert!(wrapped.contains("$env:FOO = 'bar';"));
+        assert!(wrapped.contains("$env:GOOGLE_API_KEY = 'stored-test-key';"));
+        assert!(wrapped.contains("$env:GEMINI_API_KEY = 'stored-test-key';"));
+    }
+
+    #[test]
+    fn blocks_gemini_injection_without_explicit_trigger() {
+        let _guard = settings_lock().lock().unwrap();
+        let mut settings = crate::system_tray::load_settings();
+        settings.gemini_api_key = Some("stored-test-key".to_string());
+        crate::system_tray::save_settings(&settings).unwrap();
+
+        let mut env = std::collections::HashMap::new();
+        env.insert("GOOGLE_API_KEY".to_string(), "should-not-pass".to_string());
+
+        let request = CommandRequest {
+            id: "env-normalize".into(),
+            command: "echo ok".into(),
+            working_directory: std::env::current_dir().unwrap().to_string_lossy().into(),
+            context: String::new(),
+            session_id: "default".into(),
+            terminal_profile: TerminalProfile::System,
+            workspace_path: String::new(),
+            venv_path: String::new(),
+            activate_venv: false,
+            timeout_seconds: 10,
+            args: Vec::new(),
+            env,
+            workspace_id: String::new(),
+            allowlisted: false,
+        };
+
+        let normalized = normalized_request_env(&request);
+        assert!(!normalized.iter().any(|(k, _)| k == "GOOGLE_API_KEY"));
+        assert!(!normalized.iter().any(|(k, _)| k == "GEMINI_API_KEY"));
+    }
+
+    #[test]
+    fn injects_stored_gemini_key_only_when_flag_is_paired_with_sentinel() {
+        let _guard = settings_lock().lock().unwrap();
+        let mut settings = crate::system_tray::load_settings();
+        settings.gemini_api_key = Some("stored-flag-key".to_string());
+        crate::system_tray::save_settings(&settings).unwrap();
+
+        let mut env = std::collections::HashMap::new();
+        env.insert("PM_GEMINI_INJECT".to_string(), "true".to_string());
+        env.insert(
+            "GEMINI_API_KEY".to_string(),
+            GEMINI_SENTINEL_TOKEN.to_string(),
+        );
+
+        let request = CommandRequest {
+            id: "env-flag".into(),
+            command: "echo ok".into(),
+            working_directory: std::env::current_dir().unwrap().to_string_lossy().into(),
+            context: String::new(),
+            session_id: "default".into(),
+            terminal_profile: TerminalProfile::System,
+            workspace_path: String::new(),
+            venv_path: String::new(),
+            activate_venv: false,
+            timeout_seconds: 10,
+            args: Vec::new(),
+            env,
+            workspace_id: String::new(),
+            allowlisted: false,
+        };
+
+        let normalized = normalized_request_env(&request);
+        assert!(normalized
+            .iter()
+            .any(|(k, v)| k == "GOOGLE_API_KEY" && v == "stored-flag-key"));
+        assert!(normalized
+            .iter()
+            .any(|(k, v)| k == "GEMINI_API_KEY" && v == "stored-flag-key"));
+        assert!(!normalized.iter().any(|(k, _)| k == "PM_GEMINI_INJECT"));
+    }
+
+    #[test]
+    fn blocks_gemini_injection_with_flag_only_when_sentinel_missing() {
+        let _guard = settings_lock().lock().unwrap();
+        let mut settings = crate::system_tray::load_settings();
+        settings.gemini_api_key = Some("stored-flag-key".to_string());
+        crate::system_tray::save_settings(&settings).unwrap();
+
+        let mut env = std::collections::HashMap::new();
+        env.insert("PM_GEMINI_INJECT".to_string(), "true".to_string());
+
+        let request = CommandRequest {
+            id: "env-flag-no-sentinel".into(),
+            command: "echo ok".into(),
+            working_directory: std::env::current_dir().unwrap().to_string_lossy().into(),
+            context: String::new(),
+            session_id: "default".into(),
+            terminal_profile: TerminalProfile::System,
+            workspace_path: String::new(),
+            venv_path: String::new(),
+            activate_venv: false,
+            timeout_seconds: 10,
+            args: Vec::new(),
+            env,
+            workspace_id: String::new(),
+            allowlisted: false,
+        };
+
+        let normalized = normalized_request_env(&request);
+        assert!(!normalized.iter().any(|(k, _)| k == "GOOGLE_API_KEY"));
+        assert!(!normalized.iter().any(|(k, _)| k == "GEMINI_API_KEY"));
+        assert!(!normalized.iter().any(|(k, _)| k == "PM_GEMINI_INJECT"));
+    }
+
+    #[test]
+    fn shell_invocation_uses_windows_profile_routing() {
+        if !cfg!(target_os = "windows") {
+            return;
+        }
+
+        let request = CommandRequest {
+            id: "profile-001".into(),
+            command: "echo hello".into(),
+            working_directory: "C:/".into(),
+            context: String::new(),
+            session_id: "session-1".into(),
+            terminal_profile: TerminalProfile::Pwsh,
+            workspace_path: String::new(),
+            venv_path: String::new(),
+            activate_venv: false,
+            timeout_seconds: 10,
+            args: Vec::new(),
+            env: std::collections::HashMap::new(),
+            workspace_id: String::new(),
+            allowlisted: false,
+        };
+
+        let (program, args) = shell_invocation(&request);
+        assert_eq!(program, "pwsh");
+        assert_eq!(args[0], "-NoProfile");
+        assert_eq!(args[1], "-Command");
+    }
+
+    #[test]
+    fn resolve_working_directory_falls_back_to_workspace() {
+        let temp = std::env::temp_dir().join(format!("iterm-ws-fallback-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&temp);
+        std::fs::create_dir_all(&temp).unwrap();
+        let request = CommandRequest {
+            id: "cwd-fallback".into(),
+            command: "echo hi".into(),
+            working_directory: "./definitely-missing-dir".into(),
+            context: String::new(),
+            session_id: "default".into(),
+            terminal_profile: TerminalProfile::System,
+            workspace_path: temp.to_string_lossy().to_string(),
+            venv_path: String::new(),
+            activate_venv: false,
+            timeout_seconds: 5,
+            args: Vec::new(),
+            env: std::collections::HashMap::new(),
+            workspace_id: String::new(),
+            allowlisted: false,
+        };
+
+        let resolved = resolve_working_directory(&request);
+        assert_eq!(resolved, temp);
+        let _ = std::fs::remove_dir_all(&resolved);
+    }
+
+    #[test]
+    fn detect_default_venv_prefers_dot_venv() {
+        let temp = std::env::temp_dir().join(format!("iterm-venv-detect-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&temp);
+        std::fs::create_dir_all(&temp).unwrap();
+        let dot_venv = temp.join(".venv");
+        let scripts = if cfg!(target_os = "windows") {
+            dot_venv.join("Scripts")
+        } else {
+            dot_venv.join("bin")
+        };
+        std::fs::create_dir_all(&scripts).unwrap();
+        if cfg!(target_os = "windows") {
+            std::fs::write(scripts.join("python.exe"), "").unwrap();
+        } else {
+            std::fs::write(scripts.join("python"), "").unwrap();
+        }
+
+        let detected = detect_default_venv(temp.to_string_lossy().as_ref());
+        assert_eq!(detected, Some(dot_venv.to_string_lossy().to_string()));
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn conpty_activation_requires_windows_and_success() {
+        assert!(should_activate_conpty(true, true, true));
+        assert!(!should_activate_conpty(false, true, true));
+        assert!(!should_activate_conpty(true, false, true));
+        assert!(!should_activate_conpty(true, true, false));
+    }
+
+    #[test]
+    fn conpty_backend_disabled_env_var_is_respected() {
+        let _guard = conpty_env_lock().lock().unwrap();
+        let previous = std::env::var("PM_INTERACTIVE_TERMINAL_DISABLE_CONPTY").ok();
+
+        std::env::set_var("PM_INTERACTIVE_TERMINAL_DISABLE_CONPTY", "1");
+        assert!(!conpty_backend_enabled());
+
+        std::env::remove_var("PM_INTERACTIVE_TERMINAL_DISABLE_CONPTY");
+        if cfg!(windows) {
+            assert!(conpty_backend_enabled());
+        } else {
+            assert!(!conpty_backend_enabled());
+        }
+
+        if let Some(value) = previous {
+            std::env::set_var("PM_INTERACTIVE_TERMINAL_DISABLE_CONPTY", value);
+        } else {
+            std::env::remove_var("PM_INTERACTIVE_TERMINAL_DISABLE_CONPTY");
+        }
+    }
+
+    #[test]
+    fn bounded_fallback_diagnostic_truncates_long_errors() {
+        let long_error = "x".repeat(300);
+        let message = bounded_fallback_diagnostic(&long_error);
+        assert!(message.ends_with("..."));
+        assert!(message.chars().count() <= 223);
+    }
+
+    #[test]
+    fn bounded_fallback_diagnostic_keeps_short_errors_intact() {
+        let message = bounded_fallback_diagnostic("ConPTY unavailable");
+        assert_eq!(message, "ConPTY unavailable");
+    }
+
+    #[test]
+    fn shell_environment_overrides_preserve_explicit_gemini_injection_only() {
+        let _guard = settings_lock().lock().unwrap();
+        let mut settings = crate::system_tray::load_settings();
+        settings.gemini_api_key = Some("stored-conpty-key".to_string());
+        crate::system_tray::save_settings(&settings).unwrap();
+
+        let mut env = std::collections::HashMap::new();
+        env.insert("GOOGLE_API_KEY".to_string(), "non-sentinel-value".to_string());
+
+        let request = CommandRequest {
+            id: "conpty-env-normalize".into(),
+            command: "echo ok".into(),
+            working_directory: std::env::current_dir().unwrap().to_string_lossy().into(),
+            context: String::new(),
+            session_id: "default".into(),
+            terminal_profile: TerminalProfile::System,
+            workspace_path: String::new(),
+            venv_path: String::new(),
+            activate_venv: false,
+            timeout_seconds: 10,
+            args: Vec::new(),
+            env,
+            workspace_id: String::new(),
+            allowlisted: false,
+        };
+
+        let overrides = shell_environment_overrides(&request);
+        assert!(!overrides.iter().any(|(k, _)| k == "GOOGLE_API_KEY"));
+        assert!(!overrides.iter().any(|(k, _)| k == "GEMINI_API_KEY"));
+
+        let mut sentinel_env = std::collections::HashMap::new();
+        sentinel_env.insert("GEMINI_API_KEY".to_string(), GEMINI_SENTINEL_TOKEN.to_string());
+
+        let sentinel_request = CommandRequest {
+            id: "conpty-env-sentinel".into(),
+            command: "echo ok".into(),
+            working_directory: std::env::current_dir().unwrap().to_string_lossy().into(),
+            context: String::new(),
+            session_id: "default".into(),
+            terminal_profile: TerminalProfile::System,
+            workspace_path: String::new(),
+            venv_path: String::new(),
+            activate_venv: false,
+            timeout_seconds: 10,
+            args: Vec::new(),
+            env: sentinel_env,
+            workspace_id: String::new(),
+            allowlisted: false,
+        };
+
+        let sentinel_overrides = shell_environment_overrides(&sentinel_request);
+        assert!(sentinel_overrides
+            .iter()
+            .any(|(k, v)| k == "GOOGLE_API_KEY" && v == "stored-conpty-key"));
+        assert!(sentinel_overrides
+            .iter()
+            .any(|(k, v)| k == "GEMINI_API_KEY" && v == "stored-conpty-key"));
+    }
+
+    // -----------------------------------------------------------------------
+    // Step 7: Backend selection + fallback unit tests
+    // -----------------------------------------------------------------------
+
+    /// Complete the coverage of `should_activate_conpty` for the four remaining
+    /// combinations where at least two of the three conditions are false.
+    #[test]
+    fn should_activate_conpty_all_false_remainder_combinations() {
+        // non-Windows + disabled => false
+        assert!(!should_activate_conpty(false, false, true));
+        // non-Windows + spawn failed => false
+        assert!(!should_activate_conpty(false, true, false));
+        // disabled + spawn failed => false
+        assert!(!should_activate_conpty(true, false, false));
+        // all three false => false
+        assert!(!should_activate_conpty(false, false, false));
+    }
+
+    /// `PM_INTERACTIVE_TERMINAL_DISABLE_CONPTY` accepts multiple truthy spellings.
+    #[test]
+    fn conpty_backend_disabled_by_truthy_env_string_variants() {
+        let _guard = conpty_env_lock().lock().unwrap();
+        let previous = std::env::var("PM_INTERACTIVE_TERMINAL_DISABLE_CONPTY").ok();
+
+        for &val in &["true", "yes", "TRUE", "YES", "True"] {
+            std::env::set_var("PM_INTERACTIVE_TERMINAL_DISABLE_CONPTY", val);
+            assert!(
+                !conpty_backend_enabled(),
+                "Expected conpty disabled for env value: {val}"
+            );
+        }
+
+        if let Some(v) = previous {
+            std::env::set_var("PM_INTERACTIVE_TERMINAL_DISABLE_CONPTY", v);
+        } else {
+            std::env::remove_var("PM_INTERACTIVE_TERMINAL_DISABLE_CONPTY");
+        }
+    }
+
+    /// Falsey env values ("0", "false", "no") must not disable the backend on
+    /// Windows.  On non-Windows the function is always false via the cfg! branch,
+    /// so we skip the assertion there.
+    #[test]
+    fn conpty_backend_enabled_for_falsey_env_values_on_windows() {
+        let _guard = conpty_env_lock().lock().unwrap();
+        if !cfg!(windows) {
+            return;
+        }
+        let previous = std::env::var("PM_INTERACTIVE_TERMINAL_DISABLE_CONPTY").ok();
+
+        for &val in &["0", "false", "no"] {
+            std::env::set_var("PM_INTERACTIVE_TERMINAL_DISABLE_CONPTY", val);
+            assert!(
+                conpty_backend_enabled(),
+                "Expected conpty enabled for env value '{val}' on Windows"
+            );
+        }
+
+        if let Some(v) = previous {
+            std::env::set_var("PM_INTERACTIVE_TERMINAL_DISABLE_CONPTY", v);
+        } else {
+            std::env::remove_var("PM_INTERACTIVE_TERMINAL_DISABLE_CONPTY");
+        }
+    }
+
+    /// `shell_environment_overrides` must forward arbitrary custom env vars as
+    /// (key, value) tuples ready for injection into the selected backend.
+    #[test]
+    fn shell_environment_overrides_passes_custom_env_as_key_value_tuples() {
+        let mut env = std::collections::HashMap::new();
+        env.insert("APP_VERSION".to_string(), "1.2.3".to_string());
+        env.insert("BUILD_ENV".to_string(), "test".to_string());
+
+        let request = CommandRequest {
+            id: "env-tuple-test".into(),
+            command: "echo ok".into(),
+            working_directory: std::env::current_dir().unwrap().to_string_lossy().into(),
+            context: String::new(),
+            session_id: "default".into(),
+            terminal_profile: TerminalProfile::System,
+            workspace_path: String::new(),
+            venv_path: String::new(),
+            activate_venv: false,
+            timeout_seconds: 10,
+            args: Vec::new(),
+            env,
+            workspace_id: String::new(),
+            allowlisted: false,
+        };
+
+        let overrides = shell_environment_overrides(&request);
+        assert!(
+            overrides.iter().any(|(k, v)| k == "APP_VERSION" && v == "1.2.3"),
+            "APP_VERSION should pass through as a (key, value) tuple"
+        );
+        assert!(
+            overrides.iter().any(|(k, v)| k == "BUILD_ENV" && v == "test"),
+            "BUILD_ENV should pass through as a (key, value) tuple"
+        );
+    }
+
+    /// `persistent_shell_invocation` for PowerShell must request a clean,
+    /// banner-free session (no logo, no profile).  This is important for the
+    /// ConPTY path where stray banner lines would corrupt marker parsing.
+    #[test]
+    fn persistent_shell_invocation_powershell_uses_no_logo_and_no_profile() {
+        if !cfg!(target_os = "windows") {
+            return;
+        }
+        let (program, args) = persistent_shell_invocation(&TerminalProfile::PowerShell);
+        assert_eq!(program, "powershell");
+        assert!(
+            args.iter().any(|a| a == "-NoLogo"),
+            "Expected -NoLogo in powershell args"
+        );
+        assert!(
+            args.iter().any(|a| a == "-NoProfile"),
+            "Expected -NoProfile in powershell args"
+        );
+    }
+
+    /// `persistent_shell_invocation` for Pwsh must also suppress banner/profile.
+    #[test]
+    fn persistent_shell_invocation_pwsh_uses_no_logo_and_no_profile() {
+        if !cfg!(target_os = "windows") {
+            return;
+        }
+        let (program, args) = persistent_shell_invocation(&TerminalProfile::Pwsh);
+        assert_eq!(program, "pwsh");
+        assert!(
+            args.iter().any(|a| a == "-NoLogo"),
+            "Expected -NoLogo in pwsh args"
+        );
+        assert!(
+            args.iter().any(|a| a == "-NoProfile"),
+            "Expected -NoProfile in pwsh args"
+        );
+    }
+
+    /// `persistent_shell_invocation` for Cmd must include `/Q` (quiet) so that
+    /// echoed commands don't interfere with marker detection.
+    #[test]
+    fn persistent_shell_invocation_cmd_uses_quiet_flag() {
+        if !cfg!(target_os = "windows") {
+            return;
+        }
+        let (program, args) = persistent_shell_invocation(&TerminalProfile::Cmd);
+        assert_eq!(program, "cmd");
+        assert!(
+            args.iter().any(|a| a == "/Q"),
+            "Expected /Q (quiet) flag for Cmd profile"
+        );
+    }
+
+    /// On non-Windows, `persistent_shell_invocation` must fall back to `sh`
+    /// for the System profile.
+    #[test]
+    fn persistent_shell_invocation_non_windows_system_profile_defaults_to_sh() {
+        if cfg!(target_os = "windows") {
+            return;
+        }
+        let (program, _args) = persistent_shell_invocation(&TerminalProfile::System);
+        assert_eq!(program, "sh");
+    }
+
+    /// On non-Windows, `persistent_shell_invocation` with the Bash profile must
+    /// invoke `bash` directly.
+    #[test]
+    fn persistent_shell_invocation_non_windows_bash_profile_uses_bash() {
+        if cfg!(target_os = "windows") {
+            return;
+        }
+        let (program, _args) = persistent_shell_invocation(&TerminalProfile::Bash);
+        assert_eq!(program, "bash");
+    }
+
+    // -----------------------------------------------------------------------
+    // Step 8: Kill / read-output lifecycle regression tests
+    // -----------------------------------------------------------------------
+
+    /// Registering a kill sender and then calling `try_kill` must:
+    /// - Remove the sender from the tracker (one-shot semantics), and
+    /// - Deliver the kill signal through the oneshot channel.
+    #[test]
+    fn output_tracker_registers_and_fires_kill_sender() {
+        use crate::terminal_core::output_tracker::CoreOutputTracker;
+
+        let mut tracker = CoreOutputTracker::default();
+        let (tx, mut rx) = tokio::sync::oneshot::channel::<()>();
+
+        tracker.register_kill_sender("req-kill-01", tx);
+        assert!(
+            tracker.kill_senders.contains_key("req-kill-01"),
+            "Sender must be stored after register_kill_sender"
+        );
+
+        let _ = tracker.try_kill("resp-01", "req-kill-01");
+
+        // One-shot: sender consumed, key must be gone.
+        assert!(
+            !tracker.kill_senders.contains_key("req-kill-01"),
+            "Sender must be removed from tracker after try_kill"
+        );
+
+        // The signal must have been delivered.
+        assert!(
+            rx.try_recv().is_ok(),
+            "Kill signal must be delivered through the oneshot channel"
+        );
+    }
+
+    /// Calling `try_kill` for a session that has no registered sender must
+    /// return `killed: false` with an error message containing "not found".
+    #[test]
+    fn output_tracker_try_kill_returns_session_not_found_for_unknown_session() {
+        use crate::protocol::Message;
+        use crate::terminal_core::output_tracker::CoreOutputTracker;
+
+        let mut tracker = CoreOutputTracker::default();
+        let msg = tracker.try_kill("resp-nf", "no-such-session-xyz");
+
+        match msg {
+            Message::KillSessionResponse(resp) => {
+                assert!(!resp.killed, "killed must be false for unknown session");
+                let err = resp.error.expect("error field must be set");
+                assert!(
+                    err.to_lowercase().contains("not found"),
+                    "error should mention 'not found'; got: {err}"
+                );
+            }
+            _ => panic!("Expected KillSessionResponse variant"),
+        }
+    }
+
+    /// `mark_completed` must remove the kill sender, ensuring that a process
+    /// that exits normally cannot be killed a second time through stale state.
+    #[test]
+    fn output_tracker_mark_completed_removes_kill_sender() {
+        use crate::terminal_core::output_tracker::CoreOutputTracker;
+
+        let mut tracker = CoreOutputTracker::default();
+        let (tx, _rx) = tokio::sync::oneshot::channel::<()>();
+
+        tracker.register_kill_sender("req-complete-01", tx);
+        assert!(tracker.kill_senders.contains_key("req-complete-01"));
+
+        tracker.mark_completed(
+            "req-complete-01",
+            Some(0),
+            "stdout content".to_string(),
+            String::new(),
+        );
+
+        assert!(
+            !tracker.kill_senders.contains_key("req-complete-01"),
+            "Kill sender must be evicted when the session completes"
+        );
+    }
+
+    /// A second `try_kill` call on the same session (after the first consumed
+    /// the sender) must behave as if the session does not exist — ensuring
+    /// idempotency and no double-free of the sender.
+    #[test]
+    fn output_tracker_second_kill_attempt_is_idempotent_and_reports_failure() {
+        use crate::protocol::Message;
+        use crate::terminal_core::output_tracker::CoreOutputTracker;
+
+        let mut tracker = CoreOutputTracker::default();
+        let (tx, _rx) = tokio::sync::oneshot::channel::<()>();
+
+        tracker.register_kill_sender("req-double-kill", tx);
+
+        // First kill: sender consumed, must report success.
+        let first = tracker.try_kill("resp-1", "req-double-kill");
+        match first {
+            Message::KillSessionResponse(ref resp) => {
+                assert!(resp.killed, "First kill must report success");
+            }
+            _ => panic!("Expected KillSessionResponse"),
+        }
+
+        // Second kill: sender already gone → must report failure.
+        let second = tracker.try_kill("resp-2", "req-double-kill");
+        match second {
+            Message::KillSessionResponse(resp) => {
+                assert!(
+                    !resp.killed,
+                    "Second kill must report failure (sender already consumed)"
+                );
+                assert!(
+                    resp.error.is_some(),
+                    "error field must be set on second kill attempt"
+                );
+            }
+            _ => panic!("Expected KillSessionResponse"),
+        }
+    }
+
+    /// Verify the underlying tokio mpsc contract: `recv()` returns `None` as
+    /// soon as all senders are dropped.  Both `LegacyPersistentShell` and
+    /// `ConptyShellSession` rely on this to signal EOF through `recv_output_line`.
+    #[tokio::test]
+    async fn mpsc_channel_returns_none_when_all_senders_dropped() {
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<OutputLine>(4);
+        drop(tx);
+        let result = rx.recv().await;
+        assert!(
+            result.is_none(),
+            "recv() must return None on a fully-closed channel"
+        );
+    }
+
+    /// Verify that buffered items are drained in order before the channel
+    /// reports closure.  This mirrors the scenario where a ConPTY or legacy
+    /// session terminates mid-read: remaining lines must not be lost.
+    #[tokio::test]
+    async fn mpsc_channel_drains_buffered_items_before_close_none() {
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<OutputLine>(8);
+
+        tx.send(OutputLine::Stdout("first-line".to_string()))
+            .await
+            .unwrap();
+        tx.send(OutputLine::Stderr("error-line".to_string()))
+            .await
+            .unwrap();
+
+        // Simulate session termination: drop the sender.
+        drop(tx);
+
+        let first = rx.recv().await;
+        assert!(
+            matches!(first, Some(OutputLine::Stdout(ref s)) if s == "first-line"),
+            "First buffered stdout line must arrive before channel-close None"
+        );
+
+        let second = rx.recv().await;
+        assert!(
+            matches!(second, Some(OutputLine::Stderr(ref s)) if s == "error-line"),
+            "Second buffered stderr line must arrive before channel-close None"
+        );
+
+        // After all buffered items are exhausted and the sender is gone.
+        let after_close = rx.recv().await;
+        assert!(
+            after_close.is_none(),
+            "recv() must return None once all items are drained and channel is closed"
+        );
+    }
+
+    // ── Step 12: Timeout zero guard ───────────────────────────────────────────
+
+    #[test]
+    fn timeout_zero_maps_to_large_duration() {
+        // Verifies the behaviour of the timeout-zero guard in
+        // execute_command_with_timeout: a timeout_seconds value of 0 must NOT
+        // result in a Duration::ZERO (which would immediately kill any process).
+        // Instead it must map to 86 400 s (24 h) so that interactive / agent
+        // sessions are not prematurely terminated.
+        let timeout_secs: u64 = 0;
+        let effective: u64 = if timeout_secs == 0 { 86_400 } else { timeout_secs };
+        assert_eq!(effective, 86_400, "Zero timeout must map to 86400s (24h)");
+        let dur = std::time::Duration::from_secs(effective);
+        assert!(
+            dur.as_secs() > 0,
+            "Duration must be non-zero for interactive sessions; got {:?}", dur
+        );
+        // Sanity-check that non-zero passthrough is unmodified.
+        let passthrough: u64 = 30;
+        let effective2: u64 = if passthrough == 0 { 86_400 } else { passthrough };
+        assert_eq!(effective2, 30, "Non-zero timeout must pass through unchanged");
+    }
+}

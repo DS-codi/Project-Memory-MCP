@@ -57,6 +57,8 @@ interface TransportEntry {
   transport: StreamableHTTPServerTransport | SSEServerTransport;
   type: 'streamable-http' | 'sse';
   connectedAt: string; // ISO 8601
+  /** The _session_id passed by the client in its first tool call, used to cross-reference the live session store. */
+  lastSessionId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -267,6 +269,18 @@ export function createHttpApp(getServer: () => McpServer): Express {
         return;
       }
 
+      // Capture _session_id from tool call bodies so /admin/connections can
+      // cross-reference the live session store (which is keyed by _session_id,
+      // not by the transport UUID).
+      if (sessionId && transports[sessionId] && !transports[sessionId].lastSessionId) {
+        const body = req.body as Record<string, unknown> | undefined;
+        const args = (body?.params as Record<string, unknown> | undefined)?.arguments as Record<string, unknown> | undefined;
+        const sid = args?._session_id;
+        if (typeof sid === 'string' && sid) {
+          transports[sessionId].lastSessionId = sid;
+        }
+      }
+
       await transport.handleRequest(req, res, req.body);
     } catch (error) {
       console.error('[http] Error handling /mcp:', error);
@@ -358,13 +372,26 @@ export function createHttpApp(getServer: () => McpServer): Express {
       return;
     }
 
+    // Capture _session_id from the first tool call for live store cross-referencing.
+    if (!entry.lastSessionId) {
+      const body = req.body as Record<string, unknown> | undefined;
+      const args = (body?.params as Record<string, unknown> | undefined)?.arguments as Record<string, unknown> | undefined;
+      const sid = args?._session_id;
+      if (typeof sid === 'string' && sid) {
+        entry.lastSessionId = sid;
+      }
+    }
+
     await (entry.transport as SSEServerTransport).handlePostMessage(req, res, req.body);
   });
 
   // ---- Admin: list active connections (for supervisor polling) ----
   app.get('/admin/connections', (_req: Request, res: Response) => {
     const connections = Object.entries(transports).map(([sessionId, entry]) => {
-      const liveEntry = getLiveSessionEntry(sessionId);
+      // Live store is keyed by the client's _session_id (from tool params), not the
+      // transport UUID — use lastSessionId (captured from the first tool call body)
+      // as the lookup key, falling back to the transport UUID for legacy paths.
+      const liveEntry = getLiveSessionEntry(entry.lastSessionId ?? sessionId);
       return {
         sessionId,
         type: entry.type,
@@ -374,6 +401,7 @@ export function createHttpApp(getServer: () => McpServer): Express {
         agentType: liveEntry?.agentType ?? null,
         workspaceId: liveEntry?.workspaceId ?? null,
         planId: liveEntry?.planId ?? null,
+        clientType: liveEntry?.clientType ?? null,
       };
     });
     res.json(connections);

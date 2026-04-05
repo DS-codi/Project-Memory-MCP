@@ -750,7 +750,7 @@ server.tool(
   'memory_session',
   'Agent session management and spawn preparation. Actions: prep (mint session ID + enrich prompt), deploy_and_prep (deploy context bundle + prepare enriched prompt in one call), list_sessions (query sessions from plan state), get_session (find a specific session by ID).',
   {
-    action: z.enum(['prep', 'deploy_and_prep', 'list_sessions', 'get_session']).describe('The action to perform'),
+    action: z.enum(['prep', 'deploy_and_prep', 'list_sessions', 'get_session', 'session_start']).describe('The action to perform'),
     workspace_id: z.string().optional().describe('Workspace ID'),
     plan_id: z.string().optional().describe('Plan ID'),
     agent_name: z.string().optional().describe('Target agent name (for prep/deploy_and_prep)'),

@@ -6,6 +6,7 @@ import {
   Show,
   For,
 } from "solid-js";
+import { useSearchParams, useNavigate } from "@solidjs/router";
 import TerminalView, { type TerminalHandle } from "../components/TerminalView";
 import MobileKeybar from "../components/MobileKeybar";
 import FileExplorerPanel from "../components/FileExplorerPanel";
@@ -35,42 +36,45 @@ interface PanelProps {
   focused: boolean;
   onFocus: () => void;
   onUnfocus: () => void;
+  isRemoteDesktop?: boolean;
   children: any;
 }
 
 function MonitorPanel(props: PanelProps) {
   return (
     <div
-      class={`monitor-panel${props.focused ? " focused" : ""}`}
+      class={`monitor-panel${props.focused ? " focused" : ""}${props.isRemoteDesktop ? " rdp-mode" : ""}`}
       data-panel={props.id}
     >
-      <div class="panel-header">
-        <span class="panel-icon">{props.icon}</span>
-        <div class="panel-tabs">
-          <For each={props.tabs}>
-            {(tab) => (
-              <button
-                class={`panel-tab${tab.id === props.activeTab ? " active" : ""}`}
-                onClick={() => props.onTabChange(tab.id)}
-              >
-                {tab.label}
+      <Show when={!props.isRemoteDesktop}>
+        <div class="panel-header">
+          <span class="panel-icon">{props.icon}</span>
+          <div class="panel-tabs">
+            <For each={props.tabs}>
+              {(tab) => (
+                <button
+                  class={`panel-tab${tab.id === props.activeTab ? " active" : ""}`}
+                  onClick={() => props.onTabChange(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              )}
+            </For>
+            <Show when={props.onAddTab}>
+              <button class="panel-tab-add" onClick={props.onAddTab} title="New tab">
+                +
               </button>
-            )}
-          </For>
-          <Show when={props.onAddTab}>
-            <button class="panel-tab-add" onClick={props.onAddTab} title="New tab">
-              +
-            </button>
-          </Show>
+            </Show>
+          </div>
+          <button
+            class="panel-focus-btn"
+            title={props.focused ? "Restore" : "Maximise"}
+            onClick={() => (props.focused ? props.onUnfocus() : props.onFocus())}
+          >
+            {props.focused ? "⊟" : "⊡"}
+          </button>
         </div>
-        <button
-          class="panel-focus-btn"
-          title={props.focused ? "Restore" : "Maximise"}
-          onClick={() => (props.focused ? props.onUnfocus() : props.onFocus())}
-        >
-          {props.focused ? "⊟" : "⊡"}
-        </button>
-      </div>
+      </Show>
       <div class="panel-content">{props.children}</div>
     </div>
   );
@@ -144,7 +148,9 @@ function IframePanel(props: { src: string; title: string }) {
 // ── Main MonitorScreen ────────────────────────────────────────────────────────
 
 export default function MonitorScreen() {
+  const [searchParams] = useSearchParams();
   const [focusedPanel, setFocusedPanel] = createSignal<PanelId | null>(null);
+  const [activeApp, setActiveApp] = createSignal<PanelId>("dashboard");
 
   // Terminal sessions
   const [termSessions, setTermSessions] = createSignal<TabDef[]>([
@@ -152,24 +158,65 @@ export default function MonitorScreen() {
   ]);
   const [activeTermSession, setActiveTermSession] = createSignal("main");
 
-  // File explorer root tabs are managed inside the component
-  const fileTabs: TabDef[] = [{ id: "files", label: "Files" }];
-
-  // Iframe URLs — derive from server config or use relative paths for browser mode
+  // Iframe URLs
   const [dashUrl, setDashUrl] = createSignal("http://127.0.0.1:3459");
   const [supervisorUrl, setSupervisorUrl] = createSignal("http://127.0.0.1:3464/gui/ping");
 
+  // Allowed apps from URL
+  const allowedApps = () => {
+    const appsStr = searchParams.apps;
+    if (!appsStr) return ["terminal", "files", "dashboard", "supervisor"] as PanelId[];
+    return appsStr.split(",") as PanelId[];
+  };
+
+  const isRdpMode = () => !!searchParams.apps;
+  const monitorLabel = () => searchParams.monitor ? `Monitor ${searchParams.monitor}` : "Virtual Monitor";
+
+  const [isAuthorized, setIsAuthorized] = createSignal(false);
+  const navigate = useNavigate();
+
   onMount(async () => {
+    // 1. Check URL for API Key (from QR) or Session Token
+    const urlKey = searchParams.key;
+    const urlToken = searchParams.token;
+    
+    if (urlKey) {
+      localStorage.setItem("pm_api_key", urlKey);
+      setIsAuthorized(true);
+    } else if (urlToken) {
+      localStorage.setItem("pm_session_token", urlToken);
+      localStorage.setItem("pm_token_expiry", (Date.now() + 86400000).toString());
+      setIsAuthorized(true);
+    } else {
+      // 2. Check LocalStorage for persistent session (24h)
+      const storedToken = localStorage.getItem("pm_session_token");
+      const expiry = localStorage.getItem("pm_token_expiry");
+      const now = Date.now();
+      
+      if (storedToken && expiry && parseInt(expiry) > now) {
+        setIsAuthorized(true);
+      } else {
+        // 3. Unauthorized -> Redirect to Login
+        const currentUrl = window.location.href;
+        navigate(`/auth?redirect=${encodeURIComponent(currentUrl)}`);
+        return;
+      }
+    }
+
     const isBrowser = !(window as any).Capacitor?.isNativePlatform?.();
     if (!isBrowser) {
       const cfg = await getServerConfig();
       if (cfg) {
-        setDashUrl(`http://${cfg.host}:${cfg.httpPort + 1}`); // dashboard is httpPort+1 by convention
+        setDashUrl(`http://${cfg.host}:${cfg.httpPort + 1}`);
         setSupervisorUrl(`http://${cfg.host}:3464`);
       }
     }
-    // In browser mode Vite proxies /gui → 3464, but we need a full URL for the
-    // dashboard iframe which is a separate origin (port 3459).
+    
+    // Auto-select first allowed app
+    const apps = allowedApps();
+    if (apps.length > 0) {
+      setActiveApp(apps[0]);
+    }
   });
 
   function addTermSession() {
@@ -180,27 +227,37 @@ export default function MonitorScreen() {
 
   function unfocus() { setFocusedPanel(null); }
 
-  const isFocused = (id: PanelId) => focusedPanel() === id;
-  const isHidden = (id: PanelId) =>
-    focusedPanel() !== null && focusedPanel() !== id;
+  const isFocused = (id: PanelId) => isRdpMode() ? activeApp() === id : focusedPanel() === id;
+  const isHidden = (id: PanelId) => {
+    if (isRdpMode()) return activeApp() !== id;
+    return focusedPanel() !== null && focusedPanel() !== id;
+  };
+
+  const appIcons: Record<PanelId, string> = {
+    terminal: "⌨",
+    files: "📁",
+    dashboard: "🏠",
+    supervisor: "🖥",
+  };
 
   return (
-    <div class="monitor-screen">
-      {/* Minimal chrome */}
-      <div class="monitor-header">
-        <span class="monitor-title">⬛ Virtual Monitor</span>
-        <Show when={focusedPanel()}>
+    <Show when={isAuthorized()}>
+      <div class={`monitor-screen${isRdpMode() ? " rdp-mode" : ""}`}>
+        {/* Header */}
+        <div class="monitor-header">
+        <span class="monitor-title">⬛ {monitorLabel()}</span>
+        <Show when={focusedPanel() && !isRdpMode()}>
           <button class="monitor-restore-btn" onClick={unfocus}>
             ⊟ Restore grid
           </button>
         </Show>
       </div>
 
-      {/* 2×2 tile grid */}
-      <div class={`monitor-grid${focusedPanel() ? " has-focus" : ""}`}>
+      {/* Main View Area */}
+      <div class={`monitor-grid${(focusedPanel() || isRdpMode()) ? " has-focus" : ""}`}>
 
         {/* ── Terminal ─────────────────────────────────────────────────────── */}
-        <Show when={!isHidden("terminal")}>
+        <Show when={allowedApps().includes("terminal") && !isHidden("terminal")}>
           <MonitorPanel
             id="terminal"
             label="Terminal"
@@ -212,6 +269,7 @@ export default function MonitorScreen() {
             focused={isFocused("terminal")}
             onFocus={() => setFocusedPanel("terminal")}
             onUnfocus={unfocus}
+            isRemoteDesktop={isRdpMode()}
           >
             <For each={termSessions()}>
               {(session) => (
@@ -227,24 +285,25 @@ export default function MonitorScreen() {
         </Show>
 
         {/* ── File Explorer ────────────────────────────────────────────────── */}
-        <Show when={!isHidden("files")}>
+        <Show when={allowedApps().includes("files") && !isHidden("files")}>
           <MonitorPanel
             id="files"
             label="Files"
             icon="📁"
-            tabs={fileTabs}
+            tabs={[{ id: "files", label: "Files" }]}
             activeTab="files"
             onTabChange={() => {}}
             focused={isFocused("files")}
             onFocus={() => setFocusedPanel("files")}
             onUnfocus={unfocus}
+            isRemoteDesktop={isRdpMode()}
           >
             <FileExplorerPanel />
           </MonitorPanel>
         </Show>
 
         {/* ── Dashboard ────────────────────────────────────────────────────── */}
-        <Show when={!isHidden("dashboard")}>
+        <Show when={allowedApps().includes("dashboard") && !isHidden("dashboard")}>
           <MonitorPanel
             id="dashboard"
             label="Dashboard"
@@ -255,13 +314,14 @@ export default function MonitorScreen() {
             focused={isFocused("dashboard")}
             onFocus={() => setFocusedPanel("dashboard")}
             onUnfocus={unfocus}
+            isRemoteDesktop={isRdpMode()}
           >
             <IframePanel src={dashUrl()} title="Dashboard" />
           </MonitorPanel>
         </Show>
 
         {/* ── Supervisor ───────────────────────────────────────────────────── */}
-        <Show when={!isHidden("supervisor")}>
+        <Show when={allowedApps().includes("supervisor") && !isHidden("supervisor")}>
           <MonitorPanel
             id="supervisor"
             label="Supervisor"
@@ -272,12 +332,36 @@ export default function MonitorScreen() {
             focused={isFocused("supervisor")}
             onFocus={() => setFocusedPanel("supervisor")}
             onUnfocus={unfocus}
+            isRemoteDesktop={isRdpMode()}
           >
             <IframePanel src={supervisorUrl()} title="Supervisor" />
           </MonitorPanel>
         </Show>
 
       </div>
-    </div>
+
+      {/* RDP Taskbar */}
+      <Show when={isRdpMode()}>
+        <div class="rdp-taskbar">
+          <div class="rdp-menu-btn">⠿</div>
+          <div class="rdp-apps">
+            <For each={allowedApps()}>
+              {(app) => (
+                <button 
+                  class={`rdp-app-btn${activeApp() === app ? " active" : ""}`}
+                  onClick={() => setActiveApp(app)}
+                >
+                  <span class="rdp-app-icon">{appIcons[app]}</span>
+                  <span class="rdp-app-name">{app}</span>
+                </button>
+              )}
+            </For>
+          </div>
+          <div class="rdp-system-info">
+            {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </div>
+        </div>
+      </Show>
+    </Show>
   );
 }

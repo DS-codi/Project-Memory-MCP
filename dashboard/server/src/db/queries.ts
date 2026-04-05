@@ -92,6 +92,27 @@ export function getAllPlans(includeArchived = false): PlanRow[] {
   return getDb().prepare(sql).all() as PlanRow[];
 }
 
+export function deletePlanFromDb(planId: string): void {
+  const db = getDb();
+  db.prepare("DELETE FROM context_items WHERE parent_type = 'plan' AND parent_id = ?").run(planId);
+  db.prepare('DELETE FROM plan_notes WHERE plan_id = ?').run(planId);
+  db.prepare('DELETE FROM lineage WHERE plan_id = ?').run(planId);
+  db.prepare('DELETE FROM sessions WHERE plan_id = ?').run(planId);
+  db.prepare('DELETE FROM steps WHERE plan_id = ?').run(planId);
+  db.prepare('DELETE FROM phases WHERE plan_id = ?').run(planId);
+  db.prepare('DELETE FROM program_plans WHERE plan_id = ?').run(planId);
+  db.prepare('DELETE FROM plan_workflow_settings WHERE plan_id = ?').run(planId);
+  db.prepare('DELETE FROM build_scripts WHERE plan_id = ?').run(planId);
+  db.prepare('DELETE FROM plans WHERE id = ?').run(planId);
+}
+
+export function archivePlanInDb(planId: string): void {
+  const now = new Date().toISOString();
+  getDb()
+    .prepare("UPDATE plans SET status = 'archived', archived_at = ?, updated_at = ? WHERE id = ?")
+    .run(now, now, planId);
+}
+
 export function getPlanPhases(planId: string): PhaseRow[] {
   return getDb()
     .prepare('SELECT * FROM phases WHERE plan_id = ? ORDER BY order_index ASC')

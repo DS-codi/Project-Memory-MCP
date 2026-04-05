@@ -83,8 +83,8 @@ impl cxx_qt::Initialize for ffi::SupervisorGuiBridge {
             .set_dashboard_status(QString::from("Starting\u{2026}"));
         self.as_mut()
             .set_fallback_status(QString::from("Starting\u{2026}"));
-        self.as_mut()
-            .set_cli_mcp_status(QString::from("Starting\u{2026}"));
+        self.as_mut().set_proxy_session_count(0);
+        self.as_mut().set_proxy_sessions_json(QString::from("[]"));
         self.as_mut().set_event_subscriber_count(0);
         self.as_mut().set_event_broadcast_enabled(false);
         self.as_mut().set_events_total_emitted(0);

@@ -17,3 +17,4 @@ anyhow = { workspace = true }
 rand = { workspace = true }
 chrono = { workspace = true }
 rusqlite = { version = "0.32", features = ["bundled"] }
+futures-util = { workspace = true }
