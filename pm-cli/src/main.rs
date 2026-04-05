@@ -1,6 +1,7 @@
 mod animations;
 mod build_phase;
 mod builds;
+mod code_index;
 mod command_registry;
 mod fallback;
 mod global_claude;

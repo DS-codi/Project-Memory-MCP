@@ -5,7 +5,9 @@
 // run_native_streaming – re-invokes this binary as a CLI subcommand (Phase 2+ native builds)
 
 use crate::animations::{AnimStyle, BannerRenderer, BANNER, PALETTE_DEFAULT};
+use crate::code_index;
 use crate::command_registry::CommandRegistry;
+use crate::utils::project_root;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::{
     backend::CrosstermBackend,
@@ -56,6 +58,18 @@ pub fn run_build_component(
         vec![component]
     };
 
+    let root = project_root();
+
+    // Snapshot current source state for each sub-component, diff against last build.
+    let mut changelogs: Vec<(String, code_index::ChangeLog)> = Vec::new();
+    for comp in &sub_components {
+        let old = code_index::load(comp, &root).unwrap_or_default();
+        let current = code_index::snapshot(comp, &root);
+        let cl = code_index::diff(&old, &current);
+        code_index::save(comp, &current, &root);
+        changelogs.push((comp.to_string(), cl));
+    }
+
     let mut results: Vec<PhaseResult> = Vec::new();
 
     for comp in &sub_components {
@@ -72,7 +86,7 @@ pub fn run_build_component(
         }
     }
 
-    crate::warning_summary::show_warning_summary(terminal, &results, anim_style)
+    crate::warning_summary::show_warning_summary(terminal, &results, &changelogs, anim_style)
 }
 
 // ─── Build Phase ─────────────────────────────────────────────────────────────

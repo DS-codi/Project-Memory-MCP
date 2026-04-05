@@ -1,7 +1,25 @@
 // utils.rs — Clipboard integration, timestamped log saving, detached process launcher.
 
 use std::io::{self, Write};
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
+
+/// Returns the project root by walking up from the exe until a `Cargo.toml` is found.
+/// Falls back to the current working directory.
+pub fn project_root() -> PathBuf {
+    let exe = match std::env::current_exe() {
+        Ok(p) => p,
+        Err(_) => return std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+    };
+    let mut candidate = exe.parent().map(|p| p.to_path_buf());
+    while let Some(dir) = candidate {
+        if dir.join("Cargo.toml").exists() {
+            return dir;
+        }
+        candidate = dir.parent().map(|p| p.to_path_buf());
+    }
+    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+}
 
 /// Copies `text` to the Windows clipboard via PowerShell's Set-Clipboard.
 pub fn copy_to_clipboard(text: &str) -> io::Result<()> {
