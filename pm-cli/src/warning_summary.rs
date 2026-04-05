@@ -1,12 +1,13 @@
 // warning_summary.rs — Post-build summary with tabs: Summary | Changelog | Diagnostics.
 //
 // Keys:
-//   Tab / 1-3  switch tabs
-//   j/k / ↑↓   scroll (Changelog + Diagnostics tabs)
-//   PgDn/PgUp  fast scroll
-//   C          copy full structured report (changelog + errors + warnings) to clipboard
-//   S          save full report to timestamped file
-//   Esc/Enter  return to menu
+//   Tab / 1-3   switch tabs
+//   j/k / ↑↓    scroll (Changelog + Diagnostics tabs)
+//   PgDn/PgUp   fast scroll
+//   C            copy full structured report (changelog + errors + warnings) to clipboard
+//   S            save full report to timestamped file
+//   Ctrl+C       save report to file AND copy an agent fix-it prompt to clipboard
+//   Esc/Enter    return to menu
 
 use crate::animations::{AnimStyle, BannerRenderer, BANNER, PALETTE_ERROR, PALETTE_SUCCESS, PALETTE_WARN};
 use crate::build_phase::PhaseResult;
@@ -14,7 +15,7 @@ use crate::code_index::{self, ChangeLog, LineKind};
 use crate::utils::{copy_to_clipboard, save_logs_to_file};
 use crossterm::{
     cursor,
-    event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
+    event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     execute, terminal,
 };
 use ratatui::{
@@ -142,7 +143,7 @@ pub fn show_warning_summary(
 
             // Footer
             f.render_widget(
-                Paragraph::new("  Tab/1-3 switch  j/k scroll  C copy report  S save  Esc return")
+                Paragraph::new("  Tab/1-3 switch  j/k scroll  C copy report  S save  Ctrl+C save+agent prompt  Esc return")
                     .style(Style::default().fg(Color::DarkGray)),
                 chunks[4],
             );
@@ -150,7 +151,7 @@ pub fn show_warning_summary(
 
         let timeout = tick_rate.checked_sub(last_frame.elapsed()).unwrap_or(Duration::ZERO);
         if event::poll(timeout)? {
-            if let Event::Key(KeyEvent { code, kind: KeyEventKind::Press, .. }) = event::read()? {
+            if let Event::Key(KeyEvent { code, modifiers, kind: KeyEventKind::Press, .. }) = event::read()? {
                 let scroll_len = match active_tab {
                     Tab::Summary => 0,
                     Tab::Changelog => changelog_lines.len(),
@@ -181,6 +182,29 @@ pub fn show_warning_summary(
                     KeyCode::PageUp => {
                         scroll = scroll.saturating_sub(20);
                     }
+                    // Ctrl+C — save report to file, copy agent fix-it prompt to clipboard
+                    KeyCode::Char('c') if modifiers.contains(KeyModifiers::CONTROL) => {
+                        let _ = terminal::disable_raw_mode();
+                        let _ = execute!(io::stdout(), terminal::LeaveAlternateScreen, cursor::Show);
+                        match save_logs_to_file(&report) {
+                            Ok(name) => {
+                                let full_path = std::env::current_dir()
+                                    .map(|d| d.join(&name).to_string_lossy().to_string())
+                                    .unwrap_or(name.clone());
+                                let components: Vec<&str> = changelogs.iter().map(|(c, _)| c.as_str()).collect();
+                                let comp_list = if components.len() == 1 { components[0].to_string() } else { components.join(", ") };
+                                let prompt = build_agent_prompt(&full_path, &comp_list);
+                                let _ = copy_to_clipboard(&prompt);
+                                println!("Saved to {} — agent prompt copied to clipboard", name);
+                            }
+                            Err(e) => println!("Error saving: {e}"),
+                        }
+                        std::thread::sleep(Duration::from_millis(1500));
+                        let _ = terminal::enable_raw_mode();
+                        let _ = execute!(io::stdout(), terminal::EnterAlternateScreen, cursor::Hide);
+                        let _ = terminal.clear();
+                    }
+                    // C — copy full structured report to clipboard
                     KeyCode::Char('c') | KeyCode::Char('C') => {
                         let _ = copy_to_clipboard(&report);
                     }
@@ -283,4 +307,14 @@ fn render_scroll(
             .block(Block::default().title(title).borders(Borders::ALL)),
         area,
     );
+}
+
+// ─── Agent fix-it prompt ──────────────────────────────────────────────────────
+
+fn build_agent_prompt(file_path: &str, components: &str) -> String {
+    format!(
+        r#"The file "{}" contains build output for the following components in the project memory system: {}
+please begin working on resolving each error and warning. Do not do anything to hide warnings. Deleting code or using "allow dead code" are strictly prohibited. Fix the source of each issue"#,
+        file_path, components
+    )
 }
