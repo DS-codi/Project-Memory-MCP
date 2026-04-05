@@ -170,6 +170,14 @@ pub fn supervisor_iced() -> Result<(), String> {
     Ok(())
 }
 
+/// Builds client-proxy: `cargo build --release -p client-proxy`.
+pub fn client_proxy() -> Result<(), String> {
+    println!("-- Building client-proxy");
+    run_in("cargo", &["build", "--release", "-p", "client-proxy"], Path::new("."))?;
+    println!("client-proxy built OK -> target/release/client-proxy.exe");
+    Ok(())
+}
+
 /// Builds cartographer-core: `cargo build --release -p cartographer-core`.
 pub fn cartographer() -> Result<(), String> {
     println!("-- Building cartographer-core");

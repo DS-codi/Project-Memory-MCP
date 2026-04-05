@@ -26,19 +26,6 @@ const LOCAL_CAPABLE: &[&str] = &[
     "memory_instructions",
 ];
 
-// ── All upstream-managed tool names (for degraded-mode tool list) ─────────────
-
-const UPSTREAM_ONLY_NAMES: &[&str] = &[
-    "memory_context",
-    "memory_session",
-    "memory_agent",
-    "memory_filesystem",
-    "memory_terminal",
-    "memory_brainstorm",
-    "memory_cartographer",
-    "memory_sprint",
-];
-
 // ─────────────────────────────────────────────────────────────────────────────
 
 pub struct Proxy {
@@ -189,14 +176,15 @@ impl Proxy {
             return json_result(id, result);
         }
 
-        // Upstream-only tool — return informative error.
+        // Upstream-only tool — supervisor not reachable.
         json_result(id, json!({
             "content": [{
                 "type": "text",
                 "text": format!(
-                    "Project Memory supervisor is down — '{name}' is unavailable.\n\
-                     Use 'runtime_mode' to check connection status, or 'memory_plan'/'memory_steps' \
-                     to continue working with your current plan while the supervisor restarts."
+                    "'{name}' requires the Project Memory supervisor, which is not currently reachable.\n\
+                     The supervisor will reconnect automatically. \
+                     Use 'runtime_mode' to check status, or 'memory_plan'/'memory_steps'/'memory_workspace'/'memory_instructions' \
+                     for operations that work without the supervisor."
                 )
             }],
             "isError": true
@@ -275,7 +263,7 @@ impl Proxy {
                 }
             }
             other => Ok(json!({
-                "error": format!("action '{other}' not available in degraded mode"),
+                "error": format!("action '{other}' is not supported by the local handler; start the supervisor for full access"),
                 "available_actions": ["list", "info"]
             })),
         };
@@ -300,7 +288,7 @@ impl Proxy {
                 db::plan::get_plan(&db, plan_id).map(|p| p.unwrap_or(Value::Null))
             }
             other => Ok(json!({
-                "error": format!("action '{other}' not available in degraded mode"),
+                "error": format!("action '{other}' is not supported by the local handler; start the supervisor for full access"),
                 "available_actions": ["list", "get"]
             })),
         };
@@ -348,7 +336,7 @@ impl Proxy {
                     .map(|_| json!({ "updated": count }))
             }
             other => Ok(json!({
-                "error": format!("action '{other}' not available in degraded mode"),
+                "error": format!("action '{other}' is not supported by the local handler; start the supervisor for full access"),
                 "available_actions": ["list", "next", "update", "batch_update"]
             })),
         };
@@ -387,7 +375,7 @@ impl Proxy {
                     .map(|rows| json!({ "instructions": rows }))
             }
             other => Ok(json!({
-                "error": format!("action '{other}' not available in degraded mode"),
+                "error": format!("action '{other}' is not supported by the local handler; start the supervisor for full access"),
                 "available_actions": ["list", "get", "get_section", "search", "list_workspace"]
             })),
         };
@@ -483,10 +471,123 @@ fn local_tool_definitions() -> Vec<Value> {
 fn static_tool_list() -> Vec<Value> {
     let mut tools = local_tool_definitions();
 
-    // Local-capable tools.
     tools.push(json!({
         "name": "memory_workspace",
-        "description": "List workspaces or get workspace info. Actions: list, info (+ register/reindex when supervisor is online).",
+        "description": "Register, list, and query workspaces. Actions: register, list, info, reindex, merge, link, set_display_name, inject_cli_mcp, and more.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "action":           { "type": "string" },
+                "workspace_id":     { "type": "string" },
+                "workspace_path":   { "type": "string" },
+                "path":             { "type": "string" },
+                "name":             { "type": "string" },
+                "all_workspaces":   { "type": "boolean" },
+                "cli_mcp_port":     { "type": "number" }
+            },
+            "required": ["action"]
+        }
+    }));
+    tools.push(json!({
+        "name": "memory_plan",
+        "description": "Create and manage implementation plans. Actions: create, list, get, update, archive, find, add_note, confirm, set_goals, and more.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "action":       { "type": "string" },
+                "workspace_id": { "type": "string" },
+                "plan_id":      { "type": "string" },
+                "title":        { "type": "string" },
+                "description":  { "type": "string" },
+                "status":       { "type": "string" },
+                "category":     { "type": "string" },
+                "priority":     { "type": "string" },
+                "goals":        { "type": "array", "items": { "type": "string" } }
+            },
+            "required": ["action"]
+        }
+    }));
+    tools.push(json!({
+        "name": "memory_steps",
+        "description": "Manage plan steps — add, update status, reorder, and track progress. Actions: add, list, next, update, batch_update, insert, delete, reorder, move, sort.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "action":             { "type": "string" },
+                "plan_id":            { "type": "string" },
+                "step_id":            { "type": "string" },
+                "phase":              { "type": "string" },
+                "task":               { "type": "string" },
+                "status":             { "type": "string", "enum": ["pending","active","done","blocked"] },
+                "notes":              { "type": "string" },
+                "completed_by_agent": { "type": "string" },
+                "updates":            { "type": "array" }
+            },
+            "required": ["action"]
+        }
+    }));
+    tools.push(json!({
+        "name": "memory_instructions",
+        "description": "Store and retrieve instruction files for agents. Actions: list, get, get_section, search, list_workspace, assign_priority.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "action":       { "type": "string" },
+                "filename":     { "type": "string" },
+                "heading":      { "type": "string" },
+                "query":        { "type": "string" },
+                "workspace_id": { "type": "string" },
+                "content":      { "type": "string" },
+                "applies_to":   { "type": "string" }
+            },
+            "required": ["action"]
+        }
+    }));
+    tools.push(json!({
+        "name": "memory_context",
+        "description": "Store and retrieve research findings, decisions, and architectural notes across sessions.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "action":       { "type": "string" },
+                "workspace_id": { "type": "string" },
+                "key":          { "type": "string" },
+                "content":      { "type": "string" },
+                "category":     { "type": "string" }
+            },
+            "required": ["action"]
+        }
+    }));
+    tools.push(json!({
+        "name": "memory_session",
+        "description": "Prepare and track agent sessions, surface relevant context on startup.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "action":       { "type": "string" },
+                "workspace_id": { "type": "string" },
+                "agent_type":   { "type": "string" },
+                "session_id":   { "type": "string" }
+            },
+            "required": ["action"]
+        }
+    }));
+    tools.push(json!({
+        "name": "memory_agent",
+        "description": "Agent lifecycle management, skills, and instruction dispatch.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "action":       { "type": "string" },
+                "workspace_id": { "type": "string" },
+                "agent_id":     { "type": "string" }
+            },
+            "required": ["action"]
+        }
+    }));
+    tools.push(json!({
+        "name": "memory_filesystem",
+        "description": "Track file operations and workspace file changes.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -498,60 +599,56 @@ fn static_tool_list() -> Vec<Value> {
         }
     }));
     tools.push(json!({
-        "name": "memory_plan",
-        "description": "List or get plans. Actions: list, get (+ create/update/archive when supervisor is online).",
+        "name": "memory_terminal",
+        "description": "Terminal session context and command history tracking.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "action":     { "type": "string" },
+                "session_id": { "type": "string" }
+            },
+            "required": ["action"]
+        }
+    }));
+    tools.push(json!({
+        "name": "memory_brainstorm",
+        "description": "Structured brainstorming sessions with idea capture and organisation.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "action":       { "type": "string" },
                 "workspace_id": { "type": "string" },
-                "plan_id":      { "type": "string" },
-                "status":       { "type": "string" }
+                "topic":        { "type": "string" }
             },
             "required": ["action"]
         }
     }));
     tools.push(json!({
-        "name": "memory_steps",
-        "description": "Update plan steps. Actions: next, update, batch_update (+ add/insert/reorder when supervisor is online).",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "action":             { "type": "string" },
-                "plan_id":            { "type": "string" },
-                "step_id":            { "type": "string" },
-                "status":             { "type": "string", "enum": ["pending","active","done","blocked"] },
-                "notes":              { "type": "string" },
-                "completed_by_agent": { "type": "string" },
-                "updates":            { "type": "array" }
-            },
-            "required": ["action"]
-        }
-    }));
-    tools.push(json!({
-        "name": "memory_instructions",
-        "description": "Read instruction files. Actions: list, get, get_section, search, list_workspace.",
+        "name": "memory_cartographer",
+        "description": "Codebase exploration and mapping — index and query project structure.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "action":       { "type": "string" },
-                "filename":     { "type": "string" },
-                "heading":      { "type": "string" },
-                "query":        { "type": "string" },
-                "workspace_id": { "type": "string" }
+                "workspace_id": { "type": "string" },
+                "path":         { "type": "string" }
             },
             "required": ["action"]
         }
     }));
-
-    // Upstream-only tools — included in the list so LLMs know about them.
-    for name in UPSTREAM_ONLY_NAMES {
-        tools.push(json!({
-            "name": *name,
-            "description": format!("{name} — requires supervisor (currently unavailable in degraded mode)."),
-            "inputSchema": { "type": "object", "properties": {}, "required": [] }
-        }));
-    }
+    tools.push(json!({
+        "name": "memory_sprint",
+        "description": "Sprint and goal tracking — create and manage short-horizon delivery goals.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "action":       { "type": "string" },
+                "workspace_id": { "type": "string" },
+                "sprint_id":    { "type": "string" }
+            },
+            "required": ["action"]
+        }
+    }));
 
     tools
 }

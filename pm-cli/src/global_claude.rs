@@ -66,6 +66,9 @@ const AGENT_FILES: &[&str] = &[
     "shell-claude.agent.md",
 ];
 
+/// Each MCP server entry: (name, upstream_mcp_url).
+/// Written as stdio entries pointing at client-proxy.exe so sessions have
+/// graceful degradation when the supervisor is restarting.
 const MCP_SERVERS: &[(&str, &str)] = &[
     ("project-memory-cli",    "http://127.0.0.1:3466/mcp"),
     ("project-memory",        "http://127.0.0.1:3457/mcp"),
@@ -86,6 +89,8 @@ const ALLOWLIST_TOOLS: &[&str] = &[
     "mcp__project-memory-cli__memory_sprint",
     "mcp__project-memory-cli__memory_terminal",
     "mcp__project-memory-cli__memory_task",
+    "mcp__project-memory-cli__runtime_mode",
+    "mcp__project-memory-cli__ping",
     "mcp__project-memory__memory_agent",
     "mcp__project-memory__memory_plan",
     "mcp__project-memory__memory_session",
@@ -99,6 +104,8 @@ const ALLOWLIST_TOOLS: &[&str] = &[
     "mcp__project-memory__memory_sprint",
     "mcp__project-memory__memory_terminal",
     "mcp__project-memory__memory_task",
+    "mcp__project-memory__runtime_mode",
+    "mcp__project-memory__ping",
     "mcp__project-memory-claude__memory_agent",
     "mcp__project-memory-claude__memory_plan",
     "mcp__project-memory-claude__memory_session",
@@ -110,6 +117,8 @@ const ALLOWLIST_TOOLS: &[&str] = &[
     "mcp__project-memory-claude__memory_sprint",
     "mcp__project-memory-claude__memory_terminal",
     "mcp__project-memory-claude__memory_task",
+    "mcp__project-memory-claude__runtime_mode",
+    "mcp__project-memory-claude__ping",
 ];
 
 // ---------------------------------------------------------------------------
@@ -209,15 +218,17 @@ fn check_mcp_servers(claude_dir: &Path) -> Result<bool, String> {
 
     let mut all_ok = true;
 
-    for (name, url) in MCP_SERVERS {
-        let registered = s.get("mcpServers")
-            .and_then(|m| m.get(name))
-            .and_then(|v| v.get("url"))
-            .and_then(|v| v.as_str()) == Some(url);
-        if registered {
-            println!("   [ok] MCP server     : {name} -> {url}");
+    for (name, mcp_url) in MCP_SERVERS {
+        let entry = s.get("mcpServers").and_then(|m| m.get(name));
+        let is_stdio = entry.and_then(|v| v.get("type")).and_then(|v| v.as_str()) == Some("stdio");
+        let has_proxy_url = entry
+            .and_then(|v| v.get("env"))
+            .and_then(|e| e.get("PM_MCP_URL"))
+            .and_then(|v| v.as_str()) == Some(mcp_url);
+        if is_stdio && has_proxy_url {
+            println!("   [ok] MCP server     : {name} -> stdio proxy -> {mcp_url}");
         } else {
-            println!("   [!!] Not registered : {name} -> {url}");
+            println!("   [!!] Not registered : {name} -> stdio proxy -> {mcp_url}");
             all_ok = false;
         }
     }
@@ -337,24 +348,36 @@ fn step2_register_mcp_servers(claude_dir: &Path) -> Result<bool, String> {
     let mut s: serde_json::Value = serde_json::from_str(&raw)
         .map_err(|e| format!("Parse settings.json: {e}"))?;
 
-    // ── MCP servers ──────────────────────────────────────────────────────────
+    // Resolve the path to client-proxy.exe from the install config.
+    let install_cfg  = crate::install_config::load_or_default();
+    let proxy_exe    = install_cfg.install_dir.join(crate::install_config::binary_name("client-proxy"));
+    let proxy_path   = proxy_exe.to_string_lossy().to_string();
+
+    // ── MCP servers (stdio proxy) ─────────────────────────────────────────────
     if s.get("mcpServers").is_none() {
         s["mcpServers"] = serde_json::json!({});
     }
 
     let mut any_server_written = false;
-    for (name, url) in MCP_SERVERS {
-        let already = s["mcpServers"]
-            .get(name)
-            .and_then(|v| v.get("url"))
-            .and_then(|v| v.as_str())
-            == Some(url);
+    for (name, mcp_url) in MCP_SERVERS {
+        let entry = s["mcpServers"].get(name);
+        let is_current = entry
+            .and_then(|v| v.get("type")).and_then(|v| v.as_str()) == Some("stdio")
+            && entry
+                .and_then(|v| v.get("env"))
+                .and_then(|e| e.get("PM_MCP_URL"))
+                .and_then(|v| v.as_str()) == Some(mcp_url);
 
-        if already {
-            println!("   [--] {name} already registered");
+        if is_current {
+            println!("   [--] {name} already registered (stdio proxy)");
         } else {
-            s["mcpServers"][name] = serde_json::json!({"type": "http", "url": url});
-            println!("   [ok] Registered {name} -> {url}");
+            s["mcpServers"][name] = serde_json::json!({
+                "type":    "stdio",
+                "command": proxy_path,
+                "args":    [],
+                "env":     { "PM_MCP_URL": mcp_url }
+            });
+            println!("   [ok] Registered {name} -> stdio:{proxy_path} (PM_MCP_URL={mcp_url})");
             any_server_written = true;
         }
     }

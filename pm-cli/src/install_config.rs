@@ -117,7 +117,7 @@ fn bin_ext() -> &'static str {
 }
 
 /// Appends the platform binary extension to `name`.
-fn binary_name(name: &str) -> String {
+pub fn binary_name(name: &str) -> String {
     format!("{}{}", name, bin_ext())
 }
 
@@ -172,6 +172,13 @@ pub fn copy_binaries(config: &InstallConfig, component: &str) -> std::io::Result
                 &config.install_dir,
             )?;
         }
+        "ClientProxy" => {
+            copy_single_binary(
+                Path::new("target/release"),
+                &binary_name("client-proxy"),
+                &config.install_dir,
+            )?;
+        }
         "InteractiveTerminal" => {
             let src_dir = Path::new("interactive-terminal/target/release");
             copy_single_binary(
@@ -186,6 +193,7 @@ pub fn copy_binaries(config: &InstallConfig, component: &str) -> std::io::Result
                 "SupervisorIced",
                 "GuiForms",
                 "Cartographer",
+                "ClientProxy",
                 "InteractiveTerminal",
             ] {
                 copy_binaries(config, sub)?;

@@ -454,13 +454,25 @@ async function injectCliMcpConfig(
   }
 
   const servers = (existing.mcpServers ?? {}) as Record<string, unknown>;
-  const entry = servers[CLI_MCP_ENTRY_KEY] as { url?: string } | undefined;
 
-  if (entry?.url === targetUrl) {
+  // Use a stdio proxy if PM_PROXY_PATH is configured; otherwise fall back to HTTP.
+  const proxyPath = process.env['PM_PROXY_PATH'];
+  const newEntry = proxyPath
+    ? { type: 'stdio', command: proxyPath, args: [], env: { PM_MCP_URL: targetUrl } }
+    : { type: 'http', url: targetUrl };
+
+  // Check if already correct.
+  const entry = servers[CLI_MCP_ENTRY_KEY] as Record<string, unknown> | undefined;
+  const alreadyCorrect = proxyPath
+    ? entry?.['type'] === 'stdio'
+      && (entry?.['env'] as Record<string, string> | undefined)?.['PM_MCP_URL'] === targetUrl
+    : entry?.['url'] === targetUrl;
+
+  if (alreadyCorrect) {
     return 'skipped'; // Already correct
   }
 
-  servers[CLI_MCP_ENTRY_KEY] = { type: 'http', url: targetUrl };
+  servers[CLI_MCP_ENTRY_KEY] = newEntry;
   existing.mcpServers = servers;
 
   await fs.promises.mkdir(workspacePath, { recursive: true });

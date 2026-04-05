@@ -89,7 +89,7 @@ pub fn update_step(
     };
 
     // Build the SET clause dynamically.
-    let mut fields: Vec<&str> = vec!["updated_at = ?1"];
+    let fields: Vec<&str> = vec!["updated_at = ?1"];
     let mut idx = 2usize;
 
     let mut status_param:          Option<String> = None;

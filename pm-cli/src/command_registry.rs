@@ -25,6 +25,7 @@ impl CommandRegistry {
             "dashboard"                                    => "Dashboard",
             "extension"                                    => "Extension",
             "cartographer"                                 => "Cartographer",
+            "clientproxy" | "client-proxy"                 => "ClientProxy",
             "mobile"                                       => "Mobile",
             "container"                                    => "Container",
             "globalclaude" | "global-claude" | "global-claude-code" => "GlobalClaude",
@@ -83,6 +84,9 @@ impl CommandRegistry {
             "SupervisorIced" => vec![
                 ("Rust Build".to_string(), Self::native_phase_args("build-supervisor-iced")),
             ],
+            "ClientProxy" => vec![
+                ("Rust Build".to_string(), Self::native_phase_args("build-client-proxy")),
+            ],
             "Cartographer" => vec![
                 ("Rust Build".to_string(), Self::native_phase_args("build-cartographer")),
             ],
@@ -112,12 +116,12 @@ impl CommandRegistry {
 
     /// Prompts the user interactively about shortcut creation after a successful deploy.
     /// Only runs for components that support shortcuts (Supervisor, SupervisorIced).
-    /// For "All", prompts for SupervisorIced (the primary launcher).
+    /// For "All", prompts for Supervisor (the primary QML launcher).
     fn prompt_shortcuts_after_deploy(component: &str) {
         let shortcut_component = match component {
             "Supervisor"     => "Supervisor",
             "SupervisorIced" => "SupervisorIced",
-            "All"            => "SupervisorIced",
+            "All"            => "Supervisor",
             _                => return, // not a shortcut-capable component
         };
 
@@ -166,7 +170,7 @@ impl CommandRegistry {
                 let targets: Vec<String> = if component == "All" {
                     vec![
                         "Supervisor", "SupervisorIced", "GuiForms", "InteractiveTerminal",
-                        "Server", "Dashboard", "Extension", "Cartographer", "GlobalClaude",
+                        "Server", "Dashboard", "Extension", "Cartographer", "ClientProxy", "GlobalClaude",
                     ]
                     .into_iter()
                     .map(|s| s.to_string())
@@ -215,7 +219,7 @@ impl CommandRegistry {
 
             // ── launch [supervisor|supervisor-iced] ──────────────────────────────
             "launch" => {
-                let target = args.first().map(|s| s.as_str()).unwrap_or("supervisor-iced");
+                let target = args.first().map(|s| s.as_str()).unwrap_or("supervisor");
                 let normalized = Self::normalize_component(target);
                 let config = crate::install_config::load_or_default();
 
@@ -269,6 +273,11 @@ impl CommandRegistry {
             "build-supervisor-iced" => match crate::builds::supervisor_iced() {
                 Ok(()) => 0,
                 Err(e) => { eprintln!("pm-cli build-supervisor-iced: {e}"); 1 }
+            },
+
+            "build-client-proxy" => match crate::builds::client_proxy() {
+                Ok(()) => 0,
+                Err(e) => { eprintln!("pm-cli build-client-proxy: {e}"); 1 }
             },
 
             "build-cartographer" => match crate::builds::cartographer() {
